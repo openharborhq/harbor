@@ -1,0 +1,27 @@
+{
+  "name": "trustworthier",
+  "private": true,
+  "license": "AGPL-3.0-only",
+  "packageManager": "pnpm@10.25.0",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test",
+    "db:generate": "pnpm --filter @trustworthier/db generate",
+    "db:migrate": "pnpm --filter @trustworthier/db migrate"
+  },
+  "devDependencies": {
+    "turbo": "^2"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild",
+      "unrs-resolver"
+    ]
+  }
+}

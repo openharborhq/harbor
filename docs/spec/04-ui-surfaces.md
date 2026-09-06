@@ -1,0 +1,40 @@
+# 4. UI surfaces
+
+Design file: Paper `01M1VQQFCBZZKMYX760BE4STAV`. Tokens: white ground, cobalt `#123FA8`
+accent, Inter, 7-step type scale. All desktop artboards 1440 px; sidebar 248, content 1192.
+
+## Inventory
+
+| Surface | Status | Backed by | Gap |
+|---|---|---|---|
+| Home | Drawn | people/categories + counts, `expires_at` ≤ 90 d, recent docs, `backup_runs` | — |
+| Inbox | Drawn | `category_id IS NULL`, `suggestions` | **No-suggestion, processing, and failed states not drawn** |
+| Library / Search | Drawn | ranked `tsv` search, snippets, facet counts | Browse mode (no query) — reuse person-page table |
+| Add documents | Drawn | intake, job status stream, sha256 check | — |
+| Person | Drawn | per-person docs, `person_key_documents` | — |
+| Document detail | Drawn | `document_text`, versions, `audit_log` | Edit mode; trash/restore |
+| Settings | Drawn | users, invites, sessions, `email_ingest_log`, `backup_runs`, host metrics | — |
+| Login + TOTP | **Not drawn** — mock before build | | |
+| Setup wizard | **Not drawn** — mock before build | | |
+| Invite acceptance, held-mail review, add/edit person, manage categories, recently deleted, empty states | Not drawn — build from the system | | |
+| Scan — Capture / Review (mobile) | Drawn, **parked** | | |
+
+## Schema the drawings forced (folded into §1)
+
+`person_key_documents` (absence as a slot) · `user_pins` · `backup_runs` ·
+`email_ingest_log.status/raw_blob_key` · `document_files.processing_status/page_progress/key_version`.
+
+## Inbox card states
+
+The drawn card is the LLM state (summary + prefilled FILE TO / FOR) — the primary v1
+experience (§5). Three more states need mocks before build: **processing** (OCR/suggestion
+pending), **no suggestion** (provider `none`, refusal, or failure — summary block collapses,
+heuristic prefill), and **failed** (with Retry).
+
+## Known continuity issues in the original artboards (to fix)
+
+- Names: "Maya" / "Sam" on Home should come from the seeded demo household, not be hard-coded (family cards, Settings).
+- Categories: "Vehicles ›" / "Property ›" on Home should be Transportation / Real Estate.
+- Source: "phone scan" (Person page) and "Scan · needs filing" (Home) should read Email/Upload
+  now that mobile capture is parked.
+- Inbox cards: thumbnail drives card height, leaving dead space above FILE TO.
