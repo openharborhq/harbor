@@ -57,7 +57,7 @@ export class CategoriesService {
     const rows = await this.db
       .select({
         cat: categories,
-        documentCount: sql<number>`(select count(*)::int from ${documents} d where d.category_id = ${categories.id} and d.deleted_at is null)`,
+        documentCount: sql<number>`(select count(*)::int from ${documents} d where d.category_id = "categories"."id" and d.deleted_at is null)`, // qualified on purpose: see PeopleService.list
       })
       .from(categories)
       .orderBy(asc(categories.sortOrder), asc(categories.name));

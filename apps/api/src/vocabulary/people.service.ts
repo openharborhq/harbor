@@ -16,7 +16,7 @@ export class PeopleService {
     const rows = await this.db
       .select({
         person: people,
-        documentCount: sql<number>`(select count(*)::int from ${documentPeople} dp join ${documents} d on d.id = dp.document_id where dp.person_id = ${people.id} and d.deleted_at is null)`,
+        documentCount: sql<number>`(select count(*)::int from ${documentPeople} dp join ${documents} d on d.id = dp.document_id where dp.person_id = "people"."id" and d.deleted_at is null)`, // qualified on purpose: drizzle renders ${people.id} as a bare "id" here, which the subquery resolves to the wrong table
       })
       .from(people)
       .orderBy(asc(people.sortOrder), asc(people.createdAt));
