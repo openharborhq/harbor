@@ -17,7 +17,7 @@ import {
 } from "@nestjs/common";
 import { FileInterceptor } from "@nestjs/platform-express";
 import type { Request, Response } from "express";
-import { AcceptSuggestion, ListDocumentsQuery, UpdateDocument, parseUploadFields, type AcceptAllResult, type ActivityEntry, type DeletedDocument, type DocumentSummary, type DocumentText, type DocumentVersion, type SessionUser, type UploadResult } from "@trustworthier/shared";
+import { AcceptSuggestion, ListDocumentsQuery, UpdateDocument, parseUploadFields, type AcceptAllResult, type ActivityEntry, type DeletedDocument, type DocumentSummary, type DocumentText, type DocumentVersion, type RecentDocument, type SessionUser, type UploadResult } from "@trustworthier/shared";
 import { CurrentUser } from "../auth/current-user.decorator";
 import { ZodPipe } from "../common/zod.pipe";
 import { DocumentsService } from "./documents.service";
@@ -52,6 +52,12 @@ export class DocumentsController {
     return this.documents.list({ inboxOnly: q.inbox !== undefined, categoryId: q.category, itemIds: q.item ? [q.item] : undefined, source: q.source, sort: q.sort, limit: q.limit });
   }
 
+  /** Documents this owner opened lately, most recent first. Declared before `:id` on purpose. */
+  @Get("recent")
+  recent(@CurrentUser() user: SessionUser): Promise<RecentDocument[]> {
+    return this.documents.recent(user.id);
+  }
+
   /** Files every high-confidence, unresolved Inbox suggestion. */
   @Post("accept-all")
   @HttpCode(200)
@@ -65,8 +71,11 @@ export class DocumentsController {
   }
 
   @Get(":id")
-  get(@Param("id", ParseUUIDPipe) id: string): Promise<DocumentSummary> {
-    return this.documents.get(id);
+  async get(@Param("id", ParseUUIDPipe) id: string, @CurrentUser() user: SessionUser): Promise<DocumentSummary> {
+    const doc = await this.documents.get(id);
+    // Opening a document is what makes it recent. Fire-and-forget: the read must not wait on it.
+    void this.documents.recordView(id, user.id);
+    return doc;
   }
 
   @Get(":id/thumbnail")

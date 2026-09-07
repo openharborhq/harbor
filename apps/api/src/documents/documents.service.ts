@@ -1,11 +1,11 @@
-import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
+import { BadRequestException, Injectable, Logger, NotFoundException } from "@nestjs/common";
 import { and, asc, desc, eq, inArray, isNull, sql, type SQL } from "drizzle-orm";
 import { Queue } from "bullmq";
 import { open, rm } from "node:fs/promises";
 import path from "node:path";
 import type { Readable } from "node:stream";
-import { auditLog, categories, documentFiles, documentItems, documentText, documents, items, users, type Db } from "@trustworthier/db";
-import type { AcceptAllResult, AcceptSuggestion, ActivityEntry, DeletedDocument, DocumentSummary, DocumentText, DocumentVersion, SuggestionView, UpdateDocument, UploadFields, UploadResult } from "@trustworthier/shared";
+import { auditLog, categories, documentFiles, documentItems, documentText, documentViews, documents, items, users, type Db } from "@trustworthier/db";
+import type { AcceptAllResult, AcceptSuggestion, ActivityEntry, DeletedDocument, DocumentSummary, DocumentText, DocumentVersion, RecentDocument, SuggestionView, UpdateDocument, UploadFields, UploadResult } from "@trustworthier/shared";
 import { AuditService } from "../audit/audit.service";
 import { SearchIndexService } from "../search/search-index.service";
 import { MIME_BY_KIND, sniffKind } from "../common/sniff";
@@ -29,6 +29,8 @@ type FileRow = typeof documentFiles.$inferSelect;
 
 @Injectable()
 export class DocumentsService {
+  private readonly log = new Logger(DocumentsService.name);
+
   constructor(
     @InjectDb() private readonly db: Db,
     private readonly blobs: BlobStore,
@@ -159,6 +161,50 @@ export class DocumentsService {
       .orderBy(...order)
       .limit(opts.limit ?? 200);
     return this.assemble(rows);
+  }
+
+  /**
+   * Records that someone opened a document, so it can be offered back to them. Upsert, not append:
+   * one row per (user, document), reopening only moves the timestamp. Failures are swallowed —
+   * nobody should be unable to read a document because we could not write down that they did.
+   */
+  async recordView(documentId: string, userId: string): Promise<void> {
+    try {
+      await this.db
+        .insert(documentViews)
+        .values({ documentId, userId })
+        .onConflictDoUpdate({ target: [documentViews.userId, documentViews.documentId], set: { viewedAt: new Date() } });
+    } catch (err) {
+      this.log.warn(`could not record view of ${documentId}: ${(err as Error).message}`);
+    }
+  }
+
+  /** Most recently opened first. Deleted documents drop out on their own via the join. */
+  async recent(userId: string, limit = 8): Promise<RecentDocument[]> {
+    const rows = await this.db
+      .select({
+        documentId: documents.id,
+        title: documents.title,
+        categoryId: documents.categoryId,
+        viewedAt: documentViews.viewedAt,
+        thumbnailKey: documentFiles.thumbnailKey,
+        version: documentFiles.version,
+      })
+      .from(documentViews)
+      .innerJoin(documents, and(eq(documents.id, documentViews.documentId), isNull(documents.deletedAt)))
+      .innerJoin(documentFiles, and(eq(documentFiles.documentId, documents.id), eq(documentFiles.isCurrent, true)))
+      .where(eq(documentViews.userId, userId))
+      .orderBy(desc(documentViews.viewedAt))
+      .limit(limit);
+    const cats = await this.categoriesService.index();
+    return rows.map((r) => ({
+      documentId: r.documentId,
+      title: r.title,
+      categoryPath: r.categoryId ? (cats.get(r.categoryId)?.path ?? null) : null,
+      viewedAt: r.viewedAt.toISOString(),
+      hasThumbnail: r.thumbnailKey !== null,
+      version: r.version,
+    }));
   }
 
   async get(documentId: string): Promise<DocumentSummary> {

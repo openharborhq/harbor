@@ -111,6 +111,17 @@ export const ActivityEntry = z.object({
 });
 export type ActivityEntry = z.infer<typeof ActivityEntry>;
 
+/** A document this owner opened recently — enough to recognise and get back to it. */
+export const RecentDocument = z.object({
+  documentId: z.string().uuid(),
+  title: z.string(),
+  categoryPath: z.string().nullable(),
+  viewedAt: z.string().datetime(),
+  hasThumbnail: z.boolean(),
+  version: z.number().int().positive(),
+});
+export type RecentDocument = z.infer<typeof RecentDocument>;
+
 export const DeletedDocument = z.object({
   id: z.string().uuid(),
   title: z.string(),

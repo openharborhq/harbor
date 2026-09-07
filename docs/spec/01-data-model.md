@@ -8,7 +8,7 @@ users                id, email, password_hash (argon2id), totp_secret_enc, totp_
                      display_name, status, last_login_at
 invites              id, email, token_hash, expires_at, created_by, accepted_at
 sessions             id, user_id, token_hash, expires_at, ip, user_agent, revoked_at
-user_pins            user_id, entity_type (category|document), entity_id, sort_order
+document_views       user_id, document_id, viewed_at   -- one row per pair; reopening moves it
 
 items                id, kind (person|property|vehicle|account|policy|pet|business|other),
                      label, details jsonb, parent_id (nullable, self-reference), notes,

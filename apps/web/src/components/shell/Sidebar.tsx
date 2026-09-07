@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import type { Category, SessionUser } from "@trustworthier/shared";
+import type { Category, RecentDocument, SessionUser } from "@trustworthier/shared";
 import { api } from "@/lib/api-client";
 import { initials } from "@/lib/initials";
 import { Brand } from "./Brand";
@@ -15,7 +15,7 @@ const NAV: { href: string; label: string; icon: string; soon?: boolean }[] = [
   { href: "/settings", label: "Settings", icon: "M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Zm7.4-3a7.4 7.4 0 0 0-.1-1l2-1.5-2-3.4-2.3.9a7.5 7.5 0 0 0-1.7-1L15 3.5H9l-.3 2.5a7.5 7.5 0 0 0-1.7 1L4.7 6.1l-2 3.4 2 1.5a7.4 7.4 0 0 0 0 2l-2 1.5 2 3.4 2.3-.9a7.5 7.5 0 0 0 1.7 1L9 20.5h6l.3-2.5a7.5 7.5 0 0 0 1.7-1l2.3.9 2-3.4-2-1.5c.1-.3.1-.7.1-1Z" },
 ];
 
-export function Sidebar({ user, categories = [] }: { user: SessionUser; categories?: Category[] }) {
+export function Sidebar({ user, categories = [], recent = [] }: { user: SessionUser; categories?: Category[]; recent?: RecentDocument[] }) {
   const pathname = usePathname();
   const router = useRouter();
 
@@ -52,9 +52,29 @@ export function Sidebar({ user, categories = [] }: { user: SessionUser; categori
           );
         })}
       </nav>
+      {recent.length > 0 && (
+        <div className="mt-8">
+          <div className="label px-3">Recent</div>
+          <ul className="mt-2 flex flex-col">
+            {recent.slice(0, 5).map((r) => (
+              <li key={r.documentId}>
+                <Link
+                  href={`/documents/${r.documentId}`}
+                  title={`${r.title}${r.categoryPath ? ` · ${r.categoryPath}` : ""}`}
+                  className={`flex h-8 items-center gap-3 rounded-md px-3 text-row hover:bg-surface ${
+                    pathname === `/documents/${r.documentId}` ? "bg-accent-soft font-semibold text-accent" : "text-text"
+                  }`}
+                >
+                  <span className="flex-1 truncate">{r.title}</span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
       {categories.length > 0 && (
         <div className="mt-8">
-          <div className="label px-3">Pinned categories</div>
+          <div className="label px-3">Categories</div>
           <ul className="mt-2 flex flex-col">
             {categories
               .filter((c) => c.parentId === null)

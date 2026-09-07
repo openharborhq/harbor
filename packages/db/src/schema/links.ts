@@ -1,5 +1,6 @@
 import { pgTable, uuid, text, integer, jsonb, timestamp, primaryKey, index, uniqueIndex } from "drizzle-orm/pg-core";
 import { documentFiles, documents } from "./documents";
+import { users } from "./auth";
 import { items, tags } from "./vocabulary";
 
 export const documentItems = pgTable(
@@ -62,4 +63,19 @@ export const suggestions = pgTable(
     uniqueIndex("suggestions_file_model_idx").on(t.documentFileId, t.model, t.promptVersion),
     index("suggestions_document_idx").on(t.documentId),
   ],
+);
+
+/**
+ * Which documents each owner opened, and when. One row per (user, document) — reopening moves the
+ * row rather than growing a log, so "Recent" is a short list of places to get back to, not history
+ * to audit. The audit_log already answers who-looked-at-what.
+ */
+export const documentViews = pgTable(
+  "document_views",
+  {
+    userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    documentId: uuid("document_id").notNull().references(() => documents.id, { onDelete: "cascade" }),
+    viewedAt: timestamp("viewed_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.userId, t.documentId] }), index("document_views_recent_idx").on(t.userId, t.viewedAt)],
 );
