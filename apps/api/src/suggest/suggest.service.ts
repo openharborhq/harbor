@@ -6,6 +6,7 @@ import { categories, documentFiles, documentText, documents, suggestions, tags, 
 import { SuggestionPayload, type SuggestionView } from "@harbor/shared";
 import type { Env } from "../config/env";
 import { InjectDb } from "../db/db.module";
+import { resolveVocabulary } from "../vocabulary/resolve";
 import { SearchIndexService } from "../search/search-index.service";
 import { CategoriesService } from "../vocabulary/categories.service";
 import { ItemsService } from "../vocabulary/items.service";
@@ -139,23 +140,18 @@ export class SuggestService {
       .where(inArray(suggestions.documentFileId, fileIds))
       .orderBy(desc(suggestions.createdAt));
     const [cats, allItems] = await Promise.all([this.categoriesService.index(), this.itemsService.list()]);
-    const bySlug = new Map([...cats.values()].map((c) => [c.cat.slug, c]));
     const out = new Map<string, SuggestionView>();
     for (const s of rows) {
       if (out.has(s.documentFileId)) continue;
       const parsed = SuggestionPayload.safeParse(s.payload);
       if (!parsed.success) continue;
-      const cat = parsed.data.categorySlug ? bySlug.get(parsed.data.categorySlug) : undefined;
-      const wanted = new Set(parsed.data.itemLabels.map((n: string) => n.trim().toLowerCase()));
-      const matched = allItems.filter((i) => wanted.has(i.label.toLowerCase()) || wanted.has(firstName(i.label).toLowerCase()));
-      // Naming a child implies its parent: a boiler invoice is also about the house (spec §6).
-      const itemIds = [...new Set(matched.flatMap((i) => (i.parentId ? [i.id, i.parentId] : [i.id])))];
+      const resolved = resolveVocabulary(cats, allItems, parsed.data);
       out.set(s.documentFileId, {
         id: s.id,
         provider: s.provider,
         model: s.model,
         payload: parsed.data,
-        resolved: { categoryId: cat?.cat.id ?? null, categoryPath: cat?.path ?? null, itemIds },
+        resolved,
         createdAt: s.createdAt.toISOString(),
         acceptedAt: s.acceptedAt?.toISOString() ?? null,
         rejectedAt: s.rejectedAt?.toISOString() ?? null,
@@ -172,8 +168,7 @@ export class SuggestService {
   }
 }
 
-export function firstName(displayName: string): string {
-  return displayName.trim().split(/\s+/)[0] ?? displayName;
-}
 
 export { categories };
+
+export { firstName } from "../vocabulary/resolve";

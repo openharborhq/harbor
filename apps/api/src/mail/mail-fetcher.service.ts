@@ -10,6 +10,9 @@ import { InjectDb } from "../db/db.module";
 import { ImapSource } from "./imap.source";
 import { MailConnectionsService, explain } from "./mail-connections.service";
 import { MailSendersService } from "./mail-senders.service";
+import { CategoriesService } from "../vocabulary/categories.service";
+import { ItemsService } from "../vocabulary/items.service";
+import { resolveVocabulary } from "../vocabulary/resolve";
 import { DEFAULT_CAPS, detect, type Detection, type SenderRule } from "./mail-detector";
 import type { MailEnvelope, MailSource, MailSourceConfig } from "./mail-source";
 
@@ -54,6 +57,8 @@ export class MailFetcherService {
     private readonly documents: DocumentsService,
     private readonly blobs: BlobStore,
     private readonly senders: MailSendersService,
+    private readonly categories: CategoriesService,
+    private readonly items: ItemsService,
   ) {}
 
   async syncAll(make?: SourceFactory): Promise<SyncSummary[]> {
@@ -287,6 +292,10 @@ export class MailFetcherService {
   ): Promise<{ documentIds: string[]; created: number }> {
     const documentIds: string[] = [];
     let created = 0;
+    // Where this sender's paperwork goes, decided once per message rather than per attachment.
+    // An approved sender with a category skips the Inbox entirely: saying "file their mail to
+    // Utilities" and then finding it in the Inbox anyway is the rule not being applied (§7.6).
+    const filing = await this.resolveRule(rule);
 
     for (const attachment of attachments) {
       const name = attachment.filename ?? `${envelope.subject ?? "attachment"}.pdf`;
@@ -326,8 +335,8 @@ export class MailFetcherService {
           {
             // Slugs and labels, resolved against the current vocabulary — unknown values are
             // dropped rather than failing the ingest, exactly as a suggestion's are.
-            categoryId: undefined,
-            itemIds: [],
+            categoryId: filing.categoryId ?? undefined,
+            itemIds: filing.itemIds,
             tags: rule?.defaultTags ?? [],
           },
           { userId: connection.ownerUserId, source: "email", mailFrom: envelope.fromAddress },
@@ -342,6 +351,20 @@ export class MailFetcherService {
       }
     }
     return { documentIds, created };
+  }
+
+  /**
+   * A rule's slug and labels against today's vocabulary. Nothing to file to is the common case
+   * (no rule, or a rule that only says "yes, file it"), and costs no queries.
+   */
+  private async resolveRule(rule: SenderRule | null): Promise<{ categoryId: string | null; itemIds: string[] }> {
+    if (!rule?.defaultCategorySlug && !rule?.defaultItemLabels?.length) return { categoryId: null, itemIds: [] };
+    const [cats, items] = await Promise.all([this.categories.index(), this.items.list()]);
+    const resolved = resolveVocabulary(cats, items, { categorySlug: rule.defaultCategorySlug, itemLabels: rule.defaultItemLabels });
+    if (rule.defaultCategorySlug && !resolved.categoryId) {
+      this.log.warn(`sender rule points at category "${rule.defaultCategorySlug}", which no longer exists; filing to the Inbox instead`);
+    }
+    return { categoryId: resolved.categoryId, itemIds: resolved.itemIds };
   }
 
   private async alreadySeen(connectionId: string, messageId: string): Promise<boolean> {
