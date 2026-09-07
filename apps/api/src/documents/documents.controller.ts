@@ -2,6 +2,7 @@ import {
   BadRequestException,
   Body,
   Controller,
+  Delete,
   Get,
   HttpCode,
   Param,
@@ -16,7 +17,7 @@ import {
 } from "@nestjs/common";
 import { FileInterceptor } from "@nestjs/platform-express";
 import type { Request, Response } from "express";
-import { UpdateDocument, parseUploadFields, type AcceptAllResult, type DocumentSummary, type SessionUser, type UploadResult } from "@trustworthier/shared";
+import { UpdateDocument, parseUploadFields, type AcceptAllResult, type ActivityEntry, type DeletedDocument, type DocumentSummary, type DocumentText, type DocumentVersion, type SessionUser, type UploadResult } from "@trustworthier/shared";
 import { CurrentUser } from "../auth/current-user.decorator";
 import { ZodPipe } from "../common/zod.pipe";
 import { DocumentsService } from "./documents.service";
@@ -58,9 +59,41 @@ export class DocumentsController {
     return this.documents.acceptAll(user.id, req.ip ?? null);
   }
 
+  @Get("deleted")
+  listDeleted(): Promise<DeletedDocument[]> {
+    return this.documents.listDeleted();
+  }
+
   @Get(":id")
   get(@Param("id", ParseUUIDPipe) id: string): Promise<DocumentSummary> {
     return this.documents.get(id);
+  }
+
+  @Get(":id/text")
+  text(@Param("id", ParseUUIDPipe) id: string): Promise<DocumentText> {
+    return this.documents.text(id);
+  }
+
+  @Get(":id/versions")
+  versions(@Param("id", ParseUUIDPipe) id: string): Promise<DocumentVersion[]> {
+    return this.documents.versions(id);
+  }
+
+  @Get(":id/activity")
+  activity(@Param("id", ParseUUIDPipe) id: string): Promise<ActivityEntry[]> {
+    return this.documents.activity(id);
+  }
+
+  @Delete(":id")
+  @HttpCode(204)
+  async remove(@Param("id", ParseUUIDPipe) id: string, @CurrentUser() user: SessionUser, @Req() req: Request): Promise<void> {
+    await this.documents.softDelete(id, user.id, req.ip ?? null);
+  }
+
+  @Post(":id/restore")
+  @HttpCode(200)
+  restore(@Param("id", ParseUUIDPipe) id: string, @CurrentUser() user: SessionUser, @Req() req: Request): Promise<DocumentSummary> {
+    return this.documents.restore(id, user.id, req.ip ?? null);
   }
 
   @Patch(":id")
@@ -86,8 +119,16 @@ export class DocumentsController {
   }
 
   @Get(":id/file")
-  async file(@Param("id", ParseUUIDPipe) id: string, @CurrentUser() user: SessionUser, @Req() req: Request, @Res() res: Response): Promise<void> {
-    const { stream, filename, mimeType, byteSize } = await this.documents.openOriginal(id, user.id, req.ip ?? null);
+  async file(
+    @Param("id", ParseUUIDPipe) id: string,
+    @Query("version") version: string | undefined,
+    @CurrentUser() user: SessionUser,
+    @Req() req: Request,
+    @Res() res: Response,
+  ): Promise<void> {
+    const v = version ? Number.parseInt(version, 10) : undefined;
+    if (version && (!Number.isInteger(v) || v! < 1)) throw new BadRequestException("version must be a positive integer");
+    const { stream, filename, mimeType, byteSize } = await this.documents.openOriginal(id, user.id, req.ip ?? null, v);
     res.setHeader("Content-Type", mimeType);
     res.setHeader("Content-Length", String(byteSize));
     res.setHeader("Content-Disposition", `inline; filename*=UTF-8''${encodeURIComponent(filename)}`);

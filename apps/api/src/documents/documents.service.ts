@@ -4,8 +4,8 @@ import { Queue } from "bullmq";
 import { open, rm } from "node:fs/promises";
 import path from "node:path";
 import type { Readable } from "node:stream";
-import { categories, documentFiles, documentPeople, documents, people, type Db } from "@trustworthier/db";
-import type { AcceptAllResult, DocumentSummary, SuggestionView, UpdateDocument, UploadFields, UploadResult } from "@trustworthier/shared";
+import { auditLog, categories, documentFiles, documentPeople, documentText, documents, people, users, type Db } from "@trustworthier/db";
+import type { AcceptAllResult, ActivityEntry, DeletedDocument, DocumentSummary, DocumentText, DocumentVersion, SuggestionView, UpdateDocument, UploadFields, UploadResult } from "@trustworthier/shared";
 import { AuditService } from "../audit/audit.service";
 import { MIME_BY_KIND, sniffKind } from "../common/sniff";
 import { CryptoService } from "../crypto/crypto.service";
@@ -143,13 +143,91 @@ export class DocumentsService {
     return summary!;
   }
 
-  /** Decrypted original, streamed. Audited: downloads of family paperwork are worth a row each. */
-  async openOriginal(documentId: string, userId: string, ip: string | null): Promise<{ stream: Readable; filename: string; mimeType: string; byteSize: number }> {
+  async versions(documentId: string): Promise<DocumentVersion[]> {
+    await this.loadRow(documentId);
+    const rows = await this.db
+      .select({ df: documentFiles, uploader: users.displayName })
+      .from(documentFiles)
+      .leftJoin(users, eq(users.id, documentFiles.uploadedBy))
+      .where(eq(documentFiles.documentId, documentId))
+      .orderBy(desc(documentFiles.version));
+    return rows.map(({ df, uploader }) => ({
+      fileId: df.id,
+      version: df.version,
+      isCurrent: df.isCurrent,
+      originalFilename: df.originalFilename,
+      mimeType: df.mimeType,
+      byteSize: df.byteSize,
+      pageCount: df.pageCount,
+      processingStatus: df.processingStatus,
+      createdAt: df.createdAt.toISOString(),
+      uploadedBy: uploader,
+    }));
+  }
+
+  async text(documentId: string): Promise<DocumentText> {
     const { df } = await this.loadRow(documentId);
+    const row = await this.db.query.documentText.findFirst({ where: eq(documentText.documentFileId, df.id) });
+    return { fileId: df.id, engine: row?.ocrEngine ?? null, chars: row?.textContent.length ?? 0, text: row?.textContent ?? "" };
+  }
+
+  async activity(documentId: string): Promise<ActivityEntry[]> {
+    await this.loadRowIncludingDeleted(documentId);
+    const rows = await this.db
+      .select({ log: auditLog, actor: users.displayName })
+      .from(auditLog)
+      .leftJoin(users, eq(users.id, auditLog.actorUserId))
+      .where(and(eq(auditLog.entityType, "document"), eq(auditLog.entityId, documentId)))
+      .orderBy(desc(auditLog.id))
+      .limit(100);
+    return rows.map(({ log, actor }) => ({ id: log.id, action: log.action, actor, metadata: log.metadata, createdAt: log.createdAt.toISOString() }));
+  }
+
+  /** Soft delete (spec §1 `deleted_at`). Blobs stay until a later purge; restore is one click. */
+  async softDelete(documentId: string, userId: string, ip: string | null): Promise<void> {
+    await this.loadRow(documentId);
+    await this.db.update(documents).set({ deletedAt: new Date(), updatedAt: new Date() }).where(eq(documents.id, documentId));
+    await this.audit.record({ action: "document.delete", actorUserId: userId, entityType: "document", entityId: documentId, ip });
+  }
+
+  async restore(documentId: string, userId: string, ip: string | null): Promise<DocumentSummary> {
+    const row = await this.loadRowIncludingDeleted(documentId);
+    if (!row.doc.deletedAt) return this.get(documentId);
+    await this.db.update(documents).set({ deletedAt: null, updatedAt: new Date() }).where(eq(documents.id, documentId));
+    await this.audit.record({ action: "document.restore", actorUserId: userId, entityType: "document", entityId: documentId, ip });
+    return this.get(documentId);
+  }
+
+  async listDeleted(): Promise<DeletedDocument[]> {
+    const cats = await this.categoriesService.index();
+    const rows = await this.db
+      .select({ doc: documents, df: documentFiles })
+      .from(documents)
+      .innerJoin(documentFiles, and(eq(documentFiles.documentId, documents.id), eq(documentFiles.isCurrent, true)))
+      .where(sql`${documents.deletedAt} is not null`)
+      .orderBy(desc(documents.deletedAt))
+      .limit(200);
+    return rows.map(({ doc, df }) => ({
+      id: doc.id,
+      title: doc.title,
+      categoryPath: doc.categoryId ? (cats.get(doc.categoryId)?.path ?? null) : null,
+      deletedAt: doc.deletedAt!.toISOString(),
+      originalFilename: df.originalFilename,
+    }));
+  }
+
+  /** Decrypted original, streamed. Audited: downloads of family paperwork are worth a row each. */
+  async openOriginal(documentId: string, userId: string, ip: string | null, version?: number): Promise<{ stream: Readable; filename: string; mimeType: string; byteSize: number }> {
+    const current = await this.loadRow(documentId);
+    const df =
+      version === undefined || version === current.df.version
+        ? current.df
+        : await this.db.query.documentFiles.findFirst({ where: and(eq(documentFiles.documentId, documentId), eq(documentFiles.version, version)) });
+    if (!df) throw new NotFoundException("Version not found");
     const dek = this.blobs.unwrapDek(df.dekWrapped, df.storageKey);
     const stream = this.blobs.openStream(df.storageKey, dek, df.iv, df.authTag);
     dek.fill(0);
-    await this.audit.record({ action: "document.download", actorUserId: userId, entityType: "document", entityId: documentId, ip });
+    await this.audit.record({ action: "document.download", actorUserId: userId, entityType: "document", entityId: documentId, metadata: { version: df.version }, ip });
     return { stream, filename: df.originalFilename, mimeType: df.mimeType, byteSize: df.byteSize };
   }
 
@@ -223,6 +301,18 @@ export class DocumentsService {
   }
 
   // ---------- helpers ----------
+
+  private async loadRowIncludingDeleted(documentId: string): Promise<{ doc: DocRow; df: FileRow }> {
+    const row = await this.db
+      .select({ doc: documents, df: documentFiles })
+      .from(documents)
+      .innerJoin(documentFiles, and(eq(documentFiles.documentId, documents.id), eq(documentFiles.isCurrent, true)))
+      .where(eq(documents.id, documentId))
+      .limit(1)
+      .then((r) => r[0]);
+    if (!row) throw new NotFoundException("Document not found");
+    return row;
+  }
 
   private async loadRow(documentId: string): Promise<{ doc: DocRow; df: FileRow }> {
     const row = await this.db

@@ -28,7 +28,7 @@ upload page can file documents directly (batch defaults) so the Inbox is optiona
        Expiring soon (next 90 days, from `expires_at`), Recently added. Needs `GET /home`.
 8. [ ] **Person page**: header, key-document slots (`person_key_documents`, incl. "Not on file"),
        filter chips, document table. `GET/PATCH /people/:id`, key-document endpoints.
-9. [ ] **Document detail** as the modal in the design: Details (editable: title, category,
+9. [x] **Document detail** as the modal in the design: Details (editable: title, category,
        people, dates, tags, notes), Extracted text (`GET /documents/:id/text`), Versions,
        Activity (`audit_log` for the document); Delete = soft delete with a Recently deleted list
        and restore.

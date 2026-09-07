@@ -1,12 +1,12 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import type { DocumentSummary } from "@trustworthier/shared";
+import type { ActivityEntry, Category, DocumentSummary, DocumentText, DocumentVersion, Person } from "@trustworthier/shared";
 import { AutoRefresh } from "@/components/AutoRefresh";
-import { StatusPill, isProcessing } from "@/components/StatusPill";
+import { DocumentDetail } from "@/components/DocumentDetail";
+import { isProcessing } from "@/components/StatusPill";
 import { TopBar } from "@/components/shell/TopBar";
 import { ApiError, apiFetch } from "@/lib/api-server";
-import { formatBytes, formatDate, pages } from "@/lib/format";
 
 export const metadata: Metadata = { title: "Document" };
 
@@ -19,6 +19,13 @@ export default async function DocumentPage(props: PageProps<"/documents/[id]">) 
     if (err instanceof ApiError && err.status === 404) notFound();
     throw err;
   }
+  const [text, versions, activity, categories, people] = await Promise.all([
+    apiFetch<DocumentText>(`/documents/${id}/text`),
+    apiFetch<DocumentVersion[]>(`/documents/${id}/versions`),
+    apiFetch<ActivityEntry[]>(`/documents/${id}/activity`),
+    apiFetch<Category[]>("/categories"),
+    apiFetch<Person[]>("/people"),
+  ]);
   const f = doc.file;
   const fileUrl = `/api/documents/${doc.id}/file`;
   const isImage = f.mimeType.startsWith("image/");
@@ -27,22 +34,23 @@ export default async function DocumentPage(props: PageProps<"/documents/[id]">) 
     <>
       <TopBar />
       <AutoRefresh active={isProcessing(f.processingStatus)} />
-      <main className="flex max-w-[1192px] flex-col gap-8 px-14 py-10">
+      <main className="flex max-w-[1192px] flex-col gap-6 px-14 py-8">
         <div className="flex items-start justify-between gap-6">
-          <div>
-            <Link href="/inbox" className="text-small font-medium text-accent">
-              ← Inbox
+          <div className="min-w-0">
+            <Link href={doc.category ? "/library" : "/inbox"} className="text-small font-medium text-accent">
+              ← {doc.category ? "Library" : "Inbox"}
             </Link>
-            <h1 className="mt-2 text-title font-bold tracking-snug">{doc.title}</h1>
-            <p className="mt-1 text-body text-muted">
-              {doc.category ? doc.category.path : "Inbox"} · {f.originalFilename}
+            <h1 className="mt-2 truncate text-[24px] font-bold leading-[30px] tracking-snug">{doc.title}</h1>
+            <p className="mt-1 text-row text-muted">
+              <span className={doc.category ? "text-accent" : ""}>{doc.category ? doc.category.path : "Inbox"}</span>
+              {doc.people.length ? ` · ${doc.people.map((p) => p.displayName).join(", ")}` : ""}
             </p>
           </div>
-          <a href={fileUrl} download={f.originalFilename} className="flex h-10 items-center gap-2 rounded-md border border-border bg-ground px-4 text-row font-medium">
+          <a href={fileUrl} download={f.originalFilename} className="flex h-10 shrink-0 items-center gap-2 rounded-md border border-border bg-ground px-4 text-row font-medium">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M12 5v14M5 12l7 7 7-7" />
             </svg>
-            Download original
+            Download
           </a>
         </div>
 
@@ -57,44 +65,9 @@ export default async function DocumentPage(props: PageProps<"/documents/[id]">) 
               <p className="text-body text-muted">No preview for this file type. Download the original instead.</p>
             )}
           </div>
-
-          <aside className="flex w-[420px] shrink-0 flex-col">
-            <div className="rounded-lg bg-surface p-4">
-              <div className="label">Status</div>
-              <div className="mt-2 flex items-center gap-3">
-                <StatusPill status={f.processingStatus} />
-                {f.processingError && <span className="text-small text-warn">{f.processingError}</span>}
-              </div>
-              {doc.suggestion?.payload.summary ? (
-                <>
-                  <div className="label mt-4">Summary</div>
-                  <p className="mt-1.5 text-row leading-5">{doc.suggestion.payload.summary}</p>
-                </>
-              ) : (
-                <p className="mt-3 text-small text-muted">No summary for this document.</p>
-              )}
-            </div>
-            <dl className="mt-4 divide-y divide-border text-row">
-              <Row k="Category" v={doc.category ? doc.category.path : "Inbox — not filed yet"} />
-              <Row k="For" v={doc.people.length ? doc.people.map((p) => p.displayName).join(", ") : "—"} />
-              <Row k="Document date" v={formatDate(doc.documentDate)} />
-              <Row k="Expires" v={formatDate(doc.expiresAt)} />
-              <Row k="Added" v={`${formatDate(doc.createdAt)} · ${doc.source === "email" ? "email" : "upload"}`} />
-              <Row k="File" v={`${f.originalFilename} · ${pages(f.pageCount) || "—"} · ${formatBytes(f.byteSize)}`} />
-              <Row k="Type" v={f.mimeType} />
-            </dl>
-          </aside>
+          <DocumentDetail doc={doc} text={text} versions={versions} activity={activity} categories={categories} people={people} />
         </div>
       </main>
     </>
-  );
-}
-
-function Row({ k, v }: { k: string; v: string }) {
-  return (
-    <div className="flex gap-4 py-3">
-      <dt className="w-32 shrink-0 text-muted">{k}</dt>
-      <dd className="min-w-0 flex-1 break-words font-medium">{v}</dd>
-    </div>
   );
 }

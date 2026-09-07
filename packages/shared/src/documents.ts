@@ -68,3 +68,43 @@ export type UpdateDocument = z.infer<typeof UpdateDocument>;
 
 export const AcceptAllResult = z.object({ accepted: z.number().int().nonnegative(), skipped: z.number().int().nonnegative() });
 export type AcceptAllResult = z.infer<typeof AcceptAllResult>;
+
+export const DocumentVersion = z.object({
+  fileId: z.string().uuid(),
+  version: z.number().int().positive(),
+  isCurrent: z.boolean(),
+  originalFilename: z.string(),
+  mimeType: z.string(),
+  byteSize: z.number().int().nonnegative(),
+  pageCount: z.number().int().nonnegative().nullable(),
+  processingStatus: ProcessingStatus,
+  createdAt: z.string().datetime(),
+  uploadedBy: z.string().nullable(),
+});
+export type DocumentVersion = z.infer<typeof DocumentVersion>;
+
+export const DocumentText = z.object({
+  fileId: z.string().uuid(),
+  engine: z.string().nullable(),
+  chars: z.number().int().nonnegative(),
+  text: z.string(),
+});
+export type DocumentText = z.infer<typeof DocumentText>;
+
+export const ActivityEntry = z.object({
+  id: z.number().int(),
+  action: z.string(),
+  actor: z.string().nullable(),
+  metadata: z.record(z.string(), z.unknown()).nullable(),
+  createdAt: z.string().datetime(),
+});
+export type ActivityEntry = z.infer<typeof ActivityEntry>;
+
+export const DeletedDocument = z.object({
+  id: z.string().uuid(),
+  title: z.string(),
+  categoryPath: z.string().nullable(),
+  deletedAt: z.string().datetime(),
+  originalFilename: z.string(),
+});
+export type DeletedDocument = z.infer<typeof DeletedDocument>;
