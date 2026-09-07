@@ -61,12 +61,6 @@ no undo, unlike a document's soft delete, so the confirmation states both counts
 Item labels are weight B in `document_search`, so the affected documents are reindexed as
 part of the same transaction — otherwise a deleted name would keep matching.
 
-## Notes
-
-`items.notes` is free text about the thing itself: the meter number, who the landlord is,
-where the spare key lives. Things worth remembering that never arrived as paperwork and so
-have no document to live on.
-
 ## The FOR control
 
 One control, not two. A picker per kind would ask the filer to decide which box a boiler

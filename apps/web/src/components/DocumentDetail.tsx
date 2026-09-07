@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import type { ActivityEntry, Category, DocumentSummary, DocumentText, DocumentVersion, Item } from "@trustworthier/shared";
+import { DocumentNotes } from "./DocumentNotes";
 import { ItemPicker } from "./ItemPicker";
 import { api } from "@/lib/api-client";
 import { formatBytes, formatDate, formatRelative, pages } from "@/lib/format";
@@ -90,8 +91,8 @@ export function DocumentDetail({
                 {doc.tags.length === 0 && <span className="text-muted">—</span>}
               </dd>
             </div>
-            {doc.notes && <Row k="Notes" v={doc.notes} />}
           </dl>
+          <DocumentNotes doc={doc} />
           <div className="mt-auto flex items-center justify-between pt-8">
             {confirmDelete ? (
               <div className="flex items-center gap-3 text-row">
@@ -178,7 +179,6 @@ function EditForm({ doc, categories, items, onDone }: { doc: DocumentSummary; ca
   const [documentDate, setDocumentDate] = useState(doc.documentDate ?? "");
   const [expiresAt, setExpiresAt] = useState(doc.expiresAt ?? "");
   const [tags, setTags] = useState(doc.tags.join(", "));
-  const [notes, setNotes] = useState(doc.notes ?? "");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -196,7 +196,6 @@ function EditForm({ doc, categories, items, onDone }: { doc: DocumentSummary; ca
           documentDate: documentDate || null,
           expiresAt: expiresAt || null,
           tags: tags.split(",").map((t) => t.trim()).filter(Boolean),
-          notes: notes || null,
         }),
       });
       onDone();
@@ -241,9 +240,6 @@ function EditForm({ doc, categories, items, onDone }: { doc: DocumentSummary; ca
       </div>
       <Field label="Tags">
         <input value={tags} onChange={(e) => setTags(e.target.value)} placeholder="school, vaccination" className="h-10 w-full rounded-md border border-border-strong px-3 text-row" />
-      </Field>
-      <Field label="Notes">
-        <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={3} className="w-full rounded-md border border-border-strong px-3 py-2 text-row" />
       </Field>
       {error && <p className="text-small text-danger">{error}</p>}
       <div className="flex items-center justify-end gap-4 pt-2">

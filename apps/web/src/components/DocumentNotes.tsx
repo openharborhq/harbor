@@ -2,19 +2,20 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import type { Item } from "@trustworthier/shared";
+import type { DocumentSummary } from "@trustworthier/shared";
 import { api } from "@/lib/api-client";
 
-const MAX = 2000;
+const MAX = 5000;
 
 /**
- * Free text about the item itself — the meter number, who the landlord is, where the spare key
- * lives. Deliberately not a document: things worth remembering that never came as paperwork.
+ * What the document itself doesn't say: why it was kept, what was agreed on the phone, which
+ * invoice it settles. Editable in place rather than through "Edit details", so writing one is
+ * never a detour through the whole form. Indexed at weight B, so a note can be searched for.
  */
-export function ItemNotes({ item }: { item: Item }) {
+export function DocumentNotes({ doc }: { doc: DocumentSummary }) {
   const router = useRouter();
   const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState(item.notes ?? "");
+  const [draft, setDraft] = useState(doc.notes ?? "");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -23,7 +24,7 @@ export function ItemNotes({ item }: { item: Item }) {
     setError(null);
     try {
       const trimmed = draft.trim();
-      await api(`/items/${item.id}`, { method: "PATCH", body: JSON.stringify({ notes: trimmed || null }) });
+      await api(`/documents/${doc.id}`, { method: "PATCH", body: JSON.stringify({ notes: trimmed || null }) });
       setEditing(false);
       router.refresh();
     } catch (err) {
@@ -34,40 +35,40 @@ export function ItemNotes({ item }: { item: Item }) {
   }
 
   function cancel() {
-    setDraft(item.notes ?? "");
+    setDraft(doc.notes ?? "");
     setError(null);
     setEditing(false);
   }
 
   if (!editing) {
     return (
-      <section className="flex flex-col gap-2">
+      <section className="mt-5 flex flex-col gap-1.5">
         <div className="flex items-baseline gap-3">
-          <h2 className="text-section font-bold tracking-snug">Notes</h2>
+          <span className="label">Notes</span>
           <button type="button" onClick={() => setEditing(true)} className="text-small font-medium text-accent">
-            {item.notes ? "Edit" : "Add a note"}
+            {doc.notes ? "Edit" : "Add a note"}
           </button>
         </div>
-        {item.notes ? (
-          <p className="max-w-[720px] whitespace-pre-wrap text-body">{item.notes}</p>
+        {doc.notes ? (
+          <p className="whitespace-pre-wrap text-row">{doc.notes}</p>
         ) : (
-          <p className="text-body text-muted">Nothing yet — the meter number, the landlord, where the spare key lives.</p>
+          <p className="text-small text-muted">Nothing yet — why you kept it, what was agreed, what it settles.</p>
         )}
       </section>
     );
   }
 
   return (
-    <section className="flex flex-col gap-2">
-      <h2 className="text-section font-bold tracking-snug">Notes</h2>
+    <section className="mt-5 flex flex-col gap-1.5">
+      <span className="label">Notes</span>
       <textarea
         autoFocus
-        rows={5}
+        rows={4}
         maxLength={MAX}
         value={draft}
         onChange={(e) => setDraft(e.target.value)}
-        placeholder="The meter number, the landlord, where the spare key lives."
-        className="max-w-[720px] rounded-md border border-border-strong bg-ground p-3 text-body placeholder:text-muted"
+        placeholder="Why you kept it, what was agreed, what it settles."
+        className="w-full rounded-md border border-border-strong bg-ground p-3 text-row placeholder:text-muted"
       />
       {error && <p className="text-small text-danger">{error}</p>}
       <div className="flex items-center gap-4">

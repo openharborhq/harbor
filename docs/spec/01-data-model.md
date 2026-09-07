@@ -60,6 +60,9 @@ audit_log            id, actor_user_id, action, entity_type, entity_id, metadata
   "Passport — Not on file" on the item page.
 - **Plaintext lives in Postgres.** `document_text` and `tsv` are unencrypted copies of every
   document. Postgres's data directory MUST be on the encrypted volume (§3).
+- **`documents.notes`** is free text about a document: why it was kept, what was agreed on
+  the phone, which invoice it settles. Indexed at weight B beside tags and item labels, so a
+  note can be searched for — a note nobody can find is half a note.
 - **`expires_at` is read** by Home ("Expiring soon", 90 days) and item pages. v1 reminders
   are in-app; an email digest is v1.1.
 - **Envelope encryption:** `dek_wrapped` is the per-file key wrapped by the KEK; `key_version`

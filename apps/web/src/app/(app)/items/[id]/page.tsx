@@ -9,7 +9,6 @@ import { ApiError, apiFetch } from "@/lib/api-server";
 import { ageFrom, formatDate, formatRelative } from "@/lib/format";
 import { itemGlyph } from "@/lib/item-glyph";
 import { DeleteItem } from "./DeleteItem";
-import { ItemNotes } from "./ItemNotes";
 import { ItemParent } from "./ItemParent";
 import { KeyDocuments } from "./KeyDocuments";
 
@@ -60,8 +59,6 @@ export default async function ItemPage(props: PageProps<"/items/[id]">) {
             <ItemParent item={item} candidates={parentOptions} />
           </div>
         </div>
-
-        <ItemNotes item={item} />
 
         <section className="flex flex-col gap-4">
           <div className="flex items-baseline gap-3">

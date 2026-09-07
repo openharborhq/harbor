@@ -6,8 +6,8 @@ import { MAX_INDEXED_CHARS } from "../processing/text-quality";
 import { TS_CONFIG } from "./search.service";
 
 /**
- * Rebuilds `document_search` rows from what is in Postgres — title (A), tags and item labels (B),
- * and the stored OCR text (C). The worker builds the same vector at the end of processing; this is
+ * Rebuilds `document_search` rows from what is in Postgres — title (A), tags, item labels and the
+ * document's notes (B), and the stored OCR text (C). The worker builds the same vector at the end of processing; this is
  * for everything that changes those inputs afterwards: retitling, refiling, and deleting an item
  * whose name would otherwise keep matching. Touches no blobs, so any container may call it.
  */
@@ -32,6 +32,8 @@ export class SearchIndexService {
           select tg.name as w from document_tags dt join tags tg on tg.id = dt.tag_id where dt.document_id = d.id
           union all
           select i.label from document_items di join items i on i.id = di.item_id where di.document_id = d.id
+          union all
+          select d.notes where d.notes is not null
         ) x
       ) b on true
       left join document_files df on df.document_id = d.id and df.is_current

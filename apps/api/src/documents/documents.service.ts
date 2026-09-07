@@ -295,9 +295,10 @@ export class DocumentsService {
         if (patch.itemIds.length) await tx.insert(documentItems).values(patch.itemIds.map((itemId: string) => ({ documentId, itemId })));
       }
       if (patch.tags !== undefined) await this.tagsService.setForDocument(documentId, patch.tags, tx);
-      // Title is weight A, items and tags are weight B — all three are stale in the index until
-      // the file is reprocessed otherwise, so a retitled or refiled document would not be found.
-      if (patch.title !== undefined || patch.itemIds !== undefined || patch.tags !== undefined) {
+      // Title is weight A; items, tags and notes are weight B. All of them are stale in the index
+      // until the file is reprocessed otherwise, so a retitled document — or one whose note says
+      // what the scan doesn't — would not be found.
+      if (patch.title !== undefined || patch.itemIds !== undefined || patch.tags !== undefined || patch.notes !== undefined) {
         await this.searchIndex.reindex([documentId], tx);
       }
     });

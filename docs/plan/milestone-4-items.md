@@ -33,10 +33,11 @@ control drawn as **Inbox — For people and things**. Spec: [§6](../spec/06-ite
 8. [x] **Delete an item**: `DELETE /items/:id` returns what it cost (documents unlinked,
        children detached); the confirmation states both before asking. Documents and children
        survive.
-9. [x] **Notes on an item** (`items.notes`), editable on the item page.
+9. [x] **Notes on a document**, editable in place on the document detail rather than only
+       through "Edit details", and indexed at weight B so they can be searched for.
 10. [x] **Search staleness**: `SearchIndexService.reindex()` rebuilds `document_search` from
-        Postgres alone. Wired into item delete and into document title/items/tags edits, which
-        until now only refreshed the index when the file was reprocessed.
+        Postgres alone. Wired into item delete and into document title/items/tags/notes edits,
+        which until now only refreshed the index when the file was reprocessed.
 
 11. [x] **Change or clear where an item sits** from its own page, with the API rejecting a
         person parent, self-parenting, and cycles. Nesting used to be set once at creation with

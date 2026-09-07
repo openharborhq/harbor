@@ -53,14 +53,14 @@ export class FileProcessor {
   async process(documentFileId: string, ctx: ProcessContext): Promise<ProcessResult> {
     const started = Date.now();
     const row = await this.db
-      .select({ df: documentFiles, title: documents.title })
+      .select({ df: documentFiles, title: documents.title, notes: documents.notes })
       .from(documentFiles)
       .innerJoin(documents, eq(documents.id, documentFiles.documentId))
       .where(eq(documentFiles.id, documentFileId))
       .limit(1)
       .then((r) => r[0]);
     if (!row) throw new UnrecoverableError(`document_files ${documentFileId} does not exist`);
-    const { df, title } = row;
+    const { df, title, notes } = row;
 
     const work = path.join(this.blobs.tmpDir, `job-${df.id}`);
     await mkdir(work, { recursive: true, mode: 0o700 });
@@ -165,7 +165,8 @@ export class FileProcessor {
           tx.select({ name: tags.name }).from(documentTags).innerJoin(tags, eq(tags.id, documentTags.tagId)).where(eq(documentTags.documentId, df.documentId)),
           tx.select({ name: items.label }).from(documentItems).innerJoin(items, eq(items.id, documentItems.itemId)).where(eq(documentItems.documentId, df.documentId)),
         ]);
-        const weightB = [...tagRows, ...itemRows].map((r) => r.name).join(" ");
+        // Same weight B as SearchIndexService.reindex(): tags, item labels and the document's notes.
+        const weightB = [...tagRows, ...itemRows].map((r) => r.name).concat(notes ?? []).join(" ");
         await tx.execute(sql`
           insert into document_search (document_id, tsv, updated_at)
           values (${df.documentId},
