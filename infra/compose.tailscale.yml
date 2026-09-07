@@ -1,0 +1,56 @@
+# Tailnet-only, enforced by the stack rather than by the operator remembering (spec §3.2).
+#
+#   docker compose --env-file /data/harbor.env \
+#     -f compose.yml -f compose.prod.yml -f compose.tailscale.yml up -d
+#
+# What changes: the web container stops publishing a host port. Nothing in the stack then listens
+# on any of the machine's interfaces — not the LAN, not localhost, not a mistyped bind address —
+# and the only way in is the tailscale container, which serves the app on your tailnet over HTTPS
+# with a certificate Tailscale issues. Getting the bind address wrong is no longer possible,
+# because there is no bind address.
+#
+# `AllowFunnel: {}` in tailscale-serve.json is deliberate and load-bearing: that is the setting
+# which would put this on the public internet, and it is empty.
+#
+# Set in /data/harbor.env:
+#   TS_AUTHKEY=tskey-auth-…          Tailscale admin console → Settings → Keys
+#   TAILSCALE_HOSTNAME=harbor        the name in your tailnet
+#   WEB_ORIGIN=https://harbor.your-tailnet.ts.net
+#   SESSION_COOKIE_SECURE=true       it is real HTTPS now
+#
+# The auth key is used once, at first start; the node identity then lives in
+# $HARBOR_DATA_DIR/tailscale, on the encrypted volume with everything else. Enable HTTPS for your
+# tailnet first (admin console → DNS → HTTPS Certificates), or serve has no certificate to use.
+name: harbor
+
+services:
+  tailscale:
+    image: tailscale/tailscale:v1.102.3
+    hostname: ${TAILSCALE_HOSTNAME:-harbor}
+    environment:
+      TS_AUTHKEY: ${TS_AUTHKEY:?set TS_AUTHKEY (Tailscale admin console → Settings → Keys)}
+      TS_STATE_DIR: /var/lib/tailscale
+      # Userspace networking: no /dev/net/tun, no NET_ADMIN, no kernel module. Enough here, because
+      # only `serve` traffic has to reach the app, and it keeps this container unprivileged.
+      TS_USERSPACE: "true"
+      TS_SERVE_CONFIG: /config/serve.json
+      # The proxy target is a compose service name; MagicDNS must not take over that resolution.
+      TS_ACCEPT_DNS: "false"
+      TS_EXTRA_ARGS: ${TS_EXTRA_ARGS:---accept-routes=false}
+    volumes:
+      - "${HARBOR_DATA_DIR:-../data}/tailscale:/var/lib/tailscale"
+      - "./tailscale-serve.json:/config/serve.json:ro"
+    # edge, so `web:3000` resolves. It reaches nothing else in the stack.
+    networks: [edge]
+    restart: unless-stopped
+    security_opt: ["no-new-privileges:true"]
+    depends_on: [web]
+
+  web:
+    # The whole point: no host port. Reachable only through the tailscale container above.
+    #
+    # An earlier version of this file put web in the tailscale container's network namespace
+    # instead. It worked, but a container joining another's namespace does not get Docker's
+    # embedded DNS, so web could no longer resolve `api` — the app was reachable and broken.
+    # Proxying over the compose network keeps every service's networking ordinary.
+    ports: !reset []

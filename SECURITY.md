@@ -24,7 +24,7 @@ reproduction you can manage.
 |---|---|---|
 | Burglar takes the box | A powered-off appliance | The data volume is LUKS; the passphrase is never stored on it |
 | Backup provider is breached | Snapshots | restic encrypts client-side; the key never leaves the house |
-| Attacker on the internet | Nothing to connect to | No forwarded ports; reachable only over your tailnet |
+| Attacker on the internet | Nothing to connect to | With `compose.tailscale.yml` no container publishes a host port; the only ingress is your tailnet |
 | A malicious PDF arrives by email | Code execution inside the OCR worker | That container has no route out, a read-only filesystem, no capabilities and is not root |
 | Someone reads a database dump | Mail passwords among the rows | Sealed under the master key, which lives only on the encrypted volume |
 | A family laptop is stolen | A session | Second factor required to sign in; sessions are revocable from Settings |
@@ -64,6 +64,8 @@ Each container gets only the reach its job needs, which is what makes the OCR ro
 | `suggester` | no, reads extracted text | the LLM provider you configured |
 | `backup` | reads blob ciphertext | the backup repository |
 | `api` | serves them to you | outbound lookups only |
+| `web` | no | no host port of its own with the tailnet overlay |
+| `tailscale` | no | the tailnet; the only way in |
 | `postgres`, `redis` | — | none |
 
 Keys are layered: a LUKS passphrase protects the powered-off disk; a master key on that volume
@@ -77,11 +79,13 @@ Harbor cannot enforce these, and without them the table above is optimistic:
 1. **Put the data directory on an encrypted volume.** `infra/check-data-volume.sh` refuses to
    start otherwise unless you explicitly override it.
 2. **Do not co-host it on your router or firewall.**
-3. **Print the break-glass page** — master key, backup password, where the backups are — and
+3. **Use `infra/compose.tailscale.yml`,** or otherwise make sure the web port is not on an
+   interface strangers can reach. Without it the port is published on `HARBOR_BIND`.
+4. **Print the break-glass page** — master key, backup password, where the backups are — and
    keep it somewhere physical. There is no other copy, and no way for anyone to reset it for you.
-4. **Configure backups and check that the monthly restore test passes.** Settings → Backups shows
+5. **Configure backups and check that the monthly restore test passes.** Settings → Backups shows
    every run. An untested backup is a hope.
-5. **Keep the box updated.** Images are rebuilt on every change to `main`.
+6. **Keep the box updated.** Images are rebuilt on every change to `main`.
 
 ## Cryptography, briefly
 

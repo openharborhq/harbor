@@ -27,9 +27,14 @@ mailbox the vault holds no credential to.
 
 ## 3.2 Network
 
-**Tailscale-only.** API binds to the tailnet interface. Zero forwarded ports. TLS via
-`tailscale cert`; no public DNS, no certificate-transparency footprint. All internet traffic
-is **outbound** (IMAP fetch, LLM API, backups).
+**Tailscale-only.** Built as `infra/compose.tailscale.yml`: Tailscale is a container in the
+stack, and with that overlay **no service publishes a host port at all** — the app is reached
+only through `tailscale serve`, over HTTPS with a Tailscale-issued certificate. There is no bind
+address to misconfigure. No public DNS, no certificate-transparency footprint. All internet
+traffic is **outbound** (IMAP fetch, LLM API, backups).
+
+Without the overlay the web container publishes a port on `HARBOR_BIND`, which defaults to
+loopback — forgetting it makes the vault unreachable, never accidentally public.
 
 Documented alternatives: headscale (self-hosted coordination); "public exposure" mode
 (Caddy + Let's Encrypt + rate limiting) marked *not recommended*.
@@ -103,7 +108,7 @@ Egress allow-list — one host each, nothing else:
 ## 3.7 Deployment
 
 Compose: `web`, `api`, `worker`, `mailfetch`, `suggester`, `postgres`, `redis`, `backup`,
-`tailscale`. Multi-arch images (dev arm64, deploy amd64) on GHCR pinned by digest. `setup`
+`tailscale` (the last as an overlay, §3.2). Multi-arch images (dev arm64, deploy amd64) on GHCR pinned by digest. `setup`
 wizard generates KEK + restic password, writes Docker secrets, renders the break-glass PDF.
 `.env.example` has no secrets. `update` = backup → pull → migrate under a lock. **No
 telemetry.** Deliverables: `SECURITY.md`, `docs/deploy.md`, `docs/restore.md`.

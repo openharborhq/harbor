@@ -55,10 +55,15 @@ hands-off reboots and is deliberately not the default.)
 
 ```sh
 curl -fsSL https://get.docker.com | sh
-curl -fsSL https://tailscale.com/install.sh | sh
-tailscale up            # authenticate in the browser; the box joins your tailnet
-tailscale ip -4         # note this address, e.g. 100.101.102.103
 ```
+
+Tailscale runs as one of the containers, so there is nothing to install on the host. In the
+Tailscale admin console, create an auth key (Settings → Keys → Generate auth key) and turn on
+**HTTPS Certificates** under DNS — `serve` needs it to have a certificate to present.
+
+If you would rather run Tailscale on the host and skip the overlay, `curl -fsSL
+https://tailscale.com/install.sh | sh && tailscale up` still works; note the address from
+`tailscale ip -4` and set `HARBOR_BIND` to it in step 5.
 
 ## 4. Get the images
 
@@ -85,9 +90,10 @@ docker compose -f infra/compose.yml build          # ~10 minutes on an N100
 ```sh
 cat > /data/harbor.env <<'EOF'
 HARBOR_DATA_DIR=/data
-HARBOR_BIND=100.101.102.103                 # the tailnet IP from step 3
-WEB_ORIGIN=http://100.101.102.103:3000  # or your https://box.tailnet.ts.net if you use `tailscale serve`
-SESSION_COOKIE_SECURE=false             # true once you are on https via tailscale serve
+TS_AUTHKEY=tskey-auth-…                 # from step 3
+TAILSCALE_HOSTNAME=harbor               # the name it takes in your tailnet
+WEB_ORIGIN=https://harbor.your-tailnet.ts.net
+SESSION_COOKIE_SECURE=true
 OCR_CONCURRENCY=2                       # cores - 1 on a 4-core box
 OCR_LANGUAGES=deu+eng
 EOF
@@ -132,17 +138,24 @@ remove one.
 ## 6. Start
 
 ```sh
-export $(grep -v '^#' /data/harbor.env | xargs)
-docker compose --env-file /data/harbor.env -f compose.yml -f compose.prod.yml up -d
+curl -fsSLO https://raw.githubusercontent.com/openharborhq/harbor/main/infra/compose.tailscale.yml
+curl -fsSLO https://raw.githubusercontent.com/openharborhq/harbor/main/infra/tailscale-serve.json
+docker compose --env-file /data/harbor.env \
+  -f compose.yml -f compose.prod.yml -f compose.tailscale.yml up -d
 docker compose --env-file /data/harbor.env -f compose.yml -f compose.prod.yml logs -f api
 ```
 
-Wait for `API listening on :4000` (migrations run first). The web app is now at
-`http://<tailnet-ip>:3000` from any device on your tailnet — and from nowhere else.
+Wait for `API listening on :4000` (migrations run first). The vault is now at
+`https://harbor.your-tailnet.ts.net` from any device on your tailnet — and **nothing at all
+listens on this machine's own interfaces**, so there is no LAN address, no localhost port and no
+bind setting to get wrong. `docker compose … exec tailscale tailscale status` shows the node.
+
+Without the third file the vault publishes a port instead, on `HARBOR_BIND` (default `127.0.0.1`,
+i.e. that machine only). That is the path to take if Tailscale runs on the host.
 
 ## 7. Create the first owner
 
-Open `http://<tailnet-ip>:3000`. A vault with no owner shows **Set up your vault** instead of
+Open `https://harbor.your-tailnet.ts.net`. A vault with no owner shows **Set up your vault** instead of
 the sign-in page: your name, email and a password of at least 12 characters. The next screen
 shows the authenticator key (add it to your app) and ten recovery codes, **once**. Print the
 codes now. There is no password reset by email — on purpose — and the page never appears again;
@@ -172,7 +185,7 @@ that is the point of running this yourself. Reprint it whenever any of these cha
 
 ## 9. Prove it
 
-1. Sign in at `http://<tailnet-ip>:3000` with password and the 6-digit code.
+1. Sign in at `https://harbor.your-tailnet.ts.net` with password and the 6-digit code.
 2. Open **Add documents**, drop a scanned bill (a photo of one is fine).
 3. Watch the row go *Reading page N of M* → *Done*; open **Inbox**.
 4. Search for a word that appears only inside the scan. It should come back highlighted.
@@ -202,8 +215,8 @@ everything in the next milestones.
   ```
 - **Reboot:** type the LUKS passphrase at the console or via SSH-in-initramfs; containers
   restart on their own.
-- **HTTPS on the tailnet:** `tailscale serve --bg 3000`, then set `WEB_ORIGIN` to the
-  `https://…ts.net` name and `SESSION_COOKIE_SECURE=true`, and `up -d` again.
+- **The tailnet node:** `docker compose … exec tailscale tailscale status`. The auth key is
+  needed only on first start; the identity lives in `/data/tailscale` and is in the backups.
 
 ## Restore
 

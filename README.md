@@ -6,9 +6,8 @@ rest and backed up offsite with a tested restore path. Runs on a small Linux box
 reachable only over your tailnet.
 
 **Status:** working v1 — upload, OCR, search, suggestions, items, categories, email-in with
-sender triage, nightly encrypted backups with a monthly automated restore test, and a
-browser-based first run. Tailscale-only networking is documented, not enforced yet. The design
-is in [`docs/spec`](docs/spec/00-overview.md).
+sender triage, nightly encrypted backups with a monthly automated restore test, a browser-based
+first run, and tailnet-only networking. The design is in [`docs/spec`](docs/spec/00-overview.md).
 
 ## Install on your own box
 
@@ -20,17 +19,24 @@ mkdir -p /opt/harbor && cd /opt/harbor
 for f in compose.yml compose.prod.yml check-data-volume.sh; do
   curl -fsSLO "https://raw.githubusercontent.com/openharborhq/harbor/main/infra/$f"
 done
+curl -fsSLO https://raw.githubusercontent.com/openharborhq/harbor/main/infra/compose.tailscale.yml
+curl -fsSLO https://raw.githubusercontent.com/openharborhq/harbor/main/infra/tailscale-serve.json
 cat > /data/harbor.env <<'ENV'
 HARBOR_DATA_DIR=/data                    # the LUKS-backed mount (deploy.md, step 2)
-HARBOR_BIND=100.101.102.103              # your tailnet IP
-WEB_ORIGIN=http://100.101.102.103:3000
-SESSION_COOKIE_SECURE=false
+TS_AUTHKEY=tskey-auth-…                  # Tailscale admin console → Settings → Keys
+TAILSCALE_HOSTNAME=harbor
+WEB_ORIGIN=https://harbor.your-tailnet.ts.net
+SESSION_COOKIE_SECURE=true
 ENV
 HARBOR_DATA_DIR=/data sh check-data-volume.sh      # refuses an unencrypted /data; creates the secrets
-docker compose --env-file /data/harbor.env -f compose.yml -f compose.prod.yml up -d
+docker compose --env-file /data/harbor.env \
+  -f compose.yml -f compose.prod.yml -f compose.tailscale.yml up -d
 ```
 
-Then open `http://<tailnet-ip>:3000`. **The vault starts empty and asks you to create the first
+Then open `https://harbor.your-tailnet.ts.net`. Nothing listens on the machine's own interfaces:
+Tailscale runs as one of the containers and serves the app on your tailnet over HTTPS, so there
+is no LAN address and no bind setting to get wrong. Drop the third compose file to publish a
+local port instead (`HARBOR_BIND`, default loopback). **The vault starts empty and asks you to create the first
 owner** — name, email, password — and shows the authenticator key and recovery codes once. There
 are no default credentials. Everyone else joins by invitation from Settings.
 
@@ -68,7 +74,8 @@ filed and some waiting in the Inbox. Nobody's real paperwork is in this reposito
 
 | Container | Does | Network |
 |---|---|---|
-| `web` | the app (Next.js) | the only thing listening |
+| `tailscale` | serves the app on your tailnet over HTTPS | the only thing reachable, and only from your tailnet |
+| `web` | the app (Next.js) | no host port of its own |
 | `api` | HTTP API, migrations, sessions | internal + out (autodiscover) |
 | `worker` | OCR, thumbnails, text extraction — the only process that opens documents | **no route out** |
 | `suggester` | titles, categories and dates from the text, via the LLM you choose or none | out to that provider only |

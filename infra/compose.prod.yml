@@ -38,4 +38,8 @@ services:
     # !override, not !reset: reset removes the attribute and ignores what follows it, so this
     # line published nothing and the appliance would have had no web port at all — found the
     # first time the stack ran from images. The !reset [] lines above are correct: they remove.
-    ports: !override ["${HARBOR_BIND:?set HARBOR_BIND to the tailnet IP}:3000:3000"]
+    # Defaults to loopback, not to every interface: forgetting HARBOR_BIND should make the vault
+    # unreachable from elsewhere, never accidentally reachable from the LAN. A default is also
+    # what lets compose.tailscale.yml drop the port entirely — interpolation happens before
+    # overrides, so a `?required` here would fail even when nothing publishes a port.
+    ports: !override ["${HARBOR_BIND:-127.0.0.1}:3000:3000"]
