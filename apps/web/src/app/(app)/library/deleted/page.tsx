@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import type { DeletedDocument } from "@trustworthier/shared";
+import { EmptyState } from "@/components/EmptyState";
 import { TopBar } from "@/components/shell/TopBar";
 import { apiFetch } from "@/lib/api-server";
 import { formatRelative } from "@/lib/format";
@@ -21,7 +22,15 @@ export default async function DeletedPage() {
           <h1 className="mt-2 text-title font-bold tracking-snug">Recently deleted</h1>
           <p className="mt-1.5 text-body text-muted">Deleted documents stay here, encrypted, until they are purged. Restore puts them back exactly as they were.</p>
         </div>
-        {docs.length === 0 && <p className="text-body text-muted">Nothing here.</p>}
+        {docs.length === 0 && (
+          <EmptyState
+            compact
+            title="Nothing deleted"
+            body="Documents you delete land here first, so a wrong click is never final. None have been deleted yet."
+            action="Browse the library"
+            href="/library"
+          />
+        )}
         <ul className="flex flex-col">
           {docs.map((d) => (
             <li key={d.id} className="flex h-14 items-center gap-4 border-t border-border last:border-b">

@@ -8,7 +8,7 @@ import { DocumentNotes } from "./DocumentNotes";
 import { ItemPicker } from "./ItemPicker";
 import { api } from "@/lib/api-client";
 import { formatBytes, formatDate, formatRelative, pages } from "@/lib/format";
-import { StatusPill } from "./StatusPill";
+import { StatusPill, isProcessing } from "./StatusPill";
 
 type Tab = "details" | "text" | "versions" | "activity";
 
@@ -125,11 +125,17 @@ export function DocumentDetail({
             <StatusPill status={doc.file.processingStatus} />
             {text.engine ? `${text.engine === "ocrmypdf" ? "OCR" : "Text layer"} · ${text.chars.toLocaleString()} characters` : "No text extracted"}
           </div>
-          <pre className="max-h-[560px] overflow-auto whitespace-pre-wrap rounded-lg bg-surface p-4 font-sans text-small leading-[18px]">{text.text || "Nothing readable was found on the pages."}</pre>
+          <pre className="max-h-[560px] overflow-auto whitespace-pre-wrap rounded-lg bg-surface p-4 font-sans text-small leading-[18px]">{text.text || (isProcessing(doc.file.processingStatus) ? "Still being read — this fills in when processing finishes." : "Nothing readable was found on the pages. A photo of a photo, or a scan too faint to OCR, does this; re-uploading a sharper copy as a new version usually fixes it.")}</pre>
         </div>
       )}
 
-      {tab === "versions" && (
+      {tab === "versions" && versions.length <= 1 && (
+        <p className="mt-6 max-w-[420px] text-body text-muted">
+          Only the file you uploaded. Re-uploading the same document as a new version keeps both, so you can see what
+          changed and go back.
+        </p>
+      )}
+      {tab === "versions" && versions.length > 1 && (
         <ul className="mt-6 flex flex-col divide-y divide-border">
           {versions.map((v) => (
             <li key={v.fileId} className="flex items-center gap-4 py-3.5 text-row">
@@ -149,7 +155,10 @@ export function DocumentDetail({
         </ul>
       )}
 
-      {tab === "activity" && (
+      {tab === "activity" && activity.length === 0 && (
+        <p className="mt-6 max-w-[420px] text-body text-muted">Nothing has happened to this document since it arrived.</p>
+      )}
+      {tab === "activity" && activity.length > 0 && (
         <ul className="mt-6 flex flex-col divide-y divide-border">
           {activity.map((a) => (
             <li key={a.id} className="flex items-baseline gap-4 py-3 text-row">

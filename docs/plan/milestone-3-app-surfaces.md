@@ -45,6 +45,11 @@ upload page can file documents directly (batch defaults) so the Inbox is optiona
         regenerate recovery codes, invite the second owner, sessions list with revoke, reset
         another owner's access.
         Backups/forwarding/appliance panels wait for their milestones.
-13. [ ] Empty states and error states for every page.
+13. [x] **Empty and error states.** A shared `EmptyState`, filled in on Home (recently added),
+        People & things, Recently deleted, search-with-no-results, and the document detail's text,
+        versions and activity tabs. Error boundaries at `app/error.tsx` (the layout's own failure —
+        `currentUser()` when the API is down, which a sibling boundary cannot catch),
+        `app/(app)/error.tsx` (a page's failure, inside the shell), `app/(app)/not-found.tsx`, and
+        `app/global-error.tsx`.
 
 Order of work: A1 → A2 → A5 → B7 → B9 → B8 → B10 → B12 → A3/A4/A6 → B11 → B13.

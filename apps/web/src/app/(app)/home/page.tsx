@@ -4,6 +4,7 @@ import type { HomeData } from "@trustworthier/shared";
 import { TopBar } from "@/components/shell/TopBar";
 import { apiFetch } from "@/lib/api-server";
 import { formatDate, formatRelative } from "@/lib/format";
+import { EmptyState } from "@/components/EmptyState";
 import { itemGlyph } from "@/lib/item-glyph";
 
 export const metadata: Metadata = { title: "Home" };
@@ -95,6 +96,15 @@ export default async function HomePage() {
           {/* Recently added */}
           <section className="flex flex-col gap-4">
             <SectionHeader title="Recently added" small />
+            {h.recentlyAdded.length === 0 && (
+              <EmptyState
+                compact
+                title="Nothing in the vault yet"
+                body="Drop a bill, a passport scan or a policy on the Add page. Everything is read, indexed and suggested a home in about a minute."
+                action="Add documents"
+                href="/add"
+              />
+            )}
             <ul className="flex flex-col">
               {h.recentlyAdded.map((d) => (
                 <li key={d.documentId} className="flex h-[70px] items-center gap-3.5 border-t border-border last:border-b">

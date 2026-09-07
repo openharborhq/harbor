@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { ACTIVE_ITEM_KINDS, ITEM_KIND_LABEL, itemSubtitle, type Item } from "@trustworthier/shared";
 import { TopBar } from "@/components/shell/TopBar";
+import { EmptyState } from "@/components/EmptyState";
 import { apiFetch } from "@/lib/api-server";
 import { itemGlyph } from "@/lib/item-glyph";
 import { ItemForm } from "./ItemForm";
@@ -22,6 +23,13 @@ export default async function ItemsPage() {
             Everything documents can be <em>about</em> — family members, the house, the car, an account. Suggestions can only pick from this list.
           </p>
         </div>
+
+        {items.length === 0 && (
+          <EmptyState
+            title="Nothing to file documents against yet"
+            body="Add the people in your household and the things that generate paperwork — the house, the car, an account. Suggestions can only pick from this list, so a document about the house can only be marked as such once the house exists."
+          />
+        )}
 
         {ACTIVE_ITEM_KINDS.map((kind) => {
           const inKind = items.filter((i) => i.kind === kind && i.parentId === null);
