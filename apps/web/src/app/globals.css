@@ -1,26 +1,76 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+/*
+ * Design tokens, verbatim from the Paper file (see docs/spec/04-ui-surfaces.md).
+ * Tailwind v4 reads these namespaces directly: bg-ground, text-muted, border-border,
+ * text-body, rounded-lg, font-sans, tracking-snug …
+ */
+@theme {
+  --color-ground: #ffffff;
+  --color-surface: #f2f5f9;
+  --color-border: #dce3ec;
+  --color-border-strong: #c0cad8;
+  --color-muted: #586471;
+  --color-text: #0d1622;
+  --color-accent: #123fa8;
+  --color-accent-soft: #e5ebf8;
+  --color-warn: #b06a12;
+  --color-warn-soft: #fbf1e1;
+  --color-danger: #a33125;
+
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+
+  --text-display: 40px;
+  --text-display--line-height: 42px;
+  --text-title: 32px;
+  --text-title--line-height: 38px;
+  --text-section: 19px;
+  --text-section--line-height: 24px;
+  --text-body: 15px;
+  --text-body--line-height: 22px;
+  --text-row: 14px;
+  --text-row--line-height: 18px;
+  --text-small: 13px;
+  --text-small--line-height: 16px;
+  --text-label: 11px;
+  --text-label--line-height: 14px;
+
+  --tracking-tight: -0.03em;
+  --tracking-snug: -0.02em;
+  --tracking-label: 0.08em;
+
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-card: 18px;
+  --radius-pill: 999px;
+
+  --spacing-sidebar: 248px;
+  --spacing-gutter: 32px;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
+html,
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  height: 100%;
+  background: var(--color-ground);
+  color: var(--color-text);
+  -webkit-font-smoothing: antialiased;
+}
+
+mark {
+  background: var(--color-accent-soft);
+  color: var(--color-accent);
+  font-weight: 600;
+  border-radius: 2px;
+  padding: 0 2px;
+}
+
+/* Small uppercase field labels used throughout the design. */
+.label {
+  font-size: var(--text-label);
+  line-height: var(--text-label--line-height);
+  font-weight: 700;
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--color-muted);
 }
