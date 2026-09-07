@@ -83,7 +83,17 @@ export class ItemsService {
     if (patch.details !== undefined) set.details = patch.details;
     if (patch.parentId !== undefined) set.parentId = patch.parentId;
     if (patch.notes !== undefined) set.notes = patch.notes;
-    if (Object.keys(set).length) await this.db.update(items).set(set).where(eq(items.id, itemId));
+    if (Object.keys(set).length) {
+      await this.db.transaction(async (tx) => {
+        await tx.update(items).set(set).where(eq(items.id, itemId));
+        // Item labels are weight B in the search index, so a rename leaves every document about
+        // this item still answering to the old name.
+        if (patch.label !== undefined) {
+          const rows = await tx.select({ id: documentItems.documentId }).from(documentItems).where(eq(documentItems.itemId, itemId));
+          await this.searchIndex.reindex(rows.map((r) => r.id), tx);
+        }
+      });
+    }
     await this.audit.record({ action: "item.update", actorUserId, entityType: "item", entityId: itemId, metadata: { fields: Object.keys(set) } });
     return this.get(itemId);
   }

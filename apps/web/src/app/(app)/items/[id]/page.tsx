@@ -9,6 +9,7 @@ import { ApiError, apiFetch } from "@/lib/api-server";
 import { ageFrom, formatDate, formatRelative } from "@/lib/format";
 import { itemGlyph } from "@/lib/item-glyph";
 import { DeleteItem } from "./DeleteItem";
+import { ItemIdentity } from "./ItemIdentity";
 import { ItemParent } from "./ItemParent";
 import { KeyDocuments } from "./KeyDocuments";
 
@@ -54,8 +55,7 @@ export default async function ItemPage(props: PageProps<"/items/[id]">) {
                 </>
               )}
             </div>
-            <h1 className="mt-1 text-title font-bold tracking-snug">{item.label}</h1>
-            <p className="mt-1 text-body text-muted">{headline(item)}</p>
+            <ItemIdentity item={item} headline={headline(item)} />
             <ItemParent item={item} candidates={parentOptions} />
           </div>
         </div>

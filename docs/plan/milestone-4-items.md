@@ -45,7 +45,8 @@ control drawn as **Inbox — For people and things**. Spec: [§6](../spec/06-ite
 
 ## Next
 
-12. [ ] Reorder and rename items from the UI.
+12. [x] **Rename an item** and edit its kind-specific details from its own page. Renaming
+        reindexes every document about it — item labels are weight B.
 13. [ ] Kinds beyond the active four (`policy`, `pet`, `business`) in the add menus, once
        there is a real reason to surface them.
 14. [ ] Update the Paper artboards whose sidebars and counts predate Purchases and items.
