@@ -56,7 +56,7 @@ export default async function DocumentPage(props: PageProps<"/documents/[id]">) 
         </div>
 
         <div className="flex gap-8">
-          <div className="flex min-w-[560px] flex-1 flex-col gap-3">
+          <div className="flex min-w-[520px] flex-1 flex-col gap-3">
             <div className="flex h-[720px] items-start justify-center overflow-hidden rounded-lg bg-surface p-6">
               {isImage ? (
                 // eslint-disable-next-line @next/next/no-img-element

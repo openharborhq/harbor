@@ -47,7 +47,7 @@ export function DocumentDetail({
   }
 
   return (
-    <aside className="flex w-[420px] shrink-0 flex-col">
+    <aside className="flex w-[420px] min-w-[360px] flex-col">
       <div className="flex gap-5 border-b border-border">
         {(["details", "text", "versions", "activity"] as Tab[]).map((t) => (
           <button
