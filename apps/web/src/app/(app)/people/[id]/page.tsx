@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { DocumentSummary, KeyDocumentSlot, Person } from "@trustworthier/shared";
+import { DocThumb } from "@/components/DocThumb";
 import { StatusPill } from "@/components/StatusPill";
 import { TopBar } from "@/components/shell/TopBar";
 import { ApiError, apiFetch } from "@/lib/api-server";
@@ -69,7 +70,7 @@ export default async function PersonPage(props: PageProps<"/people/[id]">) {
           <ul className="flex flex-col">
             {shown.map((d) => (
               <li key={d.id} className="flex h-14 items-center gap-4 border-t border-border last:border-b">
-                <div className="h-[38px] w-[30px] shrink-0 rounded-sm border border-border bg-surface" />
+                <DocThumb documentId={d.id} hasThumbnail={d.file.hasThumbnail} version={d.file.version} width={30} height={38} className="rounded-sm" />
                 <Link href={`/documents/${d.id}`} className="w-[380px] truncate text-row font-semibold hover:text-accent">
                   {d.title}
                 </Link>

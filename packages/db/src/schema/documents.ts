@@ -63,6 +63,10 @@ export const documentFiles = pgTable(
       .default("queued"),
     processingError: text("processing_error"),
     pageProgress: real("page_progress"),
+    // First-page preview, PNG, encrypted under the same DEK with its own IV (spec §3.3).
+    thumbnailKey: text("thumbnail_key"),
+    thumbnailIv: bytea("thumbnail_iv"),
+    thumbnailTag: bytea("thumbnail_tag"),
     uploadedBy: uuid("uploaded_by").references(() => users.id),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },

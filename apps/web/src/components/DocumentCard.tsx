@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { DocumentSummary } from "@trustworthier/shared";
 import { formatBytes, formatRelative, pages } from "@/lib/format";
+import { DocThumb } from "./DocThumb";
 import { StatusPill, isProcessing } from "./StatusPill";
 
 /** Inbox card, milestone-1 form: the summary/suggestion block arrives with the LLM pass (M2). */
@@ -15,7 +16,7 @@ export function DocumentCard({ doc }: { doc: DocumentSummary }) {
 
   return (
     <article className="flex items-start gap-6 rounded-card border border-border p-6">
-      <Thumbnail dim={processing} />
+      <DocThumb documentId={doc.id} hasThumbnail={f.hasThumbnail} version={f.version} width={200} height={283} dim={processing} />
       <div className="flex min-w-0 flex-1 flex-col gap-4 self-stretch">
         <div>
           <Link href={`/documents/${doc.id}`} className="text-section font-semibold tracking-snug hover:text-accent">

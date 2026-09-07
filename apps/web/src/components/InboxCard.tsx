@@ -6,7 +6,7 @@ import { useMemo, useState } from "react";
 import type { Category, DocumentSummary, Person } from "@trustworthier/shared";
 import { api } from "@/lib/api-client";
 import { formatBytes, formatRelative, pages } from "@/lib/format";
-import { Thumbnail } from "./DocumentCard";
+import { DocThumb } from "./DocThumb";
 import { StatusPill, isProcessing } from "./StatusPill";
 
 /**
@@ -62,7 +62,7 @@ export function InboxCard({ doc, categories, people }: { doc: DocumentSummary; c
 
   return (
     <article className="flex items-start gap-6 rounded-card border border-border p-6">
-      <Thumbnail dim={processing} />
+      <DocThumb documentId={doc.id} hasThumbnail={f.hasThumbnail} version={f.version} width={200} height={283} dim={processing} />
       <div className="flex min-w-0 flex-1 flex-col gap-[18px] self-stretch">
         <div>
           <Link href={`/documents/${doc.id}`} className="text-section font-semibold tracking-snug hover:text-accent">
@@ -97,7 +97,19 @@ export function InboxCard({ doc, categories, people }: { doc: DocumentSummary; c
         {!processing && f.processingStatus === "failed" && (
           <div className="flex items-start gap-2.5 rounded-md bg-warn-soft px-3.5 py-3">
             <WarnIcon />
-            <p className="text-row leading-5">Couldn&rsquo;t make this searchable — {f.processingError ?? "the reading step failed"}. The original is safe and can be filed as-is.</p>
+            <div className="flex flex-col gap-2">
+              <p className="text-row leading-5">Couldn&rsquo;t make this searchable — {f.processingError ?? "the reading step failed"}. The original is safe and can be filed as-is.</p>
+              <button
+                type="button"
+                onClick={async () => {
+                  await api(`/documents/${doc.id}/reprocess`, { method: "POST" });
+                  router.refresh();
+                }}
+                className="self-start rounded-md border border-border-strong bg-ground px-3 py-1 text-small font-semibold"
+              >
+                Try again
+              </button>
+            </div>
           </div>
         )}
 

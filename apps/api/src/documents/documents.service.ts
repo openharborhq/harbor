@@ -164,6 +164,25 @@ export class DocumentsService {
     return summary!;
   }
 
+  /** Decrypted first-page PNG. Not audited: previews render on every list and would drown the log. */
+  async openThumbnail(documentId: string): Promise<{ stream: Readable; fileId: string } | null> {
+    const { df } = await this.loadRow(documentId);
+    if (!df.thumbnailKey || !df.thumbnailIv || !df.thumbnailTag) return null;
+    const dek = this.blobs.unwrapDek(df.dekWrapped, df.storageKey);
+    const stream = this.blobs.openStream(df.thumbnailKey, dek, df.thumbnailIv, df.thumbnailTag);
+    dek.fill(0);
+    return { stream, fileId: df.id };
+  }
+
+  /** Re-run the pipeline on the current file: "Try again" on a failed card, or backfilling previews. */
+  async reprocess(documentId: string, userId: string, ip: string | null): Promise<DocumentSummary> {
+    const { df } = await this.loadRow(documentId);
+    await this.db.update(documentFiles).set({ processingStatus: "queued", processingError: null, pageProgress: null }).where(eq(documentFiles.id, df.id));
+    await this.queue.add("process", { documentFileId: df.id }, { jobId: `${df.id}-${Date.now()}` });
+    await this.audit.record({ action: "document.reprocess", actorUserId: userId, entityType: "document", entityId: documentId, ip });
+    return this.get(documentId);
+  }
+
   async versions(documentId: string): Promise<DocumentVersion[]> {
     await this.loadRow(documentId);
     const rows = await this.db
@@ -401,6 +420,7 @@ export function toSummary(
       processingStatus: df.processingStatus,
       processingError: df.processingError,
       pageProgress: df.pageProgress,
+      hasThumbnail: df.thumbnailKey !== null,
     },
   };
 }

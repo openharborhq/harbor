@@ -43,6 +43,8 @@ export const DocumentSummary = z.object({
     processingError: z.string().nullable(),
     /** 0..1 while OCR is running; null otherwise. */
     pageProgress: z.number().min(0).max(1).nullable(),
+    /** True once a first-page preview exists at GET /documents/:id/thumbnail. */
+    hasThumbnail: z.boolean(),
   }),
 });
 export type DocumentSummary = z.infer<typeof DocumentSummary>;

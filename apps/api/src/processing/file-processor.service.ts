@@ -120,6 +120,18 @@ export class FileProcessor {
           searchable = { key: sealed.storageKey, iv: sealed.iv, tag: sealed.authTag };
         }
       }
+      // First-page preview (spec §4: real thumbnails on every card). Best-effort; never fails the job.
+      let thumb: { key: string; iv: Buffer; tag: Buffer } | null = null;
+      const thumbSource = searchable ? path.join(work, "searchable.pdf") : kind === "pdf" ? original : null;
+      if (thumbSource) {
+        try {
+          await run("pdftoppm", ["-f", "1", "-l", "1", "-scale-to", "480", "-png", "-singlefile", thumbSource, path.join(work, "thumb")], { signal: ctx.signal });
+          const sealedThumb = await this.blobs.sealFile(path.join(work, "thumb.png"), dek);
+          thumb = { key: sealedThumb.storageKey, iv: sealedThumb.iv, tag: sealedThumb.authTag };
+        } catch (err) {
+          this.log.warn(`${df.id}: no thumbnail: ${(err as Error).message.slice(0, 120)}`);
+        }
+      }
       dek.fill(0);
 
       await this.setStatus(df.id, "indexing");
@@ -163,7 +175,13 @@ export class FileProcessor {
         `);
         await tx
           .update(documentFiles)
-          .set({ processingStatus: text ? "suggesting" : "ready", processingError: null, pageProgress: null, pageCount })
+          .set({
+            processingStatus: text ? "suggesting" : "ready",
+            processingError: null,
+            pageProgress: null,
+            pageCount,
+            ...(thumb ? { thumbnailKey: thumb.key, thumbnailIv: thumb.iv, thumbnailTag: thumb.tag } : {}),
+          })
           .where(eq(documentFiles.id, df.id));
       });
       // Stage 4 runs in the suggester container (the only one with a route out). Best-effort: it flips to ready either way.

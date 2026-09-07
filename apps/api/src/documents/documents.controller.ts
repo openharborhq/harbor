@@ -69,6 +69,29 @@ export class DocumentsController {
     return this.documents.get(id);
   }
 
+  @Get(":id/thumbnail")
+  async thumbnail(@Param("id", ParseUUIDPipe) id: string, @Res() res: Response): Promise<void> {
+    const t = await this.documents.openThumbnail(id);
+    if (!t) {
+      res.status(404).end();
+      return;
+    }
+    res.setHeader("Content-Type", "image/png");
+    res.setHeader("Cache-Control", "private, max-age=86400");
+    res.setHeader("ETag", `"${t.fileId}"`);
+    t.stream.on("error", () => {
+      if (!res.headersSent) res.status(500);
+      res.end();
+    });
+    t.stream.pipe(res);
+  }
+
+  @Post(":id/reprocess")
+  @HttpCode(200)
+  reprocess(@Param("id", ParseUUIDPipe) id: string, @CurrentUser() user: SessionUser, @Req() req: Request): Promise<DocumentSummary> {
+    return this.documents.reprocess(id, user.id, req.ip ?? null);
+  }
+
   @Get(":id/text")
   text(@Param("id", ParseUUIDPipe) id: string): Promise<DocumentText> {
     return this.documents.text(id);

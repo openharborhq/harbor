@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { Category, DocumentSummary, Person, UploadResult } from "@trustworthier/shared";
 import { api, sha256Hex, uploadFile } from "@/lib/api-client";
 import { formatBytes, formatDate } from "@/lib/format";
+import { DocThumb } from "./DocThumb";
 import { isProcessing } from "./StatusPill";
 
 type Phase =
@@ -284,7 +285,11 @@ function Row({ item, paused, onDecide, onRetry }: { item: Item; paused: boolean;
   const { file, phase } = item;
   return (
     <li className="flex h-16 items-center gap-3.5 border-t border-border">
-      <div className="h-[38px] w-[30px] shrink-0 rounded-sm border border-border bg-surface" />
+      {phase.kind === "ready" || phase.kind === "processing" ? (
+        <DocThumb documentId={phase.doc.id} hasThumbnail={phase.doc.file.hasThumbnail} version={phase.doc.file.version} width={30} height={38} className="rounded-sm" />
+      ) : (
+        <div className="h-[38px] w-[30px] shrink-0 rounded-sm border border-border bg-surface" />
+      )}
       <div className="w-[340px] shrink-0">
         <div className="truncate text-row font-semibold">{file.name}</div>
         <div className="text-small text-muted">
