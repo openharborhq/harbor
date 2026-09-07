@@ -8,10 +8,10 @@ COPY pnpm-lock.yaml pnpm-workspace.yaml package.json turbo.json ./
 COPY apps/api/package.json apps/api/
 COPY packages/shared/package.json packages/shared/
 COPY packages/db/package.json packages/db/
-RUN pnpm install --frozen-lockfile --filter @trustworthier/api...
+RUN pnpm install --frozen-lockfile --filter @harbor/api...
 COPY packages ./packages
 COPY apps/api ./apps/api
-RUN pnpm --filter @trustworthier/api... build && pnpm --filter @trustworthier/api deploy --prod --legacy /out
+RUN pnpm --filter @harbor/api... build && pnpm --filter @harbor/api deploy --prod --legacy /out
 
 FROM base AS runtime
 ENV NODE_ENV=production
