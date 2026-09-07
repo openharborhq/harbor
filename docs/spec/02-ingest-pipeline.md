@@ -43,8 +43,10 @@ silently. `page_progress` is updated per page for the upload UI.
 
 ## Stage 3 — Index
 
-Build `tsv` weighted A = title, B = tags + items + notes + category path, C = OCR text + the
-model summary. One place builds it — `SearchIndexService.reindex()` — called by the worker here
+Build `tsv` weighted A = title, B = tags + items + notes + category path + aliases, C = OCR
+text + the model summary — each under `simple`, `german` and `english` at once, so a query
+stemmed by any of them matches. `document_search.terms` carries the same names as plain text for
+the trigram fallback. One place builds it — `SearchIndexService.reindex()` — called by the worker here
 and again by the suggester once the summary exists, so the two can never disagree. The index is a cache —
 rebuildable from source at any time, never the source of truth.
 

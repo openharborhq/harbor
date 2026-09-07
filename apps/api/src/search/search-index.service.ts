@@ -1,21 +1,21 @@
 import { Injectable } from "@nestjs/common";
-import { sql } from "drizzle-orm";
+import { sql, type SQL } from "drizzle-orm";
 import type { Db } from "@trustworthier/db";
 import { InjectDb } from "../db/db.module";
 import { MAX_INDEXED_CHARS } from "../processing/text-quality";
-import { TS_CONFIG } from "./search.service";
+import { TS_CONFIGS } from "./search.service";
 
 /**
- * Rebuilds `document_search` rows from what is in Postgres — title (A); tags, item labels, notes,
- * the category path and the model's search aliases (B); the OCR text and the summary (C).
+ * Rebuilds `document_search` from what is in Postgres — title (A); tags, item labels, notes, the
+ * category path and the model's search aliases (B); the OCR text and the summary (C).
  *
- * The summary and the category path are the bridge across languages: the vault holds German
- * paperwork that an English-speaking household searches for in English, and the model already
- * writes an English summary of every document, and names the document type in both languages in
- * `aliases`. Those two are the difference between "birth certificate" finding an
- * Abstammungsurkunde and finding nothing (spec §5). The worker builds the same vector at the end of processing; this is
- * for everything that changes those inputs afterwards: retitling, refiling, and deleting an item
- * whose name would otherwise keep matching. Touches no blobs, so any container may call it.
+ * Two things make a bilingual vault searchable. The summary and `aliases` are the bridge across
+ * languages: the household reads English and the paperwork is German, so neither the scan nor its
+ * title contains the words they would type (spec §5). And every field is indexed under all three
+ * text-search configs at once — `simple` keeps the words verbatim for numbers and names, `german`
+ * and `english` add stems, so "bills" finds a "bill" and "Rechnungen" finds a "Rechnung".
+ *
+ * `terms` carries the same names as plain text for the trigram fallback in SearchService.
  */
 @Injectable()
 export class SearchIndexService {
@@ -25,12 +25,13 @@ export class SearchIndexService {
   async reindex(documentIds: string[], tx: Pick<Db, "execute"> = this.db): Promise<void> {
     if (documentIds.length === 0) return;
     await tx.execute(sql`
-      insert into document_search (document_id, tsv, updated_at)
+      insert into document_search (document_id, tsv, terms, updated_at)
       select d.id,
-             setweight(to_tsvector(${TS_CONFIG}, d.title), 'A')
-          || setweight(to_tsvector(${TS_CONFIG}, coalesce(b.words, '')), 'B')
-          || setweight(to_tsvector(${TS_CONFIG}, left(coalesce(t.text_content, ''), ${MAX_INDEXED_CHARS})), 'C')
-          || setweight(to_tsvector(${TS_CONFIG}, coalesce(sg.summary, '')), 'C'),
+             ${weighted(sql`d.title`, "A")}
+          || ${weighted(sql`coalesce(b.words, '')`, "B")}
+          || ${weighted(sql`left(coalesce(t.text_content, ''), ${MAX_INDEXED_CHARS})`, "C")}
+          || ${weighted(sql`coalesce(sg.summary, '')`, "C")},
+             d.title || ' ' || coalesce(b.words, ''),
              now()
       from documents d
       left join document_files df on df.document_id = d.id and df.is_current
@@ -56,7 +57,15 @@ export class SearchIndexService {
         ) x
       ) b on true
       where d.id in (${sql.join(documentIds.map((id) => sql`${id}::uuid`), sql`, `)})
-      on conflict (document_id) do update set tsv = excluded.tsv, updated_at = now()
+      on conflict (document_id) do update set tsv = excluded.tsv, terms = excluded.terms, updated_at = now()
     `);
   }
+}
+
+/** One expression indexed under every config, all at the same weight. */
+function weighted(expr: SQL, weight: "A" | "B" | "C"): SQL {
+  return sql.join(
+    TS_CONFIGS.map((cfg) => sql`setweight(to_tsvector(${cfg}, ${expr}), ${weight})`),
+    sql` || `,
+  );
 }

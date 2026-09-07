@@ -198,12 +198,31 @@ async function SearchResults({ q }: { q: string }) {
               {result.total} result{result.total === 1 ? "" : "s"} for &ldquo;{q}&rdquo;
             </h2>
             <span className="text-small text-muted">{result.tookMs} ms</span>
+            {result.fuzzy && <span className="rounded-pill bg-warn-soft px-2.5 py-0.5 text-label font-semibold text-warn">closest spelling</span>}
           </div>
           <Link href="/library" className="text-row font-medium text-accent">
             Clear search
           </Link>
         </div>
-        {result.hits.length === 0 && <p className="text-body text-muted">No document contains that. Search looks at titles, tags, items and the text read from every page; spelling must match.</p>}
+        {result.fuzzy && (
+          <p className="text-body text-muted">
+            Nothing contains those words exactly, so these are the closest by spelling.
+          </p>
+        )}
+        {result.hits.length === 0 && (
+          <div className="flex flex-col gap-2 border-t border-border pt-5">
+            <p className="text-body">Nothing matches &ldquo;{q}&rdquo;.</p>
+            <p className="max-w-[560px] text-body text-muted">
+              Search covers titles, notes, tags, the people and things a document is about, and every word read off
+              the page — in German and English, and it forgives a typo or two. If the document is new it may still be
+              processing; the Inbox shows what is in flight.
+            </p>
+            <div className="mt-1 flex gap-4 text-row font-medium text-accent">
+              <Link href="/library">Browse everything</Link>
+              <Link href="/inbox">Check the Inbox</Link>
+            </div>
+          </div>
+        )}
         <ul className="flex flex-col">
           {result.hits.map((h) => (
             <li key={h.documentId} className="flex items-start gap-4 border-t border-border py-4 last:border-b">

@@ -102,7 +102,13 @@ export const documentSearch = pgTable(
       .primaryKey()
       .references(() => documents.id, { onDelete: "cascade" }),
     tsv: tsvector("tsv").notNull(),
+    /** The same names in plain text — title, tags, item labels, aliases — for the trigram
+     *  fallback that catches typos the tsquery cannot ("Stadwerke" → "Stadtwerke"). */
+    terms: text("terms").notNull().default(""),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [index("document_search_tsv_idx").using("gin", t.tsv)],
+  (t) => [
+    index("document_search_tsv_idx").using("gin", t.tsv),
+    index("document_search_terms_trgm_idx").using("gin", t.terms.op("gin_trgm_ops")),
+  ],
 );

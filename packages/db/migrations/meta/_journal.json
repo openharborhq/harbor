@@ -64,6 +64,13 @@
       "when": 1788767701124,
       "tag": "0008_zippy_typhoid_mary",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1788773767992,
+      "tag": "0009_clear_mister_sinister",
+      "breakpoints": true
     }
   ]
 }

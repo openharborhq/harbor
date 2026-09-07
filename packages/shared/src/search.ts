@@ -23,5 +23,7 @@ export const SearchResponse = z.object({
   hits: z.array(SearchHit),
   total: z.number().int().nonnegative(),
   tookMs: z.number().int().nonnegative(),
+  /** True when nothing matched the words and these are the closest titles by spelling. */
+  fuzzy: z.boolean().default(false),
 });
 export type SearchResponse = z.infer<typeof SearchResponse>;
