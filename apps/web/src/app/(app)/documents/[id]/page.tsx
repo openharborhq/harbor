@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import type { ActivityEntry, Category, DocumentSummary, DocumentText, DocumentVersion, Person } from "@trustworthier/shared";
 import { AutoRefresh } from "@/components/AutoRefresh";
 import { DocumentDetail } from "@/components/DocumentDetail";
+import { PdfPages } from "@/components/PdfPages";
 import { isProcessing } from "@/components/StatusPill";
 import { TopBar } from "@/components/shell/TopBar";
 import { ApiError, apiFetch } from "@/lib/api-server";
@@ -60,11 +61,9 @@ export default async function DocumentPage(props: PageProps<"/documents/[id]">) 
             <div className="flex h-[720px] items-start justify-center overflow-hidden rounded-lg bg-surface p-6">
               {isImage ? (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={fileUrl} alt={doc.title} className="max-h-full max-w-full rounded-sm border border-border bg-white object-contain" />
+                <img src={fileUrl} alt={doc.title} className="max-h-full max-w-full rounded-sm bg-white object-contain shadow-[0_1px_3px_rgba(13,22,34,0.12)]" />
               ) : f.mimeType === "application/pdf" ? (
-                // The browser's own PDF toolbar sits inside the frame and clips on narrow screens,
-                // so it is turned off and replaced by the strip below.
-                <iframe src={`${fileUrl}#toolbar=0&navpanes=0&statusbar=0&view=FitH`} title={doc.title} className="h-full w-full rounded-sm border border-border bg-white" />
+                <PdfPages url={fileUrl} title={doc.title} />
               ) : (
                 <p className="text-body text-muted">No preview for this file type. Download the original instead.</p>
               )}

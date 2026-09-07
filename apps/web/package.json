@@ -10,10 +10,11 @@
     "typecheck": "next typegen && tsc --noEmit"
   },
   "dependencies": {
+    "@trustworthier/shared": "workspace:*",
     "next": "16.3.4",
+    "pdfjs-dist": "^6.3.289",
     "react": "19.2.8",
     "react-dom": "19.2.8",
-    "@trustworthier/shared": "workspace:*",
     "zod": "^3.23.8"
   },
   "devDependencies": {
