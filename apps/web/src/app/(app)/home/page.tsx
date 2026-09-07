@@ -4,6 +4,7 @@ import type { HomeData } from "@trustworthier/shared";
 import { TopBar } from "@/components/shell/TopBar";
 import { apiFetch } from "@/lib/api-server";
 import { formatDate, formatRelative } from "@/lib/format";
+import { itemGlyph } from "@/lib/item-glyph";
 
 export const metadata: Metadata = { title: "Home" };
 
@@ -13,6 +14,7 @@ export default async function HomePage() {
   const children = (id: string) => h.categories.filter((c) => c.parentId === id).sort((a, b) => a.sortOrder - b.sortOrder);
   const countOf = (id: string) => (h.categories.find((c) => c.id === id)?.documentCount ?? 0) + children(id).reduce((n, c) => n + c.documentCount, 0);
   const totalRecords = h.family.reduce((n, p) => n + p.documentCount, 0);
+  const thingRecords = h.things.reduce((n, t) => n + t.documentCount, 0);
 
   return (
     <>
@@ -23,22 +25,26 @@ export default async function HomePage() {
           <SectionHeader title="Family" meta={`${h.family.length} ${h.family.length === 1 ? "person" : "people"} · ${totalRecords} records`} />
           <div className="grid grid-cols-4 gap-6">
             {h.family.map((p) => (
-              <Link key={p.id} href={`/people/${p.id}`} className="flex flex-col items-center gap-1 rounded-card border border-border px-4 py-7 text-center hover:bg-surface">
-                <div className="mb-3 flex size-[76px] items-center justify-center rounded-pill bg-surface text-[26px] font-semibold text-muted">{p.displayName.slice(0, 1)}</div>
-                <div className="text-section font-semibold tracking-snug">{p.displayName}</div>
-                <div className="text-body text-muted">
-                  {p.documentCount} record{p.documentCount === 1 ? "" : "s"}
-                </div>
-                <div className={`text-row ${p.next ? (p.next.daysLeft <= 30 ? "font-medium text-warn" : "text-text") : "text-muted"}`}>
-                  {p.next ? (p.next.daysLeft <= 0 ? "Expired" : `Expires in ${p.next.daysLeft} days`) : "Nothing expiring"}
-                </div>
-              </Link>
+              <ItemCard key={p.id} item={p} />
             ))}
             {h.family.length === 0 && (
-              <Link href="/people" className="flex min-h-[200px] flex-col items-center justify-center rounded-card border border-dashed border-border-strong text-row font-medium text-muted">
+              <Link href="/items" className="flex min-h-[200px] flex-col items-center justify-center rounded-card border border-dashed border-border-strong text-row font-medium text-muted">
                 + Add your family
               </Link>
             )}
+          </div>
+        </section>
+
+        {/* Property & things */}
+        <section className="flex flex-col gap-5">
+          <SectionHeader title="Property &amp; things" meta={`${h.things.length} ${h.things.length === 1 ? "item" : "items"} · ${thingRecords} records`} />
+          <div className="grid grid-cols-4 gap-6">
+            {h.things.map((t) => (
+              <ItemCard key={t.id} item={t} />
+            ))}
+            <Link href="/items" className="flex min-h-[200px] flex-col items-center justify-center rounded-card border border-dashed border-border-strong text-row font-medium text-muted hover:text-text">
+              + Add a house, car or account
+            </Link>
           </div>
         </section>
 
@@ -76,7 +82,7 @@ export default async function HomePage() {
                     </Link>
                     <div className="truncate text-small text-muted">{d.categoryPath ?? "Inbox"}</div>
                   </div>
-                  <div className="w-24 shrink-0 truncate text-row">{d.people.join(", ") || "—"}</div>
+                  <div className="w-24 shrink-0 truncate text-row">{d.items.join(", ") || "—"}</div>
                   <div className="w-28 shrink-0 text-row">{formatDate(d.expiresAt)}</div>
                   <span className={`inline-flex h-[22px] shrink-0 items-center rounded-pill px-2.5 text-label font-semibold ${d.daysLeft <= 30 ? "bg-warn-soft text-warn" : "bg-surface text-muted"}`}>
                     {d.daysLeft <= 0 ? "today" : `${d.daysLeft} days`}
@@ -109,6 +115,25 @@ export default async function HomePage() {
         </div>
       </main>
     </>
+  );
+}
+
+/** One tile in Family or Property & things — the same card, since both are items (spec §6). */
+function ItemCard({ item }: { item: HomeData["family"][number] }) {
+  return (
+    <Link href={`/items/${item.id}`} className="flex flex-col items-center gap-1 rounded-card border border-border px-4 py-7 text-center hover:bg-surface">
+      <div className="mb-3 flex size-[76px] items-center justify-center rounded-pill bg-surface text-[26px] font-semibold text-muted">
+        {itemGlyph(item.kind, item.label)}
+      </div>
+      <div className="text-section font-semibold tracking-snug">{item.label}</div>
+      {item.subtitle && <div className="line-clamp-1 text-small text-muted">{item.subtitle}</div>}
+      <div className="text-body text-muted">
+        {item.documentCount} record{item.documentCount === 1 ? "" : "s"}
+      </div>
+      <div className={`text-row ${item.next ? (item.next.daysLeft <= 30 ? "font-medium text-warn" : "text-text") : "text-muted"}`}>
+        {item.next ? (item.next.daysLeft <= 0 ? "Expired" : `Expires in ${item.next.daysLeft} days`) : "Nothing expiring"}
+      </div>
+    </Link>
   );
 }
 

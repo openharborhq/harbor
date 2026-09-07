@@ -15,8 +15,8 @@ export const SuggestionPayload = z.object({
   categorySlug: z.string().nullable(),
   /** Free text if a category is missing from the vault; never auto-created. */
   newCategoryHint: z.string().max(60).nullable(),
-  /** Subset of the offered people first names. */
-  personNames: z.array(z.string()).max(6),
+  /** Subset of the offered item labels — people and things alike (spec §6). */
+  itemLabels: z.array(z.string()).max(6),
   /** ISO date the document is dated, or null. */
   documentDate: z.string().nullable(),
   /** ISO date only when the document itself states an expiry/renewal, else null. */
@@ -35,11 +35,11 @@ export const SuggestionView = z.object({
   provider: z.string(),
   model: z.string(),
   payload: SuggestionPayload,
-  /** categorySlug → id and personNames → ids, resolved server-side; unknown values dropped. */
+  /** categorySlug → id and itemLabels → ids, resolved server-side; unknown values dropped. */
   resolved: z.object({
     categoryId: z.string().uuid().nullable(),
     categoryPath: z.string().nullable(),
-    personIds: z.array(z.string().uuid()),
+    itemIds: z.array(z.string().uuid()),
   }),
   createdAt: z.string().datetime(),
   acceptedAt: z.string().datetime().nullable(),

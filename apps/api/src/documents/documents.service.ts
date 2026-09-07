@@ -4,7 +4,7 @@ import { Queue } from "bullmq";
 import { open, rm } from "node:fs/promises";
 import path from "node:path";
 import type { Readable } from "node:stream";
-import { auditLog, categories, documentFiles, documentPeople, documentText, documents, people, users, type Db } from "@trustworthier/db";
+import { auditLog, categories, documentFiles, documentItems, documentText, documents, items, users, type Db } from "@trustworthier/db";
 import type { AcceptAllResult, AcceptSuggestion, ActivityEntry, DeletedDocument, DocumentSummary, DocumentText, DocumentVersion, SuggestionView, UpdateDocument, UploadFields, UploadResult } from "@trustworthier/shared";
 import { AuditService } from "../audit/audit.service";
 import { MIME_BY_KIND, sniffKind } from "../common/sniff";
@@ -73,7 +73,7 @@ export class DocumentsService {
             .values({ title, source: "upload", createdBy: userId, categoryId: fields.categoryId ?? null })
             .returning();
           doc = inserted!;
-          if (fields.personIds.length) await tx.insert(documentPeople).values(fields.personIds.map((personId) => ({ documentId: doc.id, personId })));
+          if (fields.itemIds.length) await tx.insert(documentItems).values(fields.itemIds.map((itemId: string) => ({ documentId: doc.id, itemId })));
           if (fields.tags.length) await this.tagsService.setForDocument(doc.id, fields.tags, tx);
         }
         const [df] = await tx
@@ -126,10 +126,11 @@ export class DocumentsService {
 
   // ---------- reads ----------
 
-  async list(opts: { inboxOnly?: boolean; personId?: string; categoryId?: string; source?: "upload" | "email"; sort?: "newest" | "oldest" | "title" | "date" | "expires"; limit?: number } = {}): Promise<DocumentSummary[]> {
+  async list(opts: { inboxOnly?: boolean; itemIds?: string[]; categoryId?: string; source?: "upload" | "email"; sort?: "newest" | "oldest" | "title" | "date" | "expires"; limit?: number } = {}): Promise<DocumentSummary[]> {
     const conditions: SQL[] = [isNull(documents.deletedAt)];
     if (opts.inboxOnly) conditions.push(isNull(documents.categoryId));
-    if (opts.personId) conditions.push(sql`exists (select 1 from ${documentPeople} dp where dp.document_id = ${documents.id} and dp.person_id = ${opts.personId})`);
+    if (opts.itemIds?.length)
+      conditions.push(sql`exists (select 1 from ${documentItems} di where di.document_id = ${documents.id} and di.item_id in ${opts.itemIds})`);
     if (opts.source) conditions.push(eq(documents.source, opts.source));
     if (opts.categoryId) {
       // A top-level category includes its children (spec §1: depth <= 2).
@@ -287,9 +288,9 @@ export class DocumentsService {
       if (patch.expiresAt !== undefined) set.expiresAt = patch.expiresAt;
       if (patch.notes !== undefined) set.notes = patch.notes;
       await tx.update(documents).set(set).where(eq(documents.id, documentId));
-      if (patch.personIds !== undefined) {
-        await tx.delete(documentPeople).where(eq(documentPeople.documentId, documentId));
-        if (patch.personIds.length) await tx.insert(documentPeople).values(patch.personIds.map((personId) => ({ documentId, personId })));
+      if (patch.itemIds !== undefined) {
+        await tx.delete(documentItems).where(eq(documentItems.documentId, documentId));
+        if (patch.itemIds.length) await tx.insert(documentItems).values(patch.itemIds.map((itemId: string) => ({ documentId, itemId })));
       }
       if (patch.tags !== undefined) await this.tagsService.setForDocument(documentId, patch.tags, tx);
     });
@@ -311,7 +312,7 @@ export class DocumentsService {
     const patch: UpdateDocument = {
       title: s.payload.title.trim() || undefined,
       categoryId,
-      personIds: override.personIds ?? s.resolved.personIds,
+      itemIds: override.itemIds ?? s.resolved.itemIds,
       documentDate: isoDate(s.payload.documentDate),
       expiresAt: isoDate(s.payload.expiresAt),
     };
@@ -383,18 +384,18 @@ export class DocumentsService {
     const [cats, links, sugg, tagNames] = await Promise.all([
       this.categoriesService.index(),
       this.db
-        .select({ documentId: documentPeople.documentId, id: people.id, displayName: people.displayName })
-        .from(documentPeople)
-        .innerJoin(people, eq(people.id, documentPeople.personId))
-        .where(inArray(documentPeople.documentId, docIds)),
+        .select({ documentId: documentItems.documentId, id: items.id, kind: items.kind, label: items.label })
+        .from(documentItems)
+        .innerJoin(items, eq(items.id, documentItems.itemId))
+        .where(inArray(documentItems.documentId, docIds)),
       this.suggest.latestForFiles(rows.map((r) => r.df.id)),
       this.tagsService.namesForDocuments(docIds),
     ]);
-    const peopleByDoc = new Map<string, { id: string; displayName: string }[]>();
-    for (const l of links) peopleByDoc.set(l.documentId, [...(peopleByDoc.get(l.documentId) ?? []), { id: l.id, displayName: l.displayName }]);
+    const itemsByDoc = new Map<string, { id: string; kind: string; label: string }[]>();
+    for (const l of links) itemsByDoc.set(l.documentId, [...(itemsByDoc.get(l.documentId) ?? []), { id: l.id, kind: l.kind, label: l.label }]);
     return rows.map(({ doc, df }) => {
       const cat = doc.categoryId ? cats.get(doc.categoryId) : undefined;
-      return toSummary(doc, df, cat ? { id: cat.cat.id, name: cat.cat.name, path: cat.path } : null, peopleByDoc.get(doc.id) ?? [], tagNames.get(doc.id) ?? [], sugg.get(df.id) ?? null);
+      return toSummary(doc, df, cat ? { id: cat.cat.id, name: cat.cat.name, path: cat.path } : null, itemsByDoc.get(doc.id) ?? [], tagNames.get(doc.id) ?? [], sugg.get(df.id) ?? null);
     });
   }
 }
@@ -403,7 +404,7 @@ export function toSummary(
   doc: DocRow,
   df: FileRow,
   category: DocumentSummary["category"],
-  folks: DocumentSummary["people"],
+  linkedItems: DocumentSummary["items"],
   tagNames: string[],
   suggestion: SuggestionView | null,
 ): DocumentSummary {
@@ -417,7 +418,7 @@ export function toSummary(
     expiresAt: doc.expiresAt,
     notes: doc.notes,
     category,
-    people: folks,
+    items: linkedItems,
     tags: tagNames,
     suggestion,
     file: {

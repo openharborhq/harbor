@@ -7,16 +7,16 @@ accent, Inter, 7-step type scale. All desktop artboards 1440 px; sidebar 248, co
 
 | Surface | Status | Backed by | Gap |
 |---|---|---|---|
-| Home | Drawn | people/categories + counts, `expires_at` ≤ 90 d, recent docs, `backup_runs` | — |
+| Home | Drawn | items/categories + counts, `expires_at` ≤ 90 d, recent docs, `backup_runs` | — |
 | Inbox | Drawn | `category_id IS NULL`, `suggestions` | **No-suggestion, processing, and failed states not drawn** |
-| Library / Search | Drawn | ranked `tsv` search, snippets, facet counts | Browse mode (no query) — reuse person-page table |
+| Library / Search | Drawn | ranked `tsv` search, snippets, facet counts | Browse mode (no query) — reuse item-page table |
 | Add documents | Drawn | intake, job status stream, sha256 check | — |
-| Person | Drawn | per-person docs, `person_key_documents` | — |
+| Item | Drawn | per-item docs, children, `item_key_documents` | — |
 | Document detail | Drawn | `document_text`, versions, `audit_log` | Edit mode; trash/restore |
 | Settings | Drawn | users, invites, sessions, `email_ingest_log`, `backup_runs`, host metrics | — |
 | Login + TOTP | **Not drawn** — mock before build | | |
 | Setup wizard | **Not drawn** — mock before build | | |
-| Invite acceptance, held-mail review, add/edit person, manage categories, recently deleted, empty states | Not drawn — build from the system | | |
+| Invite acceptance, held-mail review, add/edit item, manage categories, recently deleted, empty states | Not drawn — build from the system | | |
 | Scan — Capture / Review (mobile) | Drawn, **parked** | | |
 
 ## Schema the drawings forced (folded into §1)
@@ -35,6 +35,6 @@ heuristic prefill), and **failed** (with Retry).
 
 - Names: "Maya" / "Sam" on Home should come from the seeded demo household, not be hard-coded (family cards, Settings).
 - Categories: "Vehicles ›" / "Property ›" on Home should be Transportation / Real Estate.
-- Source: "phone scan" (Person page) and "Scan · needs filing" (Home) should read Email/Upload
+- Source: "phone scan" (Item page) and "Scan · needs filing" (Home) should read Email/Upload
   now that mobile capture is parked.
 - Inbox cards: thumbnail drives card height, leaving dead space above FILE TO.

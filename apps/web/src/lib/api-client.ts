@@ -29,7 +29,7 @@ export async function sha256Hex(file: File): Promise<string> {
 
 export interface UploadOptions {
   /** Batch defaults / version target; arrays are JSON-encoded as multipart text fields. */
-  fields?: { categoryId?: string; personIds?: string[]; tags?: string[]; versionOf?: string };
+  fields?: { categoryId?: string; itemIds?: string[]; tags?: string[]; versionOf?: string };
   onProgress?: (fraction: number) => void;
   /** Abort the in-flight request (Cancel remaining / Pause). */
   signal?: AbortSignal;
@@ -63,7 +63,7 @@ export function uploadFile<T>(file: File, opts: UploadOptions = {}): Promise<T> 
     form.append("file", file, file.name);
     const f = opts.fields ?? {};
     if (f.categoryId) form.append("categoryId", f.categoryId);
-    if (f.personIds?.length) form.append("personIds", JSON.stringify(f.personIds));
+    if (f.itemIds?.length) form.append("itemIds", JSON.stringify(f.itemIds));
     if (f.tags?.length) form.append("tags", JSON.stringify(f.tags));
     if (f.versionOf) form.append("versionOf", f.versionOf);
     xhr.send(form);

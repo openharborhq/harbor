@@ -28,7 +28,7 @@ export const DocumentSummary = z.object({
   notes: z.string().nullable(),
   /** null = Inbox */
   category: z.object({ id: z.string().uuid(), name: z.string(), path: z.string() }).nullable(),
-  people: z.array(z.object({ id: z.string().uuid(), displayName: z.string() })),
+  items: z.array(z.object({ id: z.string().uuid(), kind: z.string(), label: z.string() })),
   tags: z.array(z.string()),
   /** The latest suggestion for the current file, if any (spec §5). */
   suggestion: SuggestionView.nullable(),
@@ -62,7 +62,7 @@ export type UploadResult = z.infer<typeof UploadResult>;
 export const UpdateDocument = z.object({
   title: z.string().trim().min(1).max(120).optional(),
   categoryId: z.string().uuid().nullable().optional(),
-  personIds: z.array(z.string().uuid()).max(20).optional(),
+  itemIds: z.array(z.string().uuid()).max(20).optional(),
   documentDate: z.string().date().nullable().optional(),
   expiresAt: z.string().date().nullable().optional(),
   notes: z.string().max(5000).nullable().optional(),
@@ -73,7 +73,7 @@ export type UpdateDocument = z.infer<typeof UpdateDocument>;
 /** "Accept & file" sends whatever is in the card's dropdowns; they win over the suggestion. */
 export const AcceptSuggestion = z.object({
   categoryId: z.string().uuid().optional(),
-  personIds: z.array(z.string().uuid()).max(20).optional(),
+  itemIds: z.array(z.string().uuid()).max(20).optional(),
 });
 export type AcceptSuggestion = z.infer<typeof AcceptSuggestion>;
 
@@ -124,7 +124,7 @@ export type DeletedDocument = z.infer<typeof DeletedDocument>;
 export const ListDocumentsQuery = z.object({
   inbox: z.enum(["1", "true"]).optional(),
   category: z.string().uuid().optional(),
-  person: z.string().uuid().optional(),
+  item: z.string().uuid().optional(),
   source: DocumentSource.optional(),
   sort: z.enum(["newest", "oldest", "title", "date", "expires"]).default("newest"),
   limit: z.coerce.number().int().min(1).max(500).default(200),

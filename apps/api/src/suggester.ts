@@ -3,13 +3,12 @@ import { Logger, Module } from "@nestjs/common";
 import { ConfigModule } from "@nestjs/config";
 import { NestFactory } from "@nestjs/core";
 import { UnrecoverableError, Worker, type Job } from "bullmq";
-import { eq } from "drizzle-orm";
 import type IORedis from "ioredis";
-import { closeDb, createDb, documentFiles, runMigrations, type Db } from "@trustworthier/db";
+import { closeDb, createDb, runMigrations, type Db } from "@trustworthier/db";
 import { AuditModule } from "./audit/audit.module";
 import { loadEnv } from "./config/env";
 import { CryptoModule } from "./crypto/crypto.module";
-import { DB, DbModule } from "./db/db.module";
+import { DbModule } from "./db/db.module";
 import { REDIS, QueueModule, SUGGEST_QUEUE, type SuggestJob } from "./queue/queue.module";
 import { SuggestModule } from "./suggest/suggest.module";
 import { SuggestService } from "./suggest/suggest.service";
@@ -37,7 +36,6 @@ async function bootstrap() {
   const log = new Logger("suggester");
   await migrateFirst(env.DATABASE_URL);
   const app = await NestFactory.createApplicationContext(SuggesterModule);
-  const db = app.get<Db>(DB);
   const suggest = app.get(SuggestService);
 
   const worker = new Worker<SuggestJob>(
@@ -45,14 +43,13 @@ async function bootstrap() {
     async (job: Job<SuggestJob>) => {
       const { documentFileId } = job.data;
       try {
-        const id = await suggest.suggestForFile(documentFileId);
-        await db.update(documentFiles).set({ processingStatus: "ready" }).where(eq(documentFiles.id, documentFileId));
-        return { suggestionId: id };
+        // suggestForFile leaves "suggesting" in the same transaction that stores the suggestion.
+        return { suggestionId: await suggest.suggestForFile(documentFileId) };
       } catch (err) {
         const lastAttempt = job.attemptsMade + 1 >= (job.opts.attempts ?? 1);
         if (lastAttempt || err instanceof UnrecoverableError) {
           // Suggestions are best-effort: the document is still complete without one.
-          await db.update(documentFiles).set({ processingStatus: "ready" }).where(eq(documentFiles.id, documentFileId));
+          await suggest.markReady(documentFileId);
           log.warn(`${documentFileId}: giving up on suggestion: ${(err as Error).message}`);
           return { suggestionId: null };
         }

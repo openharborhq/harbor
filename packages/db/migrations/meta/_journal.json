@@ -43,6 +43,27 @@
       "when": 1788765106814,
       "tag": "0005_chief_nekra",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1788767646777,
+      "tag": "0006_sloppy_domino",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1788767654446,
+      "tag": "0007_copy_people_into_items",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1788767701124,
+      "tag": "0008_zippy_typhoid_mary",
+      "breakpoints": true
     }
   ]
 }

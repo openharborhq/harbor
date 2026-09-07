@@ -49,7 +49,7 @@ export class DocumentsController {
 
   @Get()
   list(@Query(new ZodPipe(ListDocumentsQuery)) q: ListDocumentsQuery): Promise<DocumentSummary[]> {
-    return this.documents.list({ inboxOnly: q.inbox !== undefined, categoryId: q.category, personId: q.person, source: q.source, sort: q.sort, limit: q.limit });
+    return this.documents.list({ inboxOnly: q.inbox !== undefined, categoryId: q.category, itemIds: q.item ? [q.item] : undefined, source: q.source, sort: q.sort, limit: q.limit });
   }
 
   /** Files every high-confidence, unresolved Inbox suggestion. */

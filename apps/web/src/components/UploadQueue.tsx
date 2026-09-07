@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { Category, DocumentSummary, Person, UploadResult } from "@trustworthier/shared";
+import type { Category, DocumentSummary, Item, UploadResult } from "@trustworthier/shared";
+import { ItemPicker } from "./ItemPicker";
 import { api, sha256Hex, uploadFile } from "@/lib/api-client";
 import { formatBytes, formatDate } from "@/lib/format";
 import { DocThumb } from "./DocThumb";
@@ -19,7 +20,8 @@ type Phase =
   | { kind: "skipped" }
   | { kind: "cancelled" };
 
-interface Item {
+/** One file in the upload queue — not a vault Item (spec §6), which is what `items` holds. */
+interface QueueEntry {
   id: string;
   file: File;
   phase: Phase;
@@ -29,7 +31,7 @@ interface Item {
 
 interface Defaults {
   categoryId: string;
-  personIds: string[];
+  itemIds: string[];
   tags: string;
 }
 
@@ -38,20 +40,20 @@ const SUPPORTED = /\.(pdf|jpe?g|png|heic)$/i;
 const MAX_BYTES = 200 * 1024 * 1024;
 const CONCURRENCY = 3;
 
-export function UploadQueue({ categories, people }: { categories: Category[]; people: Person[] }) {
-  const [items, setItems] = useState<Item[]>([]);
-  const [defaults, setDefaults] = useState<Defaults>({ categoryId: "", personIds: [], tags: "" });
+export function UploadQueue({ categories, items }: { categories: Category[]; items: Item[] }) {
+  const [queue, setQueue] = useState<QueueEntry[]>([]);
+  const [defaults, setDefaults] = useState<Defaults>({ categoryId: "", itemIds: [], tags: "" });
   const [paused, setPaused] = useState(false);
   const [dragging, setDragging] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const controllers = useRef(new Map<string, AbortController>());
 
-  const update = useCallback((id: string, patch: Partial<Item> | ((it: Item) => Partial<Item>)) => {
-    setItems((prev) => prev.map((it) => (it.id === id ? { ...it, ...(typeof patch === "function" ? patch(it) : patch) } : it)));
+  const update = useCallback((id: string, patch: Partial<QueueEntry> | ((it: QueueEntry) => Partial<QueueEntry>)) => {
+    setQueue((prev) => prev.map((it) => (it.id === id ? { ...it, ...(typeof patch === "function" ? patch(it) : patch) } : it)));
   }, []);
 
   const runUpload = useCallback(
-    async (item: Item, d: Defaults) => {
+    async (item: QueueEntry, d: Defaults) => {
       const ac = new AbortController();
       controllers.current.set(item.id, ac);
       update(item.id, { phase: { kind: "uploading", fraction: 0 } });
@@ -62,7 +64,7 @@ export function UploadQueue({ categories, people }: { categories: Category[]; pe
           fields: {
             versionOf: item.versionOf,
             categoryId: item.versionOf ? undefined : d.categoryId || undefined,
-            personIds: item.versionOf ? undefined : d.personIds,
+            itemIds: item.versionOf ? undefined : d.itemIds,
             tags: item.versionOf ? undefined : d.tags.split(",").map((t) => t.trim()).filter(Boolean),
           },
         });
@@ -81,25 +83,25 @@ export function UploadQueue({ categories, people }: { categories: Category[]; pe
   // Deferred a tick so state transitions never happen synchronously inside the effect.
   useEffect(() => {
     if (paused) return;
-    const inFlight = items.filter((it) => it.phase.kind === "uploading").length;
+    const inFlight = queue.filter((it) => it.phase.kind === "uploading").length;
     const slots = CONCURRENCY - inFlight;
     if (slots <= 0) return;
-    const next = [...items].reverse().filter((it) => it.phase.kind === "waiting").slice(0, slots);
+    const next = [...queue].reverse().filter((it) => it.phase.kind === "waiting").slice(0, slots);
     if (next.length === 0) return;
     const t = setTimeout(() => {
       for (const it of next) void runUpload(it, defaults);
     }, 0);
     return () => clearTimeout(t);
-  }, [items, paused, defaults, runUpload]);
+  }, [queue, paused, defaults, runUpload]);
 
   const add = useCallback(
     async (files: FileList | File[]) => {
-      const fresh: Item[] = Array.from(files).map((file) => ({
+      const fresh: QueueEntry[] = Array.from(files).map((file) => ({
         id: crypto.randomUUID(),
         file,
         phase: !SUPPORTED.test(file.name) ? { kind: "unsupported" } : file.size > MAX_BYTES ? { kind: "failed", message: "Larger than 200 MB" } : { kind: "hashing" },
       }));
-      setItems((prev) => [...fresh, ...prev]);
+      setQueue((prev) => [...fresh, ...prev]);
       for (const it of fresh) {
         if (it.phase.kind !== "hashing") continue;
         try {
@@ -116,7 +118,7 @@ export function UploadQueue({ categories, people }: { categories: Category[]; pe
 
   // Poll documents that are still processing.
   useEffect(() => {
-    const pending = items.filter((it) => it.phase.kind === "processing");
+    const pending = queue.filter((it) => it.phase.kind === "processing");
     if (pending.length === 0) return;
     const t = setInterval(async () => {
       for (const it of pending) {
@@ -132,18 +134,18 @@ export function UploadQueue({ categories, people }: { categories: Category[]; pe
       }
     }, 2000);
     return () => clearInterval(t);
-  }, [items, update]);
+  }, [queue, update]);
 
   function cancelRemaining() {
-    setItems((prev) => prev.map((it) => (it.phase.kind === "waiting" || it.phase.kind === "hashing" ? { ...it, phase: { kind: "cancelled" } } : it)));
+    setQueue((prev) => prev.map((it) => (it.phase.kind === "waiting" || it.phase.kind === "hashing" ? { ...it, phase: { kind: "cancelled" } } : it)));
     for (const ac of controllers.current.values()) ac.abort();
   }
 
-  const done = items.filter((it) => ["ready", "skipped"].includes(it.phase.kind)).length;
-  const active = items.filter((it) => ["hashing", "uploading", "processing"].includes(it.phase.kind)).length;
-  const waiting = items.filter((it) => it.phase.kind === "waiting").length;
-  const decisions = items.filter((it) => it.phase.kind === "duplicate").length;
-  const failed = items.filter((it) => it.phase.kind === "failed").length;
+  const done = queue.filter((it) => ["ready", "skipped"].includes(it.phase.kind)).length;
+  const active = queue.filter((it) => ["hashing", "uploading", "processing"].includes(it.phase.kind)).length;
+  const waiting = queue.filter((it) => it.phase.kind === "waiting").length;
+  const decisions = queue.filter((it) => it.phase.kind === "duplicate").length;
+  const failed = queue.filter((it) => it.phase.kind === "failed").length;
 
   return (
     <div className="flex flex-col gap-10">
@@ -178,25 +180,9 @@ export function UploadQueue({ categories, people }: { categories: Category[]; pe
           <div className="text-row font-semibold">Apply to this batch</div>
           <div className="text-small text-muted">Files with a category skip the Inbox.</div>
         </div>
-        <label className="flex flex-col gap-1.5">
-          <span className="label">For</span>
-          <div className="flex min-h-9 flex-wrap items-center gap-1.5 rounded-md border border-border bg-ground px-2 py-1">
-            {people.length === 0 && <span className="px-1 text-row text-muted">Anyone</span>}
-            {people.map((p) => {
-              const on = defaults.personIds.includes(p.id);
-              return (
-                <button
-                  key={p.id}
-                  type="button"
-                  onClick={() => setDefaults((d) => ({ ...d, personIds: on ? d.personIds.filter((x) => x !== p.id) : [...d.personIds, p.id] }))}
-                  className={`h-6 rounded-sm px-2 text-small font-semibold ${on ? "bg-accent-soft text-accent" : "bg-surface text-muted hover:text-text"}`}
-                >
-                  {p.displayName}
-                </button>
-              );
-            })}
-          </div>
-        </label>
+        <div className="w-[300px] shrink-0">
+          <ItemPicker items={items} selected={defaults.itemIds} onChange={(ids) => setDefaults((d) => ({ ...d, itemIds: ids }))} />
+        </div>
         <label className="flex flex-col gap-1.5">
           <span className="label">File to</span>
           <select
@@ -232,13 +218,13 @@ export function UploadQueue({ categories, people }: { categories: Category[]; pe
         </label>
       </div>
 
-      {items.length > 0 && (
+      {queue.length > 0 && (
         <section className="flex flex-col gap-3.5">
           <div className="flex items-baseline justify-between">
             <div className="flex items-baseline gap-2.5">
               <h2 className="text-section font-semibold tracking-snug">Uploading</h2>
               <span className="text-small text-muted">
-                {done} of {items.length} done
+                {done} of {queue.length} done
                 {active ? ` · ${active} in progress` : ""}
                 {decisions ? ` · ${decisions} need${decisions === 1 ? "s" : ""} a decision` : ""}
                 {waiting ? ` · ${waiting} waiting` : ""}
@@ -259,10 +245,10 @@ export function UploadQueue({ categories, people }: { categories: Category[]; pe
             </div>
           </div>
           <div className="h-1 overflow-hidden rounded-pill bg-surface">
-            <div className="h-1 rounded-pill bg-accent transition-[width]" style={{ width: `${Math.round((done / items.length) * 100)}%` }} />
+            <div className="h-1 rounded-pill bg-accent transition-[width]" style={{ width: `${Math.round((done / queue.length) * 100)}%` }} />
           </div>
           <ul className="flex flex-col border-b border-border">
-            {items.map((it) => (
+            {queue.map((it) => (
               <Row
                 key={it.id}
                 item={it}
@@ -281,7 +267,7 @@ export function UploadQueue({ categories, people }: { categories: Category[]; pe
   );
 }
 
-function Row({ item, paused, onDecide, onRetry }: { item: Item; paused: boolean; onDecide: (keep: boolean) => void; onRetry: () => void }) {
+function Row({ item, paused, onDecide, onRetry }: { item: QueueEntry; paused: boolean; onDecide: (keep: boolean) => void; onRetry: () => void }) {
   const { file, phase } = item;
   return (
     <li className="flex h-16 items-center gap-3.5 border-t border-border">

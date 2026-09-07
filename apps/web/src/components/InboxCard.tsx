@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
-import type { Category, DocumentSummary, Person } from "@trustworthier/shared";
+import type { Category, DocumentSummary, Item } from "@trustworthier/shared";
+import { ItemPicker } from "./ItemPicker";
 import { api } from "@/lib/api-client";
 import { formatBytes, formatRelative, pages } from "@/lib/format";
 import { DocThumb } from "./DocThumb";
@@ -13,7 +14,7 @@ import { StatusPill, isProcessing } from "./StatusPill";
  * The Inbox card from the Paper design: summary, FILE TO, FOR, accept-or-adjust.
  * Four states: processing, suggestion, no-suggestion (heuristics only), failed.
  */
-export function InboxCard({ doc, categories, people }: { doc: DocumentSummary; categories: Category[]; people: Person[] }) {
+export function InboxCard({ doc, categories, items }: { doc: DocumentSummary; categories: Category[]; items: Item[] }) {
   const router = useRouter();
   const f = doc.file;
   const s = doc.suggestion;
@@ -21,22 +22,26 @@ export function InboxCard({ doc, categories, people }: { doc: DocumentSummary; c
   const hasSummary = Boolean(s?.payload.summary?.trim());
 
   const [categoryId, setCategoryId] = useState<string | "">(doc.category?.id ?? s?.resolved.categoryId ?? "");
-  const [personIds, setPersonIds] = useState<string[]>(doc.people.length ? doc.people.map((p) => p.id) : (s?.resolved.personIds ?? []));
+  // Union, not either/or: an upload's FOR default was a deliberate choice, and the suggestion is
+  // strictly more informed — showing only one of the two hides work the filer would have to redo.
+  const [itemIds, setItemIds] = useState<string[]>([...new Set([...doc.items.map((i) => i.id), ...(s?.resolved.itemIds ?? [])])]);
   const [busy, setBusy] = useState<"file" | "delete" | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const grouped = useMemo(() => groupCategories(categories), [categories]);
-  const unchanged = !!s && categoryId === (s.resolved.categoryId ?? "") && sameSet(personIds, s.resolved.personIds);
+  const unchanged = !!s && categoryId === (s.resolved.categoryId ?? "") && sameSet(itemIds, [...new Set([...doc.items.map((i) => i.id), ...s.resolved.itemIds])]);
+  /** The FOR selection still holds everything the model proposed. */
+  const forIsSuggested = !!s && s.resolved.itemIds.length > 0 && s.resolved.itemIds.every((id) => itemIds.includes(id));
 
   async function fileIt() {
     if (!categoryId) return;
     setBusy("file");
     setError(null);
     try {
-      // Accepting sends the card's own category/people so filing can never silently no-op.
-      if (s && !s.rejectedAt) await api(`/documents/${doc.id}/suggestion/accept`, { method: "POST", body: JSON.stringify({ categoryId, personIds }) });
-      else await api(`/documents/${doc.id}`, { method: "PATCH", body: JSON.stringify({ categoryId, personIds }) });
+      // Accepting sends the card's own category/items so filing can never silently no-op.
+      if (s && !s.rejectedAt) await api(`/documents/${doc.id}/suggestion/accept`, { method: "POST", body: JSON.stringify({ categoryId, itemIds }) });
+      else await api(`/documents/${doc.id}`, { method: "PATCH", body: JSON.stringify({ categoryId, itemIds }) });
       router.refresh();
     } catch (err) {
       setError((err as Error).message);
@@ -155,25 +160,14 @@ export function InboxCard({ doc, categories, people }: { doc: DocumentSummary; c
               ))}
             </select>
           </label>
-          <div className="flex w-[230px] shrink-0 flex-col gap-1.5">
-            <span className="label">For{s && s.resolved.personIds.length && sameSet(personIds, s.resolved.personIds) ? (s.provider === "none" ? " · from text" : " · suggested") : ""}</span>
-            <div className="flex min-h-[42px] flex-wrap items-center gap-1.5 rounded-[10px] border border-border bg-ground px-2.5 py-1.5">
-              {people.length === 0 && <span className="text-row text-muted">Anyone</span>}
-              {people.map((p) => {
-                const on = personIds.includes(p.id);
-                return (
-                  <button
-                    key={p.id}
-                    type="button"
-                    disabled={processing}
-                    onClick={() => setPersonIds((ids) => (on ? ids.filter((x) => x !== p.id) : [...ids, p.id]))}
-                    className={`h-6 rounded-sm px-2 text-small font-semibold ${on ? "bg-accent-soft text-accent" : "bg-surface text-muted hover:text-text"}`}
-                  >
-                    {p.displayName}
-                  </button>
-                );
-              })}
-            </div>
+          <div className="w-[300px] shrink-0">
+            <ItemPicker
+              items={items}
+              selected={itemIds}
+              onChange={setItemIds}
+              disabled={processing}
+              label={`For${forIsSuggested ? (s.provider === "none" ? " · from text" : " · suggested") : ""}`}
+            />
           </div>
         </div>
 

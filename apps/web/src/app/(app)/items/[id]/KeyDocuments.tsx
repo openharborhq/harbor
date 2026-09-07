@@ -8,27 +8,27 @@ import { api } from "@/lib/api-client";
 import { daysUntil, formatDate } from "@/lib/format";
 
 /** Key-document slots; an empty slot is the design's dashed "Not on file" card. */
-export function KeyDocuments({ personId, slots, candidates }: { personId: string; slots: KeyDocumentSlot[]; candidates: { id: string; title: string }[] }) {
+export function KeyDocuments({ itemId, slots, candidates }: { itemId: string; slots: KeyDocumentSlot[]; candidates: { id: string; title: string }[] }) {
   const router = useRouter();
   const [linking, setLinking] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
   const [newKind, setNewKind] = useState("");
 
   async function link(slot: KeyDocumentSlot, documentId: string | null) {
-    await api(`/people/${personId}/key-documents/${slot.id}`, { method: "PATCH", body: JSON.stringify({ kind: slot.kind, documentId }) });
+    await api(`/items/${itemId}/key-documents/${slot.id}`, { method: "PATCH", body: JSON.stringify({ kind: slot.kind, documentId }) });
     setLinking(null);
     router.refresh();
   }
   async function addSlot(e: React.FormEvent) {
     e.preventDefault();
     if (!newKind.trim()) return;
-    await api(`/people/${personId}/key-documents`, { method: "POST", body: JSON.stringify({ kind: newKind.trim() }) });
+    await api(`/items/${itemId}/key-documents`, { method: "POST", body: JSON.stringify({ kind: newKind.trim() }) });
     setNewKind("");
     setAdding(false);
     router.refresh();
   }
   async function removeSlot(slot: KeyDocumentSlot) {
-    await api(`/people/${personId}/key-documents/${slot.id}`, { method: "DELETE" });
+    await api(`/items/${itemId}/key-documents/${slot.id}`, { method: "DELETE" });
     router.refresh();
   }
 

@@ -12,19 +12,19 @@ export class NoneProvider implements SuggestionProvider {
   async suggest(input: SuggestInput): Promise<SuggestOutput | null> {
     const haystack = `${input.filename}\n${input.text}`.toLowerCase();
     const categorySlug = guessCategory(haystack, input.categories.map((c) => c.slug));
-    const personNames = input.peopleFirstNames.filter((n) => new RegExp(`\\b${escape(n.toLowerCase())}\\b`).test(haystack));
+    const itemLabels = input.items.filter((i) => new RegExp(`\\b${escape(i.label.toLowerCase())}\\b`).test(haystack)).map((i) => i.label);
     const documentDate = dateFromFilename(input.filename) ?? firstDateInText(input.text);
     const payload: SuggestionPayload = {
       summary: "",
       title: titleFromFilename(input.filename),
       categorySlug,
       newCategoryHint: null,
-      personNames,
+      itemLabels,
       documentDate,
       expiresAt: null,
       tags: [],
       language: /\b(rechnung|versicherung|vertrag|bescheinigung)\b/.test(haystack) ? "de" : "en",
-      confidence: categorySlug && personNames.length ? "medium" : "low",
+      confidence: categorySlug && itemLabels.length ? "medium" : "low",
     };
     return { payload, model: "heuristics", inputTokens: null, outputTokens: null };
   }

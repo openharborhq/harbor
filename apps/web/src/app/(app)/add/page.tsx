@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import type { Category, Person } from "@trustworthier/shared";
+import type { Category, Item } from "@trustworthier/shared";
 import { UploadQueue } from "@/components/UploadQueue";
 import { TopBar } from "@/components/shell/TopBar";
 import { apiFetch } from "@/lib/api-server";
@@ -7,7 +7,7 @@ import { apiFetch } from "@/lib/api-server";
 export const metadata: Metadata = { title: "Add documents" };
 
 export default async function AddPage() {
-  const [categories, people] = await Promise.all([apiFetch<Category[]>("/categories"), apiFetch<Person[]>("/people")]);
+  const [categories, items] = await Promise.all([apiFetch<Category[]>("/categories"), apiFetch<Item[]>("/items")]);
   return (
     <>
       <TopBar />
@@ -16,7 +16,7 @@ export default async function AddPage() {
           <h1 className="text-title font-bold tracking-snug">Add documents</h1>
           <p className="mt-1.5 text-body text-muted">Bills, scans, photos of paperwork — drop them all at once. Everything lands in your Inbox to be filed, unless you file it here.</p>
         </div>
-        <UploadQueue categories={categories} people={people} />
+        <UploadQueue categories={categories} items={items} />
       </main>
     </>
   );

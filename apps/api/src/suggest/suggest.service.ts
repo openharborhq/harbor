@@ -2,11 +2,12 @@ import { Inject, Injectable, Logger } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { and, desc, eq, inArray } from "drizzle-orm";
 import { readFileSync } from "node:fs";
-import { categories, documentFiles, documentText, documents, people, suggestions, tags, type Db } from "@trustworthier/db";
+import { categories, documentFiles, documentText, documents, suggestions, tags, type Db } from "@trustworthier/db";
 import { SuggestionPayload, type SuggestionView } from "@trustworthier/shared";
 import type { Env } from "../config/env";
 import { InjectDb } from "../db/db.module";
 import { CategoriesService } from "../vocabulary/categories.service";
+import { ItemsService } from "../vocabulary/items.service";
 import { AnthropicProvider } from "./anthropic.provider";
 import { NoneProvider } from "./none.provider";
 import { PROMPT_VERSION, TEXT_CHARS, type SuggestInput, type SuggestionProvider } from "./provider";
@@ -32,6 +33,7 @@ export class SuggestService {
     @InjectDb() private readonly db: Db,
     @Inject(SUGGESTION_PROVIDER) private readonly provider: SuggestionProvider,
     private readonly categoriesService: CategoriesService,
+    private readonly itemsService: ItemsService,
     config: ConfigService<Env, true>,
   ) {
     this.sendPeople = config.get("SUGGEST_SEND_PEOPLE", { infer: true });
@@ -50,9 +52,9 @@ export class SuggestService {
       .then((r) => r[0]);
     if (!row) throw new Error(`document_files ${documentFileId} not found`);
 
-    const [cats, folks, tagRows] = await Promise.all([
+    const [cats, allItems, tagRows] = await Promise.all([
       this.categoriesService.index(),
-      this.db.select({ displayName: people.displayName }).from(people),
+      this.itemsService.list(),
       this.db.select({ name: tags.name }).from(tags),
     ]);
     const input: SuggestInput = {
@@ -62,7 +64,7 @@ export class SuggestService {
       pageCount: row.df.pageCount,
       text: (row.text ?? "").slice(0, TEXT_CHARS),
       categories: [...cats.values()].map((c) => ({ slug: c.cat.slug, path: c.path })),
-      peopleFirstNames: this.sendPeople ? folks.map((p) => firstName(p.displayName)) : [],
+      items: this.sendPeople ? allItems.map((i) => ({ label: i.label, kind: i.kind, parentLabel: i.parentLabel })) : [],
       tags: tagRows.map((t) => t.name),
       readerLanguage: this.readerLanguage,
     };
@@ -70,29 +72,41 @@ export class SuggestService {
     const out = await this.provider.suggest(input);
     if (!out) {
       this.log.log(`${documentFileId}: no suggestion (${this.provider.name})`);
+      await this.markReady(documentFileId);
       return null;
     }
     const payload = SuggestionPayload.parse(out.payload);
-    const [stored] = await this.db
-      .insert(suggestions)
-      .values({
-        documentId: row.doc.id,
-        documentFileId,
-        provider: this.provider.name,
-        model: out.model,
-        promptVersion: PROMPT_VERSION,
-        payload,
-        textChars: input.text.length,
-        inputTokens: out.inputTokens,
-        outputTokens: out.outputTokens,
-      })
-      .onConflictDoUpdate({
-        target: [suggestions.documentFileId, suggestions.model, suggestions.promptVersion],
-        set: { payload, textChars: input.text.length, inputTokens: out.inputTokens, outputTokens: out.outputTokens, createdAt: new Date(), acceptedAt: null, rejectedAt: null },
-      })
-      .returning({ id: suggestions.id });
+    // Storing the suggestion and leaving "suggesting" are one write: killing the suggester between
+    // the two used to strand the file in "suggesting" forever with its suggestion already saved.
+    const stored = await this.db.transaction(async (tx) => {
+      const [inserted] = await tx
+        .insert(suggestions)
+        .values({
+          documentId: row.doc.id,
+          documentFileId,
+          provider: this.provider.name,
+          model: out.model,
+          promptVersion: PROMPT_VERSION,
+          payload,
+          textChars: input.text.length,
+          inputTokens: out.inputTokens,
+          outputTokens: out.outputTokens,
+        })
+        .onConflictDoUpdate({
+          target: [suggestions.documentFileId, suggestions.model, suggestions.promptVersion],
+          set: { payload, textChars: input.text.length, inputTokens: out.inputTokens, outputTokens: out.outputTokens, createdAt: new Date(), acceptedAt: null, rejectedAt: null },
+        })
+        .returning({ id: suggestions.id });
+      await tx.update(documentFiles).set({ processingStatus: "ready" }).where(eq(documentFiles.id, documentFileId));
+      return inserted!.id;
+    });
     this.log.log(`${documentFileId}: ${this.provider.name}/${out.model} · ${payload.confidence} · ${out.inputTokens ?? "?"} in / ${out.outputTokens ?? "?"} out`);
-    return stored!.id;
+    return stored;
+  }
+
+  /** Suggestions are best-effort: the document is complete without one, so it must never stay "suggesting". */
+  async markReady(documentFileId: string): Promise<void> {
+    await this.db.update(documentFiles).set({ processingStatus: "ready" }).where(eq(documentFiles.id, documentFileId));
   }
 
   /** Latest suggestion per file, resolved against the current vocabulary. */
@@ -103,7 +117,7 @@ export class SuggestService {
       .from(suggestions)
       .where(inArray(suggestions.documentFileId, fileIds))
       .orderBy(desc(suggestions.createdAt));
-    const [cats, folks] = await Promise.all([this.categoriesService.index(), this.db.select({ id: people.id, displayName: people.displayName }).from(people)]);
+    const [cats, allItems] = await Promise.all([this.categoriesService.index(), this.itemsService.list()]);
     const bySlug = new Map([...cats.values()].map((c) => [c.cat.slug, c]));
     const out = new Map<string, SuggestionView>();
     for (const s of rows) {
@@ -111,14 +125,16 @@ export class SuggestService {
       const parsed = SuggestionPayload.safeParse(s.payload);
       if (!parsed.success) continue;
       const cat = parsed.data.categorySlug ? bySlug.get(parsed.data.categorySlug) : undefined;
-      const wanted = new Set(parsed.data.personNames.map((n) => n.toLowerCase()));
-      const personIds = folks.filter((p) => wanted.has(firstName(p.displayName).toLowerCase()) || wanted.has(p.displayName.toLowerCase())).map((p) => p.id);
+      const wanted = new Set(parsed.data.itemLabels.map((n: string) => n.trim().toLowerCase()));
+      const matched = allItems.filter((i) => wanted.has(i.label.toLowerCase()) || wanted.has(firstName(i.label).toLowerCase()));
+      // Naming a child implies its parent: a boiler invoice is also about the house (spec §6).
+      const itemIds = [...new Set(matched.flatMap((i) => (i.parentId ? [i.id, i.parentId] : [i.id])))];
       out.set(s.documentFileId, {
         id: s.id,
         provider: s.provider,
         model: s.model,
         payload: parsed.data,
-        resolved: { categoryId: cat?.cat.id ?? null, categoryPath: cat?.path ?? null, personIds },
+        resolved: { categoryId: cat?.cat.id ?? null, categoryPath: cat?.path ?? null, itemIds },
         createdAt: s.createdAt.toISOString(),
         acceptedAt: s.acceptedAt?.toISOString() ?? null,
         rejectedAt: s.rejectedAt?.toISOString() ?? null,

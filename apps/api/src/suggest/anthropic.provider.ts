@@ -68,7 +68,7 @@ Rules:
 - summary: at most two sentences, plain language, written in the reader's language given below, and starting with "Looks like". Name the sender/issuer, what the document is, the key amount or number, and the important date. Never guess; if the text does not say, leave it out.
 - title: a short human title, at most 60 characters, no file names, no dates unless they are the point.
 - categorySlug: choose exactly one slug from the CATEGORIES list, or null if none fits. Never invent a slug. If a category is genuinely missing, put a short name in newCategoryHint and still pick the closest existing slug or null.
-- personNames: only names from the PEOPLE list that the document is about (the patient, the account holder, the pupil), not merely mentioned. Empty list if unsure.
+- itemLabels: only labels from the ITEMS list that the document is *about* — the patient, the account holder, the pupil, the house the bill is for, the car being serviced. Not things merely mentioned. If an item has a parent (a boiler in a house), naming the child is enough; the parent is added for you. Empty list if unsure.
 - documentDate: the date the document is dated (issue date), ISO YYYY-MM-DD, or null.
 - expiresAt: only when the document itself states an expiry, renewal or due date that matters to keeping it (passport expiry, policy end, registration renewal). Payment due dates on bills count. Otherwise null.
 - tags: up to three from the TAGS list only; empty if none apply.
@@ -77,9 +77,11 @@ Rules:
 
 function vocabularyBlock(input: SuggestInput): string {
   const cats = input.categories.map((c) => `- ${c.slug} — ${c.path}`).join("\n");
-  const people = input.peopleFirstNames.length ? input.peopleFirstNames.join(", ") : "(not provided — leave personNames empty)";
+  const itemLines = input.items.length
+    ? input.items.map((i) => `- ${i.label} (${i.kind}${i.parentLabel ? `, part of ${i.parentLabel}` : ""})`).join("\n")
+    : "(not provided — leave itemLabels empty)";
   const tags = input.tags.length ? input.tags.join(", ") : "(none)";
-  return `CATEGORIES (slug — name):\n${cats}\n\nPEOPLE (first names): ${people}\n\nTAGS: ${tags}\n\nReader's language: ${input.readerLanguage}`;
+  return `CATEGORIES (slug — name):\n${cats}\n\nITEMS — the people and things this family keeps paperwork for:\n${itemLines}\n\nTAGS: ${tags}\n\nReader's language: ${input.readerLanguage}`;
 }
 
 function documentBlock(input: SuggestInput): string {

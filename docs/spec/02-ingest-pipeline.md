@@ -43,15 +43,15 @@ silently. `page_progress` is updated per page for the upload UI.
 
 ## Stage 3 — Index
 
-Build `tsv` weighted A = title, B = tags + people, C = OCR text. The index is a cache —
+Build `tsv` weighted A = title, B = tags + items, C = OCR text. The index is a cache —
 rebuildable from source at any time, never the source of truth.
 
 ## Stage 4 — Suggest
 
 Send the first ~4k characters to the configured `SuggestionProvider` (§5); write the result
-to `suggestions`, never to `documents`. Payload: summary, title, category, people,
+to `suggestions`, never to `documents`. Payload: summary, title, category, items,
 document_date, expires_at, tags, confidence. Provider failure is non-fatal. The `anthropic`
-provider is the primary v1 path; `none` (heuristics: sender → person, filename date →
+provider is the primary v1 path; `none` (heuristics: sender → item, filename date →
 document date) is the fallback, and the Inbox has a first-class card state for it.
 
 Runs in the `suggester` container — the only processing container with internet egress.

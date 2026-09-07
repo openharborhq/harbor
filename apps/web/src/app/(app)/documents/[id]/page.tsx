@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import type { ActivityEntry, Category, DocumentSummary, DocumentText, DocumentVersion, Person } from "@trustworthier/shared";
+import type { ActivityEntry, Category, DocumentSummary, DocumentText, DocumentVersion, Item } from "@trustworthier/shared";
 import { AutoRefresh } from "@/components/AutoRefresh";
 import { DocumentDetail } from "@/components/DocumentDetail";
 import { PdfPages } from "@/components/PdfPages";
@@ -20,12 +20,12 @@ export default async function DocumentPage(props: PageProps<"/documents/[id]">) 
     if (err instanceof ApiError && err.status === 404) notFound();
     throw err;
   }
-  const [text, versions, activity, categories, people] = await Promise.all([
+  const [text, versions, activity, categories, items] = await Promise.all([
     apiFetch<DocumentText>(`/documents/${id}/text`),
     apiFetch<DocumentVersion[]>(`/documents/${id}/versions`),
     apiFetch<ActivityEntry[]>(`/documents/${id}/activity`),
     apiFetch<Category[]>("/categories"),
-    apiFetch<Person[]>("/people"),
+    apiFetch<Item[]>("/items"),
   ]);
   const f = doc.file;
   const fileUrl = `/api/documents/${doc.id}/file`;
@@ -45,7 +45,7 @@ export default async function DocumentPage(props: PageProps<"/documents/[id]">) 
             <h1 className="mt-2 truncate text-[24px] font-bold leading-[30px] tracking-snug">{doc.title}</h1>
             <p className="mt-1 text-row text-muted">
               <span className={doc.category ? "text-accent" : ""}>{doc.category ? doc.category.path : "Inbox"}</span>
-              {doc.people.length ? ` · ${doc.people.map((p) => p.displayName).join(", ")}` : ""}
+              {doc.items.length ? ` · ${doc.items.map((p) => p.label).join(", ")}` : ""}
             </p>
           </div>
           <a href={fileUrl} download={f.originalFilename} className="flex h-10 shrink-0 items-center gap-2 rounded-md border border-border bg-ground px-4 text-row font-medium">
@@ -83,7 +83,7 @@ export default async function DocumentPage(props: PageProps<"/documents/[id]">) 
               </span>
             </div>
           </div>
-          <DocumentDetail doc={doc} text={text} versions={versions} activity={activity} categories={categories} people={people} />
+          <DocumentDetail doc={doc} text={text} versions={versions} activity={activity} categories={categories} items={items} />
         </div>
       </main>
     </>

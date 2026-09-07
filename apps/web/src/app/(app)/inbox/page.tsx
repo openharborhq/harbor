@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import type { Category, DocumentSummary, Person } from "@trustworthier/shared";
+import type { Category, DocumentSummary, Item } from "@trustworthier/shared";
 import { AcceptAll } from "@/components/AcceptAll";
 import { AutoRefresh } from "@/components/AutoRefresh";
 import { InboxCard } from "@/components/InboxCard";
@@ -11,10 +11,10 @@ import { apiFetch } from "@/lib/api-server";
 export const metadata: Metadata = { title: "Inbox" };
 
 export default async function InboxPage() {
-  const [docs, categories, people] = await Promise.all([
+  const [docs, categories, items] = await Promise.all([
     apiFetch<DocumentSummary[]>("/documents?inbox=1"),
     apiFetch<Category[]>("/categories"),
-    apiFetch<Person[]>("/people"),
+    apiFetch<Item[]>("/items"),
   ]);
   const processing = docs.filter((d) => isProcessing(d.file.processingStatus)).length;
   const suggested = docs.filter((d) => d.suggestion?.resolved.categoryId && !d.suggestion.rejectedAt).length;
@@ -51,11 +51,11 @@ export default async function InboxPage() {
           </div>
         )}
 
-        {groups.map(([day, items]) => (
+        {groups.map(([day, dayDocs]) => (
           <section key={day} className="flex flex-col gap-4">
             <h2 className="text-body font-semibold">{day}</h2>
-            {items.map((d) => (
-              <InboxCard key={`${d.id}-${d.file.processingStatus}-${d.suggestion?.id ?? "none"}`} doc={d} categories={categories} people={people} />
+            {dayDocs.map((d) => (
+              <InboxCard key={`${d.id}-${d.file.processingStatus}-${d.suggestion?.id ?? "none"}`} doc={d} categories={categories} items={items} />
             ))}
           </section>
         ))}

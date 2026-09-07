@@ -10,8 +10,8 @@ export interface SuggestInput {
   text: string;
   /** Vault vocabulary the model must choose from. */
   categories: { slug: string; path: string }[];
-  /** First names only; empty when SUGGEST_SEND_PEOPLE is off. */
-  peopleFirstNames: string[];
+  /** The people and things the vault knows about (spec §6). Empty when SUGGEST_SEND_PEOPLE is off. */
+  items: { label: string; kind: string; parentLabel: string | null }[];
   tags: string[];
   /** Reader's language for the summary, ISO 639-1. */
   readerLanguage: string;
@@ -31,5 +31,5 @@ export interface SuggestionProvider {
 }
 
 /** Bump when the prompt or schema changes so old suggestions can be told apart and re-run. */
-export const PROMPT_VERSION = 1;
+export const PROMPT_VERSION = 2;
 export const TEXT_CHARS = 4000;

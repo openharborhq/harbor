@@ -11,7 +11,7 @@ Status: **design complete, pre-implementation.** UI designed in Paper
 - **Ingest** paperwork by bulk drag-and-drop or by emailing it to the vault's own mailbox.
 - **OCR** every scanned page so the words inside are searchable; born-digital PDFs skip OCR.
 - **Organise** by categories (two levels), the family member a document is *about*, and tags.
-- **Suggest** a title, category, people and dates for each new document (pluggable provider).
+- **Suggest** a title, category, items and dates for each new document (pluggable provider).
 - **Remind** about expiring documents — passports, policies, registrations.
 - **Protect** everything at rest and offsite, with a tested restore path.
 
@@ -19,7 +19,7 @@ Status: **design complete, pre-implementation.** UI designed in Paper
 
 | Area | Decision |
 |---|---|
-| Users | Shared vault, 2–3 owner accounts, no roles. `users` (who log in) ≠ `people` (who documents are about). |
+| Users | Shared vault, 2–3 owner accounts, no roles. `users` (who log in) ≠ `items` (who and what documents are about). |
 | Stack | Turborepo: `apps/web` (Next, App Router), `apps/api` (Nest: REST + BullMQ worker), `packages/shared` (Zod). Postgres + `tsvector`. Redis. Docker Compose. |
 | Hosting | a spare **Protectli**, dedicated to this (not a firewall). Linux + Docker Compose. Reached over Tailscale only. Nothing rented. Disk unlocked by **passphrase at boot** (TPM auto-unlock is an opt-in setting). |
 | OCR | `OCRmyPDF` (Tesseract) as a subprocess in an isolated worker container. |
@@ -45,3 +45,4 @@ None blocking. (Resolved 2026-09-06: dedicated Protectli; passphrase at boot; AG
 3. [Security & hosting](03-security-hosting.md)
 4. [UI surfaces](04-ui-surfaces.md)
 5. [LLM integration](05-llm-integration.md)
+6. [Items — people and things](06-items.md)

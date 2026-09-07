@@ -16,7 +16,11 @@ const input: SuggestInput = {
     { slug: "real-estate/utilities", path: "Real Estate › Utilities" },
     { slug: "money/statements", path: "Money › Statements" },
   ],
-  peopleFirstNames: ["Kai", "Mara", "Jonas", "Marc"],
+  items: [
+    { label: "Anna", kind: "person", parentLabel: null },
+    { label: "Mara", kind: "person", parentLabel: null },
+    { label: "Musterstraße 7", kind: "property", parentLabel: null },
+  ],
   tags: ["school"],
   readerLanguage: "en",
 };
@@ -25,7 +29,7 @@ test("none provider: category from keywords, person from text, date from filenam
   const out = await new NoneProvider().suggest(input);
   assert.ok(out);
   assert.equal(out.payload.categorySlug, "real-estate/utilities");
-  assert.deepEqual(out.payload.personNames, ["Kai"]);
+  assert.deepEqual(out.payload.itemLabels, ["Anna"]);
   assert.equal(out.payload.documentDate, "2026-08-01");
   assert.equal(out.payload.summary, "");
   assert.equal(out.payload.confidence, "medium");
@@ -47,7 +51,7 @@ test("anthropic provider: structured output is validated, usage is summed, refus
     title: "Electricity bill — August 2026",
     categorySlug: "real-estate/utilities",
     newCategoryHint: null,
-    personNames: ["Kai"],
+    itemLabels: ["Anna"],
     documentDate: "2026-08-01",
     expiresAt: "2026-09-15",
     tags: [],
@@ -73,7 +77,7 @@ test("anthropic provider: structured output is validated, usage is summed, refus
   assert.equal(req.output_config.effort, "low");
   assert.ok(req.system[1]!.cache_control, "vocabulary block is cache-marked");
   assert.match(req.system[1]!.text, /real-estate\/utilities/);
-  assert.match(req.system[1]!.text, /Kai, Mara, Jonas, Marc/);
+  assert.match(req.system[1]!.text, /Musterstraße 7 \(property\)/);
   assert.match(req.messages[0]!.content, /Stadtwerke/);
 
   const refusing = { messages: { parse: async () => ({ stop_reason: "refusal", stop_details: { category: "test" }, parsed_output: null, usage: { input_tokens: 0, output_tokens: 0 } }) } };

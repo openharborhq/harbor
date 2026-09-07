@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import type { Category, DocumentSummary, Person, SearchResponse } from "@trustworthier/shared";
+import { ACTIVE_ITEM_KINDS, ITEM_KIND_LABEL, type Category, type DocumentSummary, type Item, type SearchResponse } from "@trustworthier/shared";
 import { Snippet } from "@/components/Snippet";
 import { DocThumb } from "@/components/DocThumb";
 import { StatusPill } from "@/components/StatusPill";
@@ -26,19 +26,19 @@ export default async function LibraryPage(props: PageProps<"/library">) {
   if (q) return <SearchResults q={q} />;
 
   const category = str("category");
-  const person = str("person");
+  const itemId = str("item");
   const source = str("source");
   const sort = SORTS.some((s) => s.key === str("sort")) ? str("sort") : "newest";
   const params = new URLSearchParams();
   if (category) params.set("category", category);
-  if (person) params.set("person", person);
+  if (itemId) params.set("item", itemId);
   if (source) params.set("source", source);
   params.set("sort", sort);
 
-  const [docs, categories, people, all] = await Promise.all([
+  const [docs, categories, items, all] = await Promise.all([
     apiFetch<DocumentSummary[]>(`/documents?${params}`),
     apiFetch<Category[]>("/categories"),
-    apiFetch<Person[]>("/people"),
+    apiFetch<Item[]>("/items"),
     apiFetch<DocumentSummary[]>("/documents?limit=500"),
   ]);
   const href = (patch: Record<string, string>) => {
@@ -84,10 +84,17 @@ export default async function LibraryPage(props: PageProps<"/library">) {
               ))}
             </div>
             <div className="flex flex-col gap-1">
-              <div className="label mb-1.5">Person</div>
-              <RailLink href={href({ person: "" })} active={!person} label="Anyone" />
-              {people.map((p) => (
-                <RailLink key={p.id} href={href({ person: p.id })} active={person === p.id} label={p.displayName} count={p.documentCount} />
+              <div className="label mb-1.5">About</div>
+              <RailLink href={href({ item: "" })} active={!itemId} label="Anything" />
+              {ACTIVE_ITEM_KINDS.filter((k) => items.some((i) => i.kind === k)).map((k) => (
+                <div key={k}>
+                  <div className="mt-2 px-3 text-label text-muted">{ITEM_KIND_LABEL[k].many}</div>
+                  {items
+                    .filter((i) => i.kind === k)
+                    .map((i) => (
+                      <RailLink key={i.id} href={href({ item: i.id })} active={itemId === i.id} label={i.label} count={i.documentCount} nested={i.parentId !== null} />
+                    ))}
+                </div>
               ))}
             </div>
             <div className="flex flex-col gap-1">
@@ -117,7 +124,7 @@ export default async function LibraryPage(props: PageProps<"/library">) {
                 </select>
                 <form id="sortform" action="/library" className="contents">
                   {category && <input type="hidden" name="category" value={category} />}
-                  {person && <input type="hidden" name="person" value={person} />}
+                  {itemId && <input type="hidden" name="item" value={itemId} />}
                   {source && <input type="hidden" name="source" value={source} />}
                   <button type="submit" className="h-8 rounded-md border border-border px-2.5 text-small font-medium text-text">
                     Apply
@@ -135,7 +142,7 @@ export default async function LibraryPage(props: PageProps<"/library">) {
                   </Link>
                   <span className="min-w-0 flex-1 truncate text-small text-muted">
                     {d.category ? d.category.path : "Inbox"}
-                    {d.people.length ? ` · ${d.people.map((p) => p.displayName).join(", ")}` : ""}
+                    {d.items.length ? ` · ${d.items.map((p) => p.label).join(", ")}` : ""}
                   </span>
                   <span className="w-24 shrink-0 text-small text-muted">{d.documentDate ? formatDate(d.documentDate) : ""}</span>
                   <span className="w-32 shrink-0 text-small text-muted">{d.expiresAt ? `exp. ${formatDate(d.expiresAt)}` : ""}</span>
@@ -181,7 +188,7 @@ async function SearchResults({ q }: { q: string }) {
             Clear search
           </Link>
         </div>
-        {result.hits.length === 0 && <p className="text-body text-muted">No document contains that. Search looks at titles, tags, people and the text read from every page; spelling must match.</p>}
+        {result.hits.length === 0 && <p className="text-body text-muted">No document contains that. Search looks at titles, tags, items and the text read from every page; spelling must match.</p>}
         <ul className="flex flex-col">
           {result.hits.map((h) => (
             <li key={h.documentId} className="flex items-start gap-4 border-t border-border py-4 last:border-b">

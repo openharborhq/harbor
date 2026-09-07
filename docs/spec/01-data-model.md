@@ -1,7 +1,7 @@
 # 1. Data model
 
-Central distinction: **users** log in; **people** are family members a document is
-about (kids, parents, a deceased relative whose estate you hold). Never conflate them.
+Central distinction: **users** log in; **items** are the people and things a document is
+about — family members, a house, a car, an account (§6). Never conflate them.
 
 ```
 users                id, email, password_hash (argon2id), totp_secret_enc, totp_enabled,
@@ -10,8 +10,10 @@ invites              id, email, token_hash, expires_at, created_by, accepted_at
 sessions             id, user_id, token_hash, expires_at, ip, user_agent, revoked_at
 user_pins            user_id, entity_type (category|document), entity_id, sort_order
 
-people               id, display_name, date_of_birth, relationship, notes
-person_key_documents person_id, kind, document_id (NULL = "not on file"), sort_order
+items                id, kind (person|property|vehicle|account|policy|pet|business|other),
+                     label, details jsonb, parent_id (nullable, self-reference), notes,
+                     sort_order
+item_key_documents   item_id, kind, document_id (NULL = "not on file"), sort_order
 
 categories           id, name, slug, parent_id (nullable, depth ≤ 2), icon, sort_order
 tags                 id, name, slug, color
@@ -19,7 +21,7 @@ tags                 id, name, slug, color
 documents            id, title, category_id (NULL = Inbox), notes, document_date,
                      expires_at, status, source (upload|email), created_by,
                      created_at, updated_at, deleted_at
-document_people      document_id, person_id
+document_items       document_id, item_id
 document_tags        document_id, tag_id
 
 document_files       id, document_id, version, is_current,
@@ -30,7 +32,7 @@ document_files       id, document_id, version, is_current,
                      processing_error, page_progress, uploaded_by
 document_text        document_file_id, text_content, ocr_engine, ocr_ms,
                      searchable_pdf_key, completed_at
-document_search      document_id, tsv (GIN)   -- A: title, B: tags+people, C: OCR text
+document_search      document_id, tsv (GIN)   -- A: title, B: tags+items, C: OCR text
 
 suggestions          id, document_id, model, payload jsonb, created_at,
                      accepted_at, rejected_at
@@ -55,10 +57,10 @@ audit_log            id, actor_user_id, action, entity_type, entity_id, metadata
   4 Mar — add as new version, or skip?"), but every file gets its own blob and DEK. This
   removes the need for refcounting/GC. See §2.
 - **`person_key_documents` models absence.** A row with `document_id NULL` renders as
-  "Passport — Not on file" on the person page.
+  "Passport — Not on file" on the item page.
 - **Plaintext lives in Postgres.** `document_text` and `tsv` are unencrypted copies of every
   document. Postgres's data directory MUST be on the encrypted volume (§3).
-- **`expires_at` is read** by Home ("Expiring soon", 90 days) and person pages. v1 reminders
+- **`expires_at` is read** by Home ("Expiring soon", 90 days) and item pages. v1 reminders
   are in-app; an email digest is v1.1.
 - **Envelope encryption:** `dek_wrapped` is the per-file key wrapped by the KEK; `key_version`
   lets rotation re-wrap DEKs without re-encrypting blobs (§3.3).

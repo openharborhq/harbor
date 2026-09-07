@@ -12,8 +12,8 @@ One `suggestions` row per current `document_files` row, from a single structured
 | `summary` | ≤ 2 sentences, plain language, the reader's language (default English), opens like the mockups: *"Looks like an electricity bill from Stadtwerke München for August 2026 — €84.20, due 15 September."* | Inbox card, Document detail |
 | `title` | ≤ 60 chars, human, no filename noise | Inbox, Library |
 | `category_slug` | **must be one of the vault's existing categories** or `null`; `new_category_hint` is a free-text side channel, never auto-created | FILE TO prefill |
-| `person_names[]` | subset of the vault's people list (first names) | FOR prefill |
-| `document_date`, `expires_at` | ISO dates or `null`; expiry only when the document states one | Home *Expiring soon*, person tables |
+| `item_labels[]` | subset of the vault's item list (people and things) | FOR prefill |
+| `document_date`, `expires_at` | ISO dates or `null`; expiry only when the document states one | Home *Expiring soon*, item tables |
 | `tags[]` | ≤ 3, from existing tags only | Detail |
 | `confidence` | `high` / `medium` / `low` | *Accept all suggestions* takes `high` only |
 
@@ -28,7 +28,7 @@ interface SuggestionProvider {
 }
 ```
 
-Implementations: `anthropic` (v1), `none` (v1, heuristics only — sender→person, filename date→document date),
+Implementations: `anthropic` (v1), `none` (v1, heuristics only — sender→item, filename date→document date),
 `ollama` (planned, for operators who want it fully local). Selected by config; the setup wizard
 asks for an Anthropic API key and offers *Skip → none*.
 
@@ -42,7 +42,7 @@ same one the API validates against. No prompt-parsing of JSON, no prefill.
   extraction, not reasoning, and low effort on a current model beats disabling thinking.
   Operators can set `claude-haiku-4-5` for ~5× lower cost.
 - **Prompt shape, in cache order:** stable system prompt (role, output rules, tone) → the vault's
-  category list and people first-names (changes rarely; `cache_control: ephemeral`) → the
+  category list and item labels (changes rarely; `cache_control: ephemeral`) → the
   per-document block: filename, source (`upload` / `email from <addr>`), page count, and the
   first ~4 000 characters of extracted text. Nothing after the cache breakpoint is reused.
 - **Refusals & fallbacks:** check `stop_reason` before reading output; `"refusal"` → `null`
@@ -59,8 +59,9 @@ same one the API validates against. No prompt-parsing of JSON, no prefill.
 ## What leaves the house — stated plainly
 
 Per document: filename, sender address (email-in), page count, the first ~4 000 characters of
-OCR text, and the vault's category names and people **first names**. That last item is PII
-about people who never consented; operators can disable sending the people list (the FOR
+OCR text, and the vault's category names and **item labels** — people's first names among
+them. That last item is PII about people who never consented; operators can disable sending
+the item list (the FOR
 prefill then falls back to sender heuristics). Nothing else — no images, no full documents.
 
 Auditability without a second plaintext copy: `suggestions` records `model`,

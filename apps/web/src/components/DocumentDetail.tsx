@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import type { ActivityEntry, Category, DocumentSummary, DocumentText, DocumentVersion, Person } from "@trustworthier/shared";
+import type { ActivityEntry, Category, DocumentSummary, DocumentText, DocumentVersion, Item } from "@trustworthier/shared";
+import { ItemPicker } from "./ItemPicker";
 import { api } from "@/lib/api-client";
 import { formatBytes, formatDate, formatRelative, pages } from "@/lib/format";
 import { StatusPill } from "./StatusPill";
@@ -17,14 +18,14 @@ export function DocumentDetail({
   versions,
   activity,
   categories,
-  people,
+  items,
 }: {
   doc: DocumentSummary;
   text: DocumentText;
   versions: DocumentVersion[];
   activity: ActivityEntry[];
   categories: Category[];
-  people: Person[];
+  items: Item[];
 }) {
   const router = useRouter();
   const [tab, setTab] = useState<Tab>("details");
@@ -73,7 +74,7 @@ export function DocumentDetail({
           )}
           <dl className="mt-3 divide-y divide-border text-row">
             <Row k="Category" v={doc.category ? doc.category.path : "Inbox — not filed yet"} />
-            <Row k="For" v={doc.people.length ? doc.people.map((p) => p.displayName).join(", ") : "—"} />
+            <Row k="For" v={doc.items.length ? doc.items.map((p) => p.label).join(", ") : "—"} />
             <Row k="Document date" v={formatDate(doc.documentDate)} />
             <Row k="Expires" v={formatDate(doc.expiresAt)} />
             <Row k="Added" v={`${formatDate(doc.createdAt)} · ${doc.source === "email" ? "email" : "upload"}`} />
@@ -115,7 +116,7 @@ export function DocumentDetail({
         </div>
       )}
 
-      {tab === "details" && editing && <EditForm doc={doc} categories={categories} people={people} onDone={() => setEditing(false)} />}
+      {tab === "details" && editing && <EditForm doc={doc} categories={categories} items={items} onDone={() => setEditing(false)} />}
 
       {tab === "text" && (
         <div className="mt-6 flex flex-1 flex-col gap-3">
@@ -169,11 +170,11 @@ export function DocumentDetail({
   );
 }
 
-function EditForm({ doc, categories, people, onDone }: { doc: DocumentSummary; categories: Category[]; people: Person[]; onDone: () => void }) {
+function EditForm({ doc, categories, items, onDone }: { doc: DocumentSummary; categories: Category[]; items: Item[]; onDone: () => void }) {
   const router = useRouter();
   const [title, setTitle] = useState(doc.title);
   const [categoryId, setCategoryId] = useState(doc.category?.id ?? "");
-  const [personIds, setPersonIds] = useState(doc.people.map((p) => p.id));
+  const [itemIds, setItemIds] = useState(doc.items.map((p) => p.id));
   const [documentDate, setDocumentDate] = useState(doc.documentDate ?? "");
   const [expiresAt, setExpiresAt] = useState(doc.expiresAt ?? "");
   const [tags, setTags] = useState(doc.tags.join(", "));
@@ -191,7 +192,7 @@ function EditForm({ doc, categories, people, onDone }: { doc: DocumentSummary; c
         body: JSON.stringify({
           title,
           categoryId: categoryId || null,
-          personIds,
+          itemIds,
           documentDate: documentDate || null,
           expiresAt: expiresAt || null,
           tags: tags.split(",").map((t) => t.trim()).filter(Boolean),
@@ -229,18 +230,7 @@ function EditForm({ doc, categories, people, onDone }: { doc: DocumentSummary; c
           ))}
         </select>
       </Field>
-      <Field label="For">
-        <div className="flex flex-wrap gap-1.5">
-          {people.map((p) => {
-            const on = personIds.includes(p.id);
-            return (
-              <button key={p.id} type="button" onClick={() => setPersonIds((ids) => (on ? ids.filter((x) => x !== p.id) : [...ids, p.id]))} className={`h-7 rounded-sm px-2.5 text-small font-semibold ${on ? "bg-accent-soft text-accent" : "bg-surface text-muted"}`}>
-                {p.displayName}
-              </button>
-            );
-          })}
-        </div>
-      </Field>
+      <ItemPicker items={items} selected={itemIds} onChange={setItemIds} />
       <div className="grid grid-cols-2 gap-4">
         <Field label="Document date">
           <input type="date" value={documentDate} onChange={(e) => setDocumentDate(e.target.value)} className="h-10 w-full rounded-md border border-border-strong px-3 text-row" />

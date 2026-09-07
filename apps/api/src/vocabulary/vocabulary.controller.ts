@@ -1,25 +1,26 @@
-import { Body, Controller, Delete, Get, Param, ParseUUIDPipe, Patch, Post } from "@nestjs/common";
+import { Body, Controller, Delete, Get, Param, ParseUUIDPipe, Patch, Post, Query } from "@nestjs/common";
 import {
   CreateCategory,
+  CreateItem,
+  ItemKind,
   RenameCategory,
-  CreatePerson,
-  UpdatePerson,
+  UpdateItem,
   UpsertKeyDocument,
   type Category,
+  type Item,
   type KeyDocumentSlot,
-  type Person,
   type SessionUser,
 } from "@trustworthier/shared";
 import { CurrentUser } from "../auth/current-user.decorator";
 import { ZodPipe } from "../common/zod.pipe";
 import { CategoriesService } from "./categories.service";
-import { PeopleService } from "./people.service";
+import { ItemsService } from "./items.service";
 
 @Controller()
 export class VocabularyController {
   constructor(
     private readonly categories: CategoriesService,
-    private readonly people: PeopleService,
+    private readonly items: ItemsService,
   ) {}
 
   @Get("categories")
@@ -33,42 +34,60 @@ export class VocabularyController {
   }
 
   @Patch("categories/:id")
-  renameCategory(@Param("id", ParseUUIDPipe) id: string, @Body(new ZodPipe(RenameCategory)) body: RenameCategory, @CurrentUser() user: SessionUser): Promise<Category> {
+  renameCategory(
+    @Param("id", ParseUUIDPipe) id: string,
+    @Body(new ZodPipe(RenameCategory)) body: RenameCategory,
+    @CurrentUser() user: SessionUser,
+  ): Promise<Category> {
     return this.categories.rename(id, body.name, user.id);
   }
 
-  @Get("people")
-  listPeople(): Promise<Person[]> {
-    return this.people.list();
+  /** `?kind=person` or `?kind=property,vehicle,account`. Omit for everything. */
+  @Get("items")
+  listItems(@Query("kind") kind?: string): Promise<Item[]> {
+    const kinds = kind
+      ?.split(",")
+      .map((k) => k.trim())
+      .filter(Boolean)
+      .map((k) => ItemKind.parse(k));
+    return this.items.list(kinds);
   }
 
-  @Post("people")
-  createPerson(@Body(new ZodPipe(CreatePerson)) body: CreatePerson, @CurrentUser() user: SessionUser): Promise<Person> {
-    return this.people.create(body, user.id);
+  @Post("items")
+  createItem(@Body(new ZodPipe(CreateItem)) body: CreateItem, @CurrentUser() user: SessionUser): Promise<Item> {
+    return this.items.create(body, user.id);
   }
 
-  @Patch("people/:id")
-  updatePerson(@Param("id", ParseUUIDPipe) id: string, @Body(new ZodPipe(UpdatePerson)) body: UpdatePerson, @CurrentUser() user: SessionUser): Promise<Person> {
-    return this.people.update(id, body, user.id);
+  @Patch("items/:id")
+  updateItem(@Param("id", ParseUUIDPipe) id: string, @Body(new ZodPipe(UpdateItem)) body: UpdateItem, @CurrentUser() user: SessionUser): Promise<Item> {
+    return this.items.update(id, body, user.id);
   }
 
-  @Post("people/:id/key-documents")
-  addKeyDocument(@Param("id", ParseUUIDPipe) id: string, @Body(new ZodPipe(UpsertKeyDocument)) body: UpsertKeyDocument, @CurrentUser() user: SessionUser): Promise<KeyDocumentSlot[]> {
-    return this.people.upsertKeyDocument(id, null, body, user.id);
+  @Post("items/:id/key-documents")
+  addKeyDocument(
+    @Param("id", ParseUUIDPipe) id: string,
+    @Body(new ZodPipe(UpsertKeyDocument)) body: UpsertKeyDocument,
+    @CurrentUser() user: SessionUser,
+  ): Promise<KeyDocumentSlot[]> {
+    return this.items.upsertKeyDocument(id, null, body, user.id);
   }
 
-  @Patch("people/:id/key-documents/:slotId")
+  @Patch("items/:id/key-documents/:slotId")
   setKeyDocument(
     @Param("id", ParseUUIDPipe) id: string,
     @Param("slotId", ParseUUIDPipe) slotId: string,
     @Body(new ZodPipe(UpsertKeyDocument)) body: UpsertKeyDocument,
     @CurrentUser() user: SessionUser,
   ): Promise<KeyDocumentSlot[]> {
-    return this.people.upsertKeyDocument(id, slotId, body, user.id);
+    return this.items.upsertKeyDocument(id, slotId, body, user.id);
   }
 
-  @Delete("people/:id/key-documents/:slotId")
-  removeKeyDocument(@Param("id", ParseUUIDPipe) id: string, @Param("slotId", ParseUUIDPipe) slotId: string, @CurrentUser() user: SessionUser): Promise<KeyDocumentSlot[]> {
-    return this.people.removeKeyDocument(id, slotId, user.id);
+  @Delete("items/:id/key-documents/:slotId")
+  removeKeyDocument(
+    @Param("id", ParseUUIDPipe) id: string,
+    @Param("slotId", ParseUUIDPipe) slotId: string,
+    @CurrentUser() user: SessionUser,
+  ): Promise<KeyDocumentSlot[]> {
+    return this.items.removeKeyDocument(id, slotId, user.id);
   }
 }
