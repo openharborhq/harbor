@@ -9,6 +9,8 @@ import type { ProcessingStatus } from "@trustworthier/shared";
 import { sniffKind, type FileKind } from "../common/sniff";
 import type { Env } from "../config/env";
 import { InjectDb } from "../db/db.module";
+import { InjectSuggestQueue, type SuggestJob } from "../queue/queue.module";
+import type { Queue } from "bullmq";
 import { TS_CONFIG } from "../search/search.service";
 import { BlobStore } from "../storage/blob-store.service";
 import { ExecError, run } from "./exec";
@@ -42,6 +44,7 @@ export class FileProcessor {
   constructor(
     @InjectDb() private readonly db: Db,
     private readonly blobs: BlobStore,
+    @InjectSuggestQueue() private readonly suggestQueue: Queue<SuggestJob>,
     config: ConfigService<Env, true>,
   ) {
     this.ocrLanguages = config.get("OCR_LANGUAGES", { infer: true });
@@ -155,9 +158,11 @@ export class FileProcessor {
         `);
         await tx
           .update(documentFiles)
-          .set({ processingStatus: "ready", processingError: null, pageProgress: null, pageCount })
+          .set({ processingStatus: text ? "suggesting" : "ready", processingError: null, pageProgress: null, pageCount })
           .where(eq(documentFiles.id, df.id));
       });
+      // Stage 4 runs in the suggester container (the only one with a route out). Best-effort: it flips to ready either way.
+      if (text) await this.suggestQueue.add("suggest", { documentFileId: df.id }, { jobId: `s-${df.id}` });
 
       this.log.log(`${df.id}: ${engine ?? "no-text"} · ${pageCount ?? "?"} pages · ${text.length} chars · ${ms} ms`);
       return { engine, pageCount, chars: text.length, ms };

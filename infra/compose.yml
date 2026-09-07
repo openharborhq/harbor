@@ -51,6 +51,31 @@ services:
       postgres: { condition: service_healthy }
       redis: { condition: service_started }
 
+  # Spec §3.6/§5: the only processing container with a route out. Reads document_text, never blobs.
+  suggester:
+    build: { context: .., dockerfile: infra/docker/api.Dockerfile }
+    command: ["node", "dist/suggester.js"]
+    environment:
+      DATABASE_URL: postgres://trustworthier:trustworthier@postgres:5432/trustworthier
+      REDIS_URL: redis://redis:6379
+      TW_DATA_DIR: /data
+      TW_KEK_FILE: /run/secrets/kek
+      SUGGEST_PROVIDER: ${SUGGEST_PROVIDER:-none}
+      SUGGEST_MODEL: ${SUGGEST_MODEL:-claude-opus-5}
+      SUGGEST_SEND_PEOPLE: ${SUGGEST_SEND_PEOPLE:-true}
+      SUGGEST_READER_LANGUAGE: ${SUGGEST_READER_LANGUAGE:-en}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+    secrets: [kek]
+    networks: [internal, edge]
+    restart: unless-stopped
+    read_only: true
+    tmpfs: ["/tmp"]
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_started }
+
   api:
     build: { context: .., dockerfile: infra/docker/api.Dockerfile }
     environment:

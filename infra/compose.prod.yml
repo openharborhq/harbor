@@ -16,6 +16,9 @@ services:
   worker:
     image: ${TW_IMAGE_PREFIX:-ghcr.io/pradelkai/trustworthier}-worker:${TW_IMAGE_TAG:-latest}
     build: !reset null
+  suggester:
+    image: ${TW_IMAGE_PREFIX:-ghcr.io/pradelkai/trustworthier}-api:${TW_IMAGE_TAG:-latest}
+    build: !reset null
   api:
     image: ${TW_IMAGE_PREFIX:-ghcr.io/pradelkai/trustworthier}-api:${TW_IMAGE_TAG:-latest}
     build: !reset null

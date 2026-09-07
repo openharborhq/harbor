@@ -1,9 +1,12 @@
 import {
   BadRequestException,
+  Body,
   Controller,
   Get,
+  HttpCode,
   Param,
   ParseUUIDPipe,
+  Patch,
   Post,
   Query,
   Req,
@@ -13,8 +16,9 @@ import {
 } from "@nestjs/common";
 import { FileInterceptor } from "@nestjs/platform-express";
 import type { Request, Response } from "express";
-import type { DocumentSummary, SessionUser, UploadResult } from "@trustworthier/shared";
+import { UpdateDocument, type AcceptAllResult, type DocumentSummary, type SessionUser, type UploadResult } from "@trustworthier/shared";
 import { CurrentUser } from "../auth/current-user.decorator";
+import { ZodPipe } from "../common/zod.pipe";
 import { DocumentsService } from "./documents.service";
 
 @Controller("documents")
@@ -24,17 +28,9 @@ export class DocumentsController {
   /** Multipart field `file`. Returns immediately; processing continues in the worker. */
   @Post()
   @UseInterceptors(FileInterceptor("file"))
-  async upload(
-    @UploadedFile() file: Express.Multer.File | undefined,
-    @CurrentUser() user: SessionUser,
-    @Req() req: Request,
-  ): Promise<UploadResult> {
+  async upload(@UploadedFile() file: Express.Multer.File | undefined, @CurrentUser() user: SessionUser, @Req() req: Request): Promise<UploadResult> {
     if (!file) throw new BadRequestException("Send the document as a multipart field named `file`.");
-    return this.documents.ingestUpload(
-      { path: file.path, originalName: file.originalname, byteSize: file.size },
-      user.id,
-      req.ip ?? null,
-    );
+    return this.documents.ingestUpload({ path: file.path, originalName: file.originalname, byteSize: file.size }, user.id, req.ip ?? null);
   }
 
   /** Pre-upload check so the UI can ask "add as new version, or skip?" before sending bytes. */
@@ -49,18 +45,42 @@ export class DocumentsController {
     return this.documents.list({ inboxOnly: inbox === "1" || inbox === "true" });
   }
 
+  /** Files every high-confidence, unresolved Inbox suggestion. */
+  @Post("accept-all")
+  @HttpCode(200)
+  acceptAll(@CurrentUser() user: SessionUser, @Req() req: Request): Promise<AcceptAllResult> {
+    return this.documents.acceptAll(user.id, req.ip ?? null);
+  }
+
   @Get(":id")
   get(@Param("id", ParseUUIDPipe) id: string): Promise<DocumentSummary> {
     return this.documents.get(id);
   }
 
-  @Get(":id/file")
-  async file(
+  @Patch(":id")
+  update(
     @Param("id", ParseUUIDPipe) id: string,
+    @Body(new ZodPipe(UpdateDocument)) body: UpdateDocument,
     @CurrentUser() user: SessionUser,
     @Req() req: Request,
-    @Res() res: Response,
-  ): Promise<void> {
+  ): Promise<DocumentSummary> {
+    return this.documents.update(id, body, user.id, req.ip ?? null);
+  }
+
+  @Post(":id/suggestion/accept")
+  @HttpCode(200)
+  accept(@Param("id", ParseUUIDPipe) id: string, @CurrentUser() user: SessionUser, @Req() req: Request): Promise<DocumentSummary> {
+    return this.documents.acceptSuggestion(id, user.id, req.ip ?? null);
+  }
+
+  @Post(":id/suggestion/reject")
+  @HttpCode(200)
+  reject(@Param("id", ParseUUIDPipe) id: string, @CurrentUser() user: SessionUser, @Req() req: Request): Promise<DocumentSummary> {
+    return this.documents.rejectSuggestion(id, user.id, req.ip ?? null);
+  }
+
+  @Get(":id/file")
+  async file(@Param("id", ParseUUIDPipe) id: string, @CurrentUser() user: SessionUser, @Req() req: Request, @Res() res: Response): Promise<void> {
     const { stream, filename, mimeType, byteSize } = await this.documents.openOriginal(id, user.id, req.ip ?? null);
     res.setHeader("Content-Type", mimeType);
     res.setHeader("Content-Length", String(byteSize));

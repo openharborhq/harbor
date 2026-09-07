@@ -1,4 +1,5 @@
-import { z } from "zod";
+import { z } from "zod/v4";
+import { SuggestionView } from "./suggestions";
 
 /** Mirrors document_files.processing_status (spec §1). */
 export const ProcessingStatus = z.enum([
@@ -18,9 +19,16 @@ export type DocumentSource = z.infer<typeof DocumentSource>;
 export const DocumentSummary = z.object({
   id: z.string().uuid(),
   title: z.string(),
-  categoryId: z.string().uuid().nullable(),
   source: DocumentSource,
   createdAt: z.string().datetime(),
+  documentDate: z.string().date().nullable(),
+  expiresAt: z.string().date().nullable(),
+  notes: z.string().nullable(),
+  /** null = Inbox */
+  category: z.object({ id: z.string().uuid(), name: z.string(), path: z.string() }).nullable(),
+  people: z.array(z.object({ id: z.string().uuid(), displayName: z.string() })),
+  /** The latest suggestion for the current file, if any (spec §5). */
+  suggestion: SuggestionView.nullable(),
   file: z.object({
     id: z.string().uuid(),
     originalFilename: z.string(),
@@ -43,3 +51,17 @@ export const UploadResult = z.object({
     .nullable(),
 });
 export type UploadResult = z.infer<typeof UploadResult>;
+
+/** PATCH /documents/:id — every field optional; `categoryId: null` moves it back to the Inbox. */
+export const UpdateDocument = z.object({
+  title: z.string().trim().min(1).max(120).optional(),
+  categoryId: z.string().uuid().nullable().optional(),
+  personIds: z.array(z.string().uuid()).max(20).optional(),
+  documentDate: z.string().date().nullable().optional(),
+  expiresAt: z.string().date().nullable().optional(),
+  notes: z.string().max(5000).nullable().optional(),
+});
+export type UpdateDocument = z.infer<typeof UpdateDocument>;
+
+export const AcceptAllResult = z.object({ accepted: z.number().int().nonnegative(), skipped: z.number().int().nonnegative() });
+export type AcceptAllResult = z.infer<typeof AcceptAllResult>;

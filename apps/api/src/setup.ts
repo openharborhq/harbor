@@ -3,11 +3,10 @@ import { mkdirSync, existsSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { createInterface } from "node:readline";
 import { NestFactory } from "@nestjs/core";
-import { runMigrations, type Db } from "@trustworthier/db";
+import { closeDb, createDb, runMigrations } from "@trustworthier/db";
 import { AppModule } from "./app.module";
 import { AuthService } from "./auth/auth.service";
 import { CryptoService } from "./crypto/crypto.service";
-import { DB } from "./db/db.module";
 
 /**
  * First-run setup (milestone 1 form; the wizard UI in Paper replaces the prompts later):
@@ -31,10 +30,18 @@ async function main() {
     console.log(`Using existing master key at ${kekFile}.`);
   }
 
+  {
+    // Migrate before the Nest context exists: module init hooks (category seeding) need the tables.
+    const db = createDb(process.env.DATABASE_URL ?? "");
+    try {
+      await runMigrations(db);
+    } finally {
+      await closeDb(db);
+    }
+    console.log("Migrations applied.");
+  }
   const app = await NestFactory.createApplicationContext(AppModule, { logger: ["error", "warn"] });
   try {
-    await runMigrations(app.get<Db>(DB));
-    console.log("Migrations applied.");
 
     const auth = app.get(AuthService);
     if ((await auth.ownerCount()) > 0 && !args.force) {

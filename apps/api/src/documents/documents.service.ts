@@ -1,17 +1,19 @@
-import { Injectable, NotFoundException } from "@nestjs/common";
-import { and, desc, eq, isNull, sql } from "drizzle-orm";
+import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
+import { and, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 import { Queue } from "bullmq";
 import { open, rm } from "node:fs/promises";
 import path from "node:path";
 import type { Readable } from "node:stream";
-import { documentFiles, documents, type Db } from "@trustworthier/db";
-import type { DocumentSummary, UploadResult } from "@trustworthier/shared";
+import { categories, documentFiles, documentPeople, documents, people, type Db } from "@trustworthier/db";
+import type { AcceptAllResult, DocumentSummary, SuggestionView, UpdateDocument, UploadResult } from "@trustworthier/shared";
 import { AuditService } from "../audit/audit.service";
 import { MIME_BY_KIND, sniffKind } from "../common/sniff";
 import { CryptoService } from "../crypto/crypto.service";
 import { InjectDb } from "../db/db.module";
 import { InjectProcessFileQueue, type ProcessFileJob } from "../queue/queue.module";
 import { BlobStore } from "../storage/blob-store.service";
+import { SuggestService } from "../suggest/suggest.service";
+import { CategoriesService } from "../vocabulary/categories.service";
 
 export interface IncomingFile {
   /** Path of the plaintext temp file written by the upload middleware. Deleted by this service. */
@@ -20,6 +22,9 @@ export interface IncomingFile {
   byteSize: number;
 }
 
+type DocRow = typeof documents.$inferSelect;
+type FileRow = typeof documentFiles.$inferSelect;
+
 @Injectable()
 export class DocumentsService {
   constructor(
@@ -27,13 +32,13 @@ export class DocumentsService {
     private readonly blobs: BlobStore,
     private readonly crypto: CryptoService,
     private readonly audit: AuditService,
+    private readonly suggest: SuggestService,
+    private readonly categoriesService: CategoriesService,
     @InjectProcessFileQueue() private readonly queue: Queue<ProcessFileJob>,
   ) {}
 
-  /**
-   * Stage 0 intake (spec §2): hash, duplicate check, encrypt, insert, enqueue. The plaintext temp
-   * file is removed on every path. Duplicates are reported, never silently merged.
-   */
+  // ---------- intake (spec §2 stage 0) ----------
+
   async ingestUpload(file: IncomingFile, userId: string, ip: string | null): Promise<UploadResult> {
     try {
       const [sha256, head] = await Promise.all([this.blobs.sha256(file.path), readHead(file.path)]);
@@ -47,10 +52,7 @@ export class DocumentsService {
 
       const title = titleFromFilename(file.originalName);
       const created = await this.db.transaction(async (tx) => {
-        const [doc] = await tx
-          .insert(documents)
-          .values({ title, source: "upload", createdBy: userId })
-          .returning();
+        const [doc] = await tx.insert(documents).values({ title, source: "upload", createdBy: userId }).returning();
         const [df] = await tx
           .insert(documentFiles)
           .values({
@@ -79,7 +81,8 @@ export class DocumentsService {
         ip,
       });
 
-      return { document: toSummary(created.doc, created.df), duplicateOf };
+      const [summary] = await this.assemble([{ doc: created.doc, df: created.df }]);
+      return { document: summary!, duplicateOf };
     } finally {
       await rm(file.path, { force: true });
     }
@@ -97,6 +100,8 @@ export class DocumentsService {
     return row ? { ...row, addedAt: row.addedAt.toISOString() } : null;
   }
 
+  // ---------- reads ----------
+
   async list(opts: { inboxOnly?: boolean; limit?: number } = {}): Promise<DocumentSummary[]> {
     const rows = await this.db
       .select({ doc: documents, df: documentFiles })
@@ -105,10 +110,96 @@ export class DocumentsService {
       .where(and(isNull(documents.deletedAt), opts.inboxOnly ? isNull(documents.categoryId) : sql`true`))
       .orderBy(desc(documents.createdAt))
       .limit(opts.limit ?? 100);
-    return rows.map((r) => toSummary(r.doc, r.df));
+    return this.assemble(rows);
   }
 
   async get(documentId: string): Promise<DocumentSummary> {
+    const row = await this.loadRow(documentId);
+    const [summary] = await this.assemble([row]);
+    return summary!;
+  }
+
+  /** Decrypted original, streamed. Audited: downloads of family paperwork are worth a row each. */
+  async openOriginal(documentId: string, userId: string, ip: string | null): Promise<{ stream: Readable; filename: string; mimeType: string; byteSize: number }> {
+    const { df } = await this.loadRow(documentId);
+    const dek = this.blobs.unwrapDek(df.dekWrapped, df.storageKey);
+    const stream = this.blobs.openStream(df.storageKey, dek, df.iv, df.authTag);
+    dek.fill(0);
+    await this.audit.record({ action: "document.download", actorUserId: userId, entityType: "document", entityId: documentId, ip });
+    return { stream, filename: df.originalFilename, mimeType: df.mimeType, byteSize: df.byteSize };
+  }
+
+  // ---------- filing ----------
+
+  async update(documentId: string, patch: UpdateDocument, userId: string, ip: string | null): Promise<DocumentSummary> {
+    await this.loadRow(documentId);
+    if (patch.categoryId) {
+      const exists = await this.db.query.categories.findFirst({ where: eq(categories.id, patch.categoryId) });
+      if (!exists) throw new BadRequestException("Unknown category");
+    }
+    await this.db.transaction(async (tx) => {
+      const set: Partial<DocRow> = { updatedAt: new Date() };
+      if (patch.title !== undefined) set.title = patch.title;
+      if (patch.categoryId !== undefined) set.categoryId = patch.categoryId;
+      if (patch.documentDate !== undefined) set.documentDate = patch.documentDate;
+      if (patch.expiresAt !== undefined) set.expiresAt = patch.expiresAt;
+      if (patch.notes !== undefined) set.notes = patch.notes;
+      await tx.update(documents).set(set).where(eq(documents.id, documentId));
+      if (patch.personIds !== undefined) {
+        await tx.delete(documentPeople).where(eq(documentPeople.documentId, documentId));
+        if (patch.personIds.length) await tx.insert(documentPeople).values(patch.personIds.map((personId) => ({ documentId, personId })));
+      }
+    });
+    await this.audit.record({ action: "document.update", actorUserId: userId, entityType: "document", entityId: documentId, metadata: { fields: Object.keys(patch) }, ip });
+    return this.get(documentId);
+  }
+
+  /** Copy the suggestion's fields onto the document and stamp it accepted (spec §5). */
+  async acceptSuggestion(documentId: string, userId: string, ip: string | null): Promise<DocumentSummary> {
+    const row = await this.loadRow(documentId);
+    const s = (await this.suggest.latestForFiles([row.df.id])).get(row.df.id);
+    if (!s) throw new NotFoundException("No suggestion to accept");
+    const patch: UpdateDocument = {
+      title: s.payload.title.trim() || undefined,
+      categoryId: s.resolved.categoryId ?? undefined,
+      personIds: s.resolved.personIds,
+      documentDate: isoDate(s.payload.documentDate),
+      expiresAt: isoDate(s.payload.expiresAt),
+    };
+    const updated = await this.update(documentId, patch, userId, ip);
+    await this.suggest.markAccepted(s.id);
+    await this.audit.record({ action: "document.suggestion_accept", actorUserId: userId, entityType: "document", entityId: documentId, metadata: { suggestionId: s.id, confidence: s.payload.confidence }, ip });
+    return this.get(documentId);
+  }
+
+  async rejectSuggestion(documentId: string, userId: string, ip: string | null): Promise<DocumentSummary> {
+    const row = await this.loadRow(documentId);
+    const s = (await this.suggest.latestForFiles([row.df.id])).get(row.df.id);
+    if (!s) throw new NotFoundException("No suggestion to reject");
+    await this.suggest.markRejected(s.id);
+    await this.audit.record({ action: "document.suggestion_reject", actorUserId: userId, entityType: "document", entityId: documentId, metadata: { suggestionId: s.id }, ip });
+    return this.get(documentId);
+  }
+
+  /** "Accept all suggestions": high-confidence, unresolved, with a category to file into. */
+  async acceptAll(userId: string, ip: string | null): Promise<AcceptAllResult> {
+    const inbox = await this.list({ inboxOnly: true, limit: 500 });
+    let accepted = 0;
+    let skipped = 0;
+    for (const d of inbox) {
+      const s = d.suggestion;
+      if (s && !s.acceptedAt && !s.rejectedAt && s.payload.confidence === "high" && s.resolved.categoryId) {
+        await this.acceptSuggestion(d.id, userId, ip);
+        accepted++;
+      } else skipped++;
+    }
+    await this.audit.record({ action: "document.accept_all", actorUserId: userId, metadata: { accepted, skipped }, ip });
+    return { accepted, skipped };
+  }
+
+  // ---------- helpers ----------
+
+  private async loadRow(documentId: string): Promise<{ doc: DocRow; df: FileRow }> {
     const row = await this.db
       .select({ doc: documents, df: documentFiles })
       .from(documents)
@@ -117,35 +208,49 @@ export class DocumentsService {
       .limit(1)
       .then((r) => r[0]);
     if (!row) throw new NotFoundException("Document not found");
-    return toSummary(row.doc, row.df);
+    return row;
   }
 
-  /** Decrypted original, streamed. Audited: downloads of family paperwork are worth a row each. */
-  async openOriginal(documentId: string, userId: string, ip: string | null): Promise<{ stream: Readable; filename: string; mimeType: string; byteSize: number }> {
-    const df = await this.db
-      .select({ df: documentFiles })
-      .from(documentFiles)
-      .innerJoin(documents, eq(documents.id, documentFiles.documentId))
-      .where(and(eq(documents.id, documentId), eq(documentFiles.isCurrent, true), isNull(documents.deletedAt)))
-      .limit(1)
-      .then((r) => r[0]?.df);
-    if (!df) throw new NotFoundException("Document not found");
-
-    const dek = this.blobs.unwrapDek(df.dekWrapped, df.storageKey);
-    const stream = this.blobs.openStream(df.storageKey, dek, df.iv, df.authTag);
-    dek.fill(0);
-    await this.audit.record({ action: "document.download", actorUserId: userId, entityType: "document", entityId: documentId, ip });
-    return { stream, filename: df.originalFilename, mimeType: df.mimeType, byteSize: df.byteSize };
+  /** Attach category path, people and the latest suggestion with three batched queries. */
+  private async assemble(rows: { doc: DocRow; df: FileRow }[]): Promise<DocumentSummary[]> {
+    if (rows.length === 0) return [];
+    const docIds = rows.map((r) => r.doc.id);
+    const [cats, links, sugg] = await Promise.all([
+      this.categoriesService.index(),
+      this.db
+        .select({ documentId: documentPeople.documentId, id: people.id, displayName: people.displayName })
+        .from(documentPeople)
+        .innerJoin(people, eq(people.id, documentPeople.personId))
+        .where(inArray(documentPeople.documentId, docIds)),
+      this.suggest.latestForFiles(rows.map((r) => r.df.id)),
+    ]);
+    const peopleByDoc = new Map<string, { id: string; displayName: string }[]>();
+    for (const l of links) peopleByDoc.set(l.documentId, [...(peopleByDoc.get(l.documentId) ?? []), { id: l.id, displayName: l.displayName }]);
+    return rows.map(({ doc, df }) => {
+      const cat = doc.categoryId ? cats.get(doc.categoryId) : undefined;
+      return toSummary(doc, df, cat ? { id: cat.cat.id, name: cat.cat.name, path: cat.path } : null, peopleByDoc.get(doc.id) ?? [], sugg.get(df.id) ?? null);
+    });
   }
 }
 
-export function toSummary(doc: typeof documents.$inferSelect, df: typeof documentFiles.$inferSelect): DocumentSummary {
+export function toSummary(
+  doc: DocRow,
+  df: FileRow,
+  category: DocumentSummary["category"],
+  folks: DocumentSummary["people"],
+  suggestion: SuggestionView | null,
+): DocumentSummary {
   return {
     id: doc.id,
     title: doc.title,
-    categoryId: doc.categoryId,
     source: doc.source,
     createdAt: doc.createdAt.toISOString(),
+    documentDate: doc.documentDate,
+    expiresAt: doc.expiresAt,
+    notes: doc.notes,
+    category,
+    people: folks,
+    suggestion,
     file: {
       id: df.id,
       originalFilename: df.originalFilename,
@@ -163,6 +268,11 @@ export function titleFromFilename(name: string): string {
   const base = path.basename(name).replace(/\.[a-z0-9]{2,5}$/i, "");
   const cleaned = base.replace(/[_\-.]+/g, " ").replace(/\s+/g, " ").trim();
   return (cleaned || "Untitled document").slice(0, 120);
+}
+
+function isoDate(v: string | null): string | null | undefined {
+  if (!v) return undefined;
+  return /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : undefined;
 }
 
 async function readHead(file: string, bytes = 16): Promise<Buffer> {

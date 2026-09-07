@@ -10,6 +10,8 @@ import { HealthController } from "./health/health.controller";
 import { QueueModule } from "./queue/queue.module";
 import { SearchModule } from "./search/search.module";
 import { StorageModule } from "./storage/storage.module";
+import { SuggestModule } from "./suggest/suggest.module";
+import { VocabularyModule } from "./vocabulary/vocabulary.module";
 
 @Module({
   imports: [
@@ -23,6 +25,8 @@ import { StorageModule } from "./storage/storage.module";
     AuditModule,
     StorageModule,
     QueueModule,
+    VocabularyModule,
+    SuggestModule.register({ withProvider: false }),
     AuthModule,
     DocumentsModule,
     SearchModule,

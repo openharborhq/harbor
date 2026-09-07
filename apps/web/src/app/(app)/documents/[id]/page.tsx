@@ -35,7 +35,7 @@ export default async function DocumentPage(props: PageProps<"/documents/[id]">) 
             </Link>
             <h1 className="mt-2 text-title font-bold tracking-snug">{doc.title}</h1>
             <p className="mt-1 text-body text-muted">
-              {doc.categoryId ? "Filed" : "Inbox"} · {f.originalFilename}
+              {doc.category ? doc.category.path : "Inbox"} · {f.originalFilename}
             </p>
           </div>
           <a href={fileUrl} download={f.originalFilename} className="flex h-10 items-center gap-2 rounded-md border border-border bg-ground px-4 text-row font-medium">
@@ -68,7 +68,10 @@ export default async function DocumentPage(props: PageProps<"/documents/[id]">) 
               <p className="mt-3 text-small text-muted">Summary and filing suggestions arrive in the next milestone.</p>
             </div>
             <dl className="mt-4 divide-y divide-border text-row">
-              <Row k="Category" v={doc.categoryId ? "Filed" : "Inbox — not filed yet"} />
+              <Row k="Category" v={doc.category ? doc.category.path : "Inbox — not filed yet"} />
+              <Row k="For" v={doc.people.length ? doc.people.map((p) => p.displayName).join(", ") : "—"} />
+              <Row k="Document date" v={formatDate(doc.documentDate)} />
+              <Row k="Expires" v={formatDate(doc.expiresAt)} />
               <Row k="Added" v={`${formatDate(doc.createdAt)} · ${doc.source === "email" ? "email" : "upload"}`} />
               <Row k="File" v={`${f.originalFilename} · ${pages(f.pageCount) || "—"} · ${formatBytes(f.byteSize)}`} />
               <Row k="Type" v={f.mimeType} />

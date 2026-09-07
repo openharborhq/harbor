@@ -3,9 +3,8 @@ import { Logger } from "@nestjs/common";
 import { NestFactory } from "@nestjs/core";
 import { Worker, type Job } from "bullmq";
 import type IORedis from "ioredis";
-import { runMigrations, type Db } from "@trustworthier/db";
+import { closeDb, createDb, runMigrations } from "@trustworthier/db";
 import { loadEnv } from "./config/env";
-import { DB } from "./db/db.module";
 import { FileProcessor, JOB_TIMEOUT_MS } from "./processing/file-processor.service";
 import { PROCESS_FILE_QUEUE, REDIS, type ProcessFileJob } from "./queue/queue.module";
 import { WorkerModule } from "./worker.module";
@@ -17,8 +16,16 @@ import { WorkerModule } from "./worker.module";
 async function bootstrap() {
   const env = loadEnv();
   const log = new Logger("worker");
+  {
+    // createApplicationContext() runs onModuleInit hooks immediately; migrate with a throwaway connection first.
+    const db = createDb(env.DATABASE_URL);
+    try {
+      await runMigrations(db);
+    } finally {
+      await closeDb(db);
+    }
+  }
   const app = await NestFactory.createApplicationContext(WorkerModule);
-  await runMigrations(app.get<Db>(DB));
 
   const processor = app.get(FileProcessor);
   const worker = new Worker<ProcessFileJob>(

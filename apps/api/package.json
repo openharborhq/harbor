@@ -13,7 +13,8 @@
     "test": "node --test --import tsx --test-reporter spec 'src/**/*.spec.ts'",
     "start:dev": "nest build && node --env-file=../../.env dist/main.js",
     "setup:owner": "nest build && node --env-file=../../.env dist/setup.js",
-    "start:worker:dev": "nest build && node --env-file=../../.env dist/worker.js"
+    "start:worker:dev": "nest build && node --env-file=../../.env dist/worker.js",
+    "start:suggester:dev": "nest build && node --env-file=../../.env dist/suggester.js"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.0",
@@ -30,7 +31,8 @@
     "cookie": "^1.0.2",
     "drizzle-orm": "^0.36.0",
     "bullmq": "^5.34.0",
-    "ioredis": "^5.4.1"
+    "ioredis": "^5.4.1",
+    "@anthropic-ai/sdk": "^0.80.0"
   },
   "devDependencies": {
     "@nestjs/cli": "^11.0.0",
