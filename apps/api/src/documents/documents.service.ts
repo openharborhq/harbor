@@ -137,8 +137,9 @@ export class DocumentsService {
       const ids = [...cats.values()].filter((c) => c.cat.id === opts.categoryId || c.cat.parentId === opts.categoryId).map((c) => c.cat.id);
       conditions.push(ids.length ? inArray(documents.categoryId, ids) : sql`false`);
     }
-    const order =
-      opts.sort === "oldest"
+    const order = opts.inboxOnly
+      ? [desc(documents.updatedAt)] // a new version or edit surfaces the card (Kai's report 2026-09-07)
+      : opts.sort === "oldest"
         ? [asc(documents.createdAt)]
         : opts.sort === "title"
           ? [asc(documents.title)]
@@ -382,6 +383,7 @@ export function toSummary(
     title: doc.title,
     source: doc.source,
     createdAt: doc.createdAt.toISOString(),
+    updatedAt: doc.updatedAt.toISOString(),
     documentDate: doc.documentDate,
     expiresAt: doc.expiresAt,
     notes: doc.notes,

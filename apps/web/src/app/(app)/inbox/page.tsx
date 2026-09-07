@@ -69,8 +69,8 @@ function groupByDay(docs: DocumentSummary[]): [string, DocumentSummary[]][] {
   const yesterday = new Date(Date.now() - 86_400_000).toDateString();
   const map = new Map<string, DocumentSummary[]>();
   for (const d of docs) {
-    const ds = new Date(d.createdAt).toDateString();
-    const label = ds === today ? "Today" : ds === yesterday ? "Yesterday" : new Date(d.createdAt).toLocaleDateString("en-GB", { day: "numeric", month: "long" });
+    const ds = new Date(d.updatedAt).toDateString();
+    const label = ds === today ? "Today" : ds === yesterday ? "Yesterday" : new Date(d.updatedAt).toLocaleDateString("en-GB", { day: "numeric", month: "long" });
     map.set(label, [...(map.get(label) ?? []), d]);
   }
   return [...map.entries()];

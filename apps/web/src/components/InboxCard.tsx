@@ -54,7 +54,11 @@ export function InboxCard({ doc, categories, people }: { doc: DocumentSummary; c
     }
   }
 
-  const meta = [doc.source === "email" ? "Forwarded by email" : "Uploaded", formatRelative(doc.createdAt), pages(f.pageCount) || formatBytes(f.byteSize)];
+  const meta = [
+    f.version > 1 ? `New version (v${f.version})` : doc.source === "email" ? "Forwarded by email" : "Uploaded",
+    formatRelative(f.version > 1 ? doc.updatedAt : doc.createdAt),
+    pages(f.pageCount) || formatBytes(f.byteSize),
+  ];
 
   return (
     <article className="flex items-start gap-6 rounded-card border border-border p-6">

@@ -21,6 +21,8 @@ export const DocumentSummary = z.object({
   title: z.string(),
   source: DocumentSource,
   createdAt: z.string().datetime(),
+  /** Bumped by edits and new versions; the Inbox orders by this so a re-upload surfaces. */
+  updatedAt: z.string().datetime(),
   documentDate: z.string().date().nullable(),
   expiresAt: z.string().date().nullable(),
   notes: z.string().nullable(),
