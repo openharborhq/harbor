@@ -7,6 +7,7 @@ import type { Readable } from "node:stream";
 import { auditLog, categories, documentFiles, documentItems, documentText, documents, items, users, type Db } from "@trustworthier/db";
 import type { AcceptAllResult, AcceptSuggestion, ActivityEntry, DeletedDocument, DocumentSummary, DocumentText, DocumentVersion, SuggestionView, UpdateDocument, UploadFields, UploadResult } from "@trustworthier/shared";
 import { AuditService } from "../audit/audit.service";
+import { SearchIndexService } from "../search/search-index.service";
 import { MIME_BY_KIND, sniffKind } from "../common/sniff";
 import { CryptoService } from "../crypto/crypto.service";
 import { InjectDb } from "../db/db.module";
@@ -36,6 +37,7 @@ export class DocumentsService {
     private readonly suggest: SuggestService,
     private readonly categoriesService: CategoriesService,
     private readonly tagsService: TagsService,
+    private readonly searchIndex: SearchIndexService,
     @InjectProcessFileQueue() private readonly queue: Queue<ProcessFileJob>,
   ) {}
 
@@ -293,6 +295,11 @@ export class DocumentsService {
         if (patch.itemIds.length) await tx.insert(documentItems).values(patch.itemIds.map((itemId: string) => ({ documentId, itemId })));
       }
       if (patch.tags !== undefined) await this.tagsService.setForDocument(documentId, patch.tags, tx);
+      // Title is weight A, items and tags are weight B — all three are stale in the index until
+      // the file is reprocessed otherwise, so a retitled or refiled document would not be found.
+      if (patch.title !== undefined || patch.itemIds !== undefined || patch.tags !== undefined) {
+        await this.searchIndex.reindex([documentId], tx);
+      }
     });
     await this.audit.record({ action: "document.update", actorUserId: userId, entityType: "document", entityId: documentId, metadata: { fields: Object.keys(patch) }, ip });
     return this.get(documentId);

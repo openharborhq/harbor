@@ -8,6 +8,8 @@ import { TopBar } from "@/components/shell/TopBar";
 import { ApiError, apiFetch } from "@/lib/api-server";
 import { ageFrom, formatDate, formatRelative } from "@/lib/format";
 import { itemGlyph } from "@/lib/item-glyph";
+import { DeleteItem } from "./DeleteItem";
+import { ItemNotes } from "./ItemNotes";
 import { KeyDocuments } from "./KeyDocuments";
 
 export const metadata: Metadata = { title: "Item" };
@@ -53,6 +55,8 @@ export default async function ItemPage(props: PageProps<"/items/[id]">) {
             <p className="mt-1 text-body text-muted">{headline(item)}</p>
           </div>
         </div>
+
+        <ItemNotes item={item} />
 
         <section className="flex flex-col gap-4">
           <div className="flex items-baseline gap-3">
@@ -114,6 +118,10 @@ export default async function ItemPage(props: PageProps<"/items/[id]">) {
               </li>
             ))}
           </ul>
+        </section>
+
+        <section className="border-t border-border pt-6">
+          <DeleteItem item={item} documentCount={documents.length} childCount={children.length} />
         </section>
       </main>
     </>

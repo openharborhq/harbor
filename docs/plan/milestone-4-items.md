@@ -30,9 +30,17 @@ control drawn as **Inbox — For people and things**. Spec: [§6](../spec/06-ite
        suggestion already stored. Storing the suggestion and leaving `suggesting` are now
        one transaction.
 
+8. [x] **Delete an item**: `DELETE /items/:id` returns what it cost (documents unlinked,
+       children detached); the confirmation states both before asking. Documents and children
+       survive.
+9. [x] **Notes on an item** (`items.notes`), editable on the item page.
+10. [x] **Search staleness**: `SearchIndexService.reindex()` rebuilds `document_search` from
+        Postgres alone. Wired into item delete and into document title/items/tags edits, which
+        until now only refreshed the index when the file was reprocessed.
+
 ## Next
 
-8. [ ] Reorder and rename items; delete an item that has no documents.
-9. [ ] Kinds beyond the active four (`policy`, `pet`, `business`) in the add menus, once
+11. [ ] Reorder and rename items from the UI.
+12. [ ] Kinds beyond the active four (`policy`, `pet`, `business`) in the add menus, once
        there is a real reason to surface them.
-10. [ ] Update the Paper artboards whose sidebars and counts predate Purchases and items.
+13. [ ] Update the Paper artboards whose sidebars and counts predate Purchases and items.

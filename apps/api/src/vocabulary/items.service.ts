@@ -13,6 +13,7 @@ import {
 } from "@trustworthier/shared";
 import { AuditService } from "../audit/audit.service";
 import { InjectDb } from "../db/db.module";
+import { SearchIndexService } from "../search/search-index.service";
 
 type Row = typeof items.$inferSelect;
 
@@ -25,6 +26,7 @@ export class ItemsService {
   constructor(
     @InjectDb() private readonly db: Db,
     private readonly audit: AuditService,
+    private readonly searchIndex: SearchIndexService,
   ) {}
 
   async list(kinds?: ItemKind[]): Promise<Item[]> {
@@ -82,6 +84,35 @@ export class ItemsService {
     if (Object.keys(set).length) await this.db.update(items).set(set).where(eq(items.id, itemId));
     await this.audit.record({ action: "item.update", actorUserId, entityType: "item", entityId: itemId, metadata: { fields: Object.keys(set) } });
     return this.get(itemId);
+  }
+
+  /**
+   * Deletes the item itself and nothing else. Its documents are only unlinked — they keep their
+   * category and their bytes — and any thing inside it moves up to the top level rather than
+   * disappearing with its parent (FK `on delete set null`). There is no undo, so the UI states
+   * both counts before asking. Item labels are weight B in the search index, so the affected
+   * documents are reindexed or the deleted name would keep matching.
+   */
+  async remove(itemId: string, actorUserId: string): Promise<{ documentsUnlinked: number; childrenDetached: number }> {
+    const item = await this.get(itemId);
+    const [affected, children] = await Promise.all([
+      this.db.select({ id: documentItems.documentId }).from(documentItems).where(eq(documentItems.itemId, itemId)),
+      this.children(itemId),
+    ]);
+    const documentIds = affected.map((r) => r.id);
+    await this.db.transaction(async (tx) => {
+      await tx.delete(items).where(eq(items.id, itemId));
+      // After the delete, so the label is gone from the vector we rebuild.
+      await this.searchIndex.reindex(documentIds, tx);
+    });
+    await this.audit.record({
+      action: "item.delete",
+      actorUserId,
+      entityType: "item",
+      entityId: itemId,
+      metadata: { kind: item.kind, label: item.label, documentsUnlinked: documentIds.length, childrenDetached: children.length },
+    });
+    return { documentsUnlinked: documentIds.length, childrenDetached: children.length };
   }
 
   /** Items whose parent is this one — the boiler inside the house (spec §6). */

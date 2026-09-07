@@ -1,4 +1,5 @@
 import { Global, Module, OnModuleInit } from "@nestjs/common";
+import { SearchIndexModule } from "../search/search-index.module";
 import { CategoriesService } from "./categories.service";
 import { ItemsService } from "./items.service";
 import { TagsService } from "./tags.service";
@@ -6,6 +7,7 @@ import { VocabularyController } from "./vocabulary.controller";
 
 @Global()
 @Module({
+  imports: [SearchIndexModule],
   controllers: [VocabularyController],
   providers: [CategoriesService, ItemsService, TagsService],
   exports: [CategoriesService, ItemsService, TagsService],

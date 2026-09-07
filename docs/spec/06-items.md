@@ -44,6 +44,23 @@ Latest Statement — seeded per kind on creation from `DEFAULT_KEY_DOCUMENTS`. A
 no document reads "Not on file", which is the point: absence is visible from day one.
 Slots are editable; the defaults are a starting position, not a schema.
 
+## Deleting an item
+
+An item is a label and its links, so deleting it removes exactly that. **Documents are never
+deleted** — they keep their bytes, their category and their other links, and are simply no
+longer marked as being about the thing. **Children are not deleted either**: a boiler whose
+house is removed moves up to the top level rather than vanishing with its parent. There is
+no undo, unlike a document's soft delete, so the confirmation states both counts first.
+
+Item labels are weight B in `document_search`, so the affected documents are reindexed as
+part of the same transaction — otherwise a deleted name would keep matching.
+
+## Notes
+
+`items.notes` is free text about the thing itself: the meter number, who the landlord is,
+where the spare key lives. Things worth remembering that never arrived as paperwork and so
+have no document to live on.
+
 ## The FOR control
 
 One control, not two. A picker per kind would ask the filer to decide which box a boiler

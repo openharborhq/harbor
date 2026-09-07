@@ -71,6 +71,13 @@ export type CreateItem = z.infer<typeof CreateItem>;
 export const UpdateItem = CreateItem.partial();
 export type UpdateItem = z.infer<typeof UpdateItem>;
 
+/** What deleting an item cost: documents keep existing, they are only unlinked (spec §6). */
+export const DeleteItemResult = z.object({
+  documentsUnlinked: z.number().int().nonnegative(),
+  childrenDetached: z.number().int().nonnegative(),
+});
+export type DeleteItemResult = z.infer<typeof DeleteItemResult>;
+
 export const KeyDocumentSlot = z.object({
   id: z.string().uuid(),
   kind: z.string(),

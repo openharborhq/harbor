@@ -7,6 +7,7 @@ import {
   UpdateItem,
   UpsertKeyDocument,
   type Category,
+  type DeleteItemResult,
   type Item,
   type KeyDocumentSlot,
   type SessionUser,
@@ -61,6 +62,11 @@ export class VocabularyController {
   @Patch("items/:id")
   updateItem(@Param("id", ParseUUIDPipe) id: string, @Body(new ZodPipe(UpdateItem)) body: UpdateItem, @CurrentUser() user: SessionUser): Promise<Item> {
     return this.items.update(id, body, user.id);
+  }
+
+  @Delete("items/:id")
+  deleteItem(@Param("id", ParseUUIDPipe) id: string, @CurrentUser() user: SessionUser): Promise<DeleteItemResult> {
+    return this.items.remove(id, user.id);
   }
 
   @Post("items/:id/key-documents")
