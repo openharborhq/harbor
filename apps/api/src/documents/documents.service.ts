@@ -126,12 +126,18 @@ export class DocumentsService {
 
   // ---------- reads ----------
 
-  async list(opts: { inboxOnly?: boolean; limit?: number } = {}): Promise<DocumentSummary[]> {
+  async list(opts: { inboxOnly?: boolean; personId?: string; limit?: number } = {}): Promise<DocumentSummary[]> {
     const rows = await this.db
       .select({ doc: documents, df: documentFiles })
       .from(documents)
       .innerJoin(documentFiles, and(eq(documentFiles.documentId, documents.id), eq(documentFiles.isCurrent, true)))
-      .where(and(isNull(documents.deletedAt), opts.inboxOnly ? isNull(documents.categoryId) : sql`true`))
+      .where(
+        and(
+          isNull(documents.deletedAt),
+          opts.inboxOnly ? isNull(documents.categoryId) : sql`true`,
+          opts.personId ? sql`exists (select 1 from ${documentPeople} dp where dp.document_id = ${documents.id} and dp.person_id = ${opts.personId})` : sql`true`,
+        ),
+      )
       .orderBy(desc(documents.createdAt))
       .limit(opts.limit ?? 100);
     return this.assemble(rows);

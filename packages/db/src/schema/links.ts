@@ -47,3 +47,20 @@ export const suggestions = pgTable(
     index("suggestions_document_idx").on(t.documentId),
   ],
 );
+
+/**
+ * The documents a person is expected to have (spec §4.2). A NULL document renders as
+ * "Not on file" — absence as a first-class thing on the person page.
+ */
+export const personKeyDocuments = pgTable(
+  "person_key_documents",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    personId: uuid("person_id").notNull().references(() => people.id, { onDelete: "cascade" }),
+    kind: text("kind").notNull(),
+    documentId: uuid("document_id").references(() => documents.id, { onDelete: "set null" }),
+    sortOrder: integer("sort_order").notNull().default(0),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("person_key_documents_person_idx").on(t.personId)],
+);

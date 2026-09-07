@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import type { Person } from "@trustworthier/shared";
 import { TopBar } from "@/components/shell/TopBar";
 import { apiFetch } from "@/lib/api-server";
@@ -22,7 +23,7 @@ export default async function PeoplePage() {
 
         <div className="grid grid-cols-4 gap-4">
           {people.map((p) => (
-            <div key={p.id} className="flex flex-col items-center gap-1 rounded-card border border-border px-4 py-7 text-center">
+            <Link key={p.id} href={`/people/${p.id}`} className="flex flex-col items-center gap-1 rounded-card border border-border px-4 py-7 text-center hover:bg-surface">
               <div className="mb-3 flex size-[76px] items-center justify-center rounded-pill bg-surface text-[26px] font-semibold text-muted">{p.displayName.slice(0, 1)}</div>
               <div className="text-section font-semibold tracking-snug">{p.displayName}</div>
               <div className="text-small text-muted">
@@ -32,7 +33,7 @@ export default async function PeoplePage() {
               <div className="mt-1 text-row text-muted">
                 {p.documentCount} record{p.documentCount === 1 ? "" : "s"}
               </div>
-            </div>
+            </Link>
           ))}
           <PersonForm />
         </div>

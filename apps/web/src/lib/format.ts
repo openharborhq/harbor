@@ -26,3 +26,12 @@ export function pages(n: number | null): string {
   if (n === null) return "";
   return n === 1 ? "1 page" : `${n} pages`;
 }
+
+/** Whole days from today until an ISO date (negative when past). Kept out of render for the React compiler. */
+export function daysUntil(iso: string): number {
+  return Math.round((Date.parse(iso) - Date.now()) / 86_400_000);
+}
+
+export function ageFrom(isoDob: string): number {
+  return Math.floor((Date.now() - Date.parse(isoDob)) / (365.25 * 86_400_000));
+}

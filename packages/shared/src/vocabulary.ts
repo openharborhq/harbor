@@ -52,3 +52,23 @@ export function slugify(name: string): string {
     .replace(/^-+|-+$/g, "")
     .slice(0, 60);
 }
+
+export const KeyDocumentSlot = z.object({
+  id: z.string().uuid(),
+  kind: z.string(),
+  sortOrder: z.number().int(),
+  document: z.object({ id: z.string().uuid(), title: z.string(), expiresAt: z.string().date().nullable(), documentDate: z.string().date().nullable() }).nullable(),
+});
+export type KeyDocumentSlot = z.infer<typeof KeyDocumentSlot>;
+
+export const UpdatePerson = CreatePerson.partial();
+export type UpdatePerson = z.infer<typeof UpdatePerson>;
+
+export const UpsertKeyDocument = z.object({
+  kind: z.string().trim().min(1).max(60),
+  documentId: z.string().uuid().nullable().optional(),
+});
+export type UpsertKeyDocument = z.infer<typeof UpsertKeyDocument>;
+
+/** Default slots every new family member gets; all "not on file" until a document is linked. */
+export const DEFAULT_KEY_DOCUMENT_KINDS = ["Passport", "Birth Certificate", "Health Insurance Card", "Immunization Record", "Social Security Card"];

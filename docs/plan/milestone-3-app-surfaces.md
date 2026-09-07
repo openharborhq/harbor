@@ -26,7 +26,7 @@ upload page can file documents directly (batch defaults) so the Inbox is optiona
 
 7. [x] **Home**: family cards with record counts and next expiry, the category grid with counts,
        Expiring soon (next 90 days, from `expires_at`), Recently added. Needs `GET /home`.
-8. [ ] **Person page**: header, key-document slots (`person_key_documents`, incl. "Not on file"),
+8. [x] **Person page**: header, key-document slots (`person_key_documents`, incl. "Not on file"),
        filter chips, document table. `GET/PATCH /people/:id`, key-document endpoints.
 9. [x] **Document detail** as the modal in the design: Details (editable: title, category,
        people, dates, tags, notes), Extracted text (`GET /documents/:id/text`), Versions,
