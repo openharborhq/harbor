@@ -1,9 +1,10 @@
 import { BadRequestException, Injectable, Logger, NotFoundException } from "@nestjs/common";
-import { asc, eq, isNull, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, isNull, sql } from "drizzle-orm";
 import { categories, documents, tags, type Db } from "@trustworthier/db";
 import { categoryPath, slugify, type Category, type CreateCategory } from "@trustworthier/shared";
 import { AuditService } from "../audit/audit.service";
 import { InjectDb } from "../db/db.module";
+import { SearchIndexService } from "../search/search-index.service";
 
 /**
  * The design's default vocabulary (Home artboard). A child may pin an explicit `slug` so its
@@ -41,6 +42,7 @@ export class CategoriesService {
   constructor(
     @InjectDb() private readonly db: Db,
     private readonly audit: AuditService,
+    private readonly searchIndex: SearchIndexService,
   ) {}
 
   /**
@@ -81,9 +83,61 @@ export class CategoriesService {
     if (!cat) throw new NotFoundException("Category not found");
     const parent = cat.parentId ? await this.db.query.categories.findFirst({ where: eq(categories.id, cat.parentId) }) : null;
     const slug = parent ? `${parent.slug}/${slugify(name)}` : slugify(name);
-    await this.db.update(categories).set({ name, slug }).where(eq(categories.id, categoryId));
+    const children = await this.db.select().from(categories).where(eq(categories.parentId, categoryId));
+
+    await this.db.transaction(async (tx) => {
+      await tx.update(categories).set({ name, slug }).where(eq(categories.id, categoryId));
+      // A child's slug embeds its parent's; leaving them stale would hand the model slugs that
+      // no longer resolve, and it silently drops any it cannot match (spec §5).
+      for (const child of children) {
+        await tx.update(categories).set({ slug: `${slug}/${slugify(child.name)}` }).where(eq(categories.id, child.id));
+      }
+      // The category path is weight B, so every document filed here or below is now stale.
+      await this.searchIndex.reindex(await this.documentIdsUnder([categoryId, ...children.map((c) => c.id)], tx), tx);
+    });
+
     await this.audit.record({ action: "category.rename", actorUserId, entityType: "category", entityId: categoryId, metadata: { from: cat.name, to: name } });
     return (await this.list()).find((c) => c.id === categoryId)!;
+  }
+
+  /** New order for siblings, given as ids in the order they should appear. */
+  async reorder(ids: string[], actorUserId: string): Promise<Category[]> {
+    const rows = await this.db.select().from(categories).where(inArray(categories.id, ids));
+    if (rows.length !== ids.length) throw new NotFoundException("Unknown category in the new order");
+    const parents = new Set(rows.map((r) => r.parentId));
+    if (parents.size > 1) throw new BadRequestException("Reorder siblings together — these have different parents");
+    await this.db.transaction(async (tx) => {
+      for (const [i, id] of ids.entries()) await tx.update(categories).set({ sortOrder: i }).where(eq(categories.id, id));
+    });
+    await this.audit.record({ action: "category.reorder", actorUserId, entityType: "category", entityId: ids[0]!, metadata: { count: ids.length } });
+    return this.list();
+  }
+
+  /**
+   * Only ever removes an empty category. Deleting one that holds documents would either destroy
+   * them or silently dump them back in the Inbox; both are worse than making the owner move them
+   * first, and the message says how many are in the way.
+   */
+  async remove(categoryId: string, actorUserId: string): Promise<void> {
+    const cat = await this.db.query.categories.findFirst({ where: eq(categories.id, categoryId) });
+    if (!cat) throw new NotFoundException("Category not found");
+    const children = await this.db.select().from(categories).where(eq(categories.parentId, categoryId));
+    if (children.length) throw new BadRequestException(`${cat.name} still has ${children.length} subcategor${children.length === 1 ? "y" : "ies"}. Remove those first.`);
+    const [{ n } = { n: 0 }] = await this.db
+      .select({ n: sql<number>`count(*)::int` })
+      .from(documents)
+      .where(and(eq(documents.categoryId, categoryId), isNull(documents.deletedAt)));
+    if (n > 0) throw new BadRequestException(`${cat.name} still holds ${n} document${n === 1 ? "" : "s"}. Move them somewhere else first.`);
+    await this.db.delete(categories).where(eq(categories.id, categoryId));
+    await this.audit.record({ action: "category.delete", actorUserId, entityType: "category", entityId: categoryId, metadata: { name: cat.name } });
+  }
+
+  private async documentIdsUnder(categoryIds: string[], tx: Pick<Db, "select">): Promise<string[]> {
+    const rows = await tx
+      .select({ id: documents.id })
+      .from(documents)
+      .where(and(inArray(documents.categoryId, categoryIds), isNull(documents.deletedAt)));
+    return rows.map((r) => r.id);
   }
 
   async list(): Promise<Category[]> {

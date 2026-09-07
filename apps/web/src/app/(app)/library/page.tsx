@@ -102,9 +102,14 @@ export default async function LibraryPage(props: PageProps<"/library">) {
               <RailLink href={href({ source: "upload" })} active={source === "upload"} label="Upload" count={bySource.upload} />
               <RailLink href={href({ source: "email" })} active={source === "email"} label="Email" count={bySource.email} />
             </div>
-            <Link href="/library/deleted" className="text-small font-medium text-muted hover:text-text">
-              Recently deleted
-            </Link>
+            <div className="flex flex-col gap-1.5">
+              <Link href="/library/categories" className="text-small font-medium text-muted hover:text-text">
+                Manage categories
+              </Link>
+              <Link href="/library/deleted" className="text-small font-medium text-muted hover:text-text">
+                Recently deleted
+              </Link>
+            </div>
           </aside>
 
           <div className="flex min-w-0 flex-1 flex-col gap-3">

@@ -1,9 +1,10 @@
-import { Body, Controller, Delete, Get, Param, ParseUUIDPipe, Patch, Post, Query } from "@nestjs/common";
+import { Body, Controller, Delete, Get, HttpCode, Param, ParseUUIDPipe, Patch, Post, Query } from "@nestjs/common";
 import {
   CreateCategory,
   CreateItem,
   ItemKind,
   RenameCategory,
+  ReorderCategories,
   UpdateItem,
   UpsertKeyDocument,
   type Category,
@@ -41,6 +42,17 @@ export class VocabularyController {
     @CurrentUser() user: SessionUser,
   ): Promise<Category> {
     return this.categories.rename(id, body.name, user.id);
+  }
+
+  @Post("categories/reorder")
+  reorderCategories(@Body(new ZodPipe(ReorderCategories)) body: ReorderCategories, @CurrentUser() user: SessionUser): Promise<Category[]> {
+    return this.categories.reorder(body.ids, user.id);
+  }
+
+  @Delete("categories/:id")
+  @HttpCode(204)
+  async deleteCategory(@Param("id", ParseUUIDPipe) id: string, @CurrentUser() user: SessionUser): Promise<void> {
+    await this.categories.remove(id, user.id);
   }
 
   /** `?kind=person` or `?kind=property,vehicle,account`. Omit for everything. */

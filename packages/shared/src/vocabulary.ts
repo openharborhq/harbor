@@ -22,6 +22,10 @@ export type CreateCategory = z.infer<typeof CreateCategory>;
 export const RenameCategory = z.object({ name: z.string().trim().min(1).max(60) });
 export type RenameCategory = z.infer<typeof RenameCategory>;
 
+/** Siblings in the order they should appear. Reordering across different parents is refused. */
+export const ReorderCategories = z.object({ ids: z.array(z.string().uuid()).min(1).max(60) });
+export type ReorderCategories = z.infer<typeof ReorderCategories>;
+
 // ---- Items: the things documents are about (spec §6) ----
 
 /**

@@ -34,9 +34,10 @@ upload page can file documents directly (batch defaults) so the Inbox is optiona
        and restore.
 10. [x] **Library browse**: category tree + table view, sort, filters by person/source/date;
         search results get category paths and "page N of M".
-11. [ ] **Categories management**: create (already), rename, reorder. Pinning was dropped: the
-        sidebar already lists every top-level category, and the pin idea moved to documents as
-        Recent (below).
+11. [x] **Categories management** at `/library/categories`: rename (cascading child slugs and
+        reindexing everything filed below), reorder siblings, add a subcategory, remove an empty
+        one. Pinning was dropped — the sidebar already lists every top-level category, and the pin
+        idea moved to documents as Recent.
 14. [x] **Recent documents**: opening a document records it in `document_views` (upsert, so
         reopening moves the row); the sidebar offers the last five back. Replaces the `user_pins`
         document-pinning idea — nobody curates a pin list, but everybody reopens what they just had.

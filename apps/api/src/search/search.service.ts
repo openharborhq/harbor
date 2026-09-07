@@ -5,6 +5,7 @@ import type { SearchHit, SearchQuery, SearchResponse } from "@trustworthier/shar
 
 import { InjectDb } from "../db/db.module";
 import { CategoriesService } from "../vocabulary/categories.service";
+import { TS_CONFIG, TS_CONFIGS } from "./ts-config";
 
 /** Low enough to catch a dropped letter, high enough that unrelated documents stay out. */
 const FUZZY_THRESHOLD = 0.6;
@@ -21,15 +22,7 @@ type Row = {
 } & Record<string, unknown>;
 
 
-/**
- * Every document is indexed under all three at once, and every query is run against all three.
- * `simple` never stems, which is what invoice numbers, IBANs and names need; `german` and
- * `english` add stems, which is what "bills" and "Rechnungen" need. Indexing a few hundred family
- * documents three times over costs nothing worth measuring.
- */
-export const TS_CONFIGS = ["simple", "german", "english"] as const;
-/** The config for `ts_headline`: it highlights against the raw text, so it must not stem. */
-export const TS_CONFIG = "simple";
+
 
 @Injectable()
 export class SearchService {

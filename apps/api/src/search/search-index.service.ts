@@ -3,7 +3,7 @@ import { sql, type SQL } from "drizzle-orm";
 import type { Db } from "@trustworthier/db";
 import { InjectDb } from "../db/db.module";
 import { MAX_INDEXED_CHARS } from "../processing/text-quality";
-import { TS_CONFIGS } from "./search.service";
+import { TS_CONFIGS } from "./ts-config";
 
 /**
  * Rebuilds `document_search` from what is in Postgres — title (A); tags, item labels, notes, the
