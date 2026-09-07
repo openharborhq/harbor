@@ -86,14 +86,13 @@ export default async function LibraryPage(props: PageProps<"/library">) {
             <div className="flex flex-col gap-1">
               <div className="label mb-1.5">About</div>
               <RailLink href={href({ item: "" })} active={!itemId} label="Anything" />
-              {ACTIVE_ITEM_KINDS.filter((k) => items.some((i) => i.kind === k)).map((k) => (
-                <div key={k}>
-                  <div className="mt-2 px-3 text-label text-muted">{ITEM_KIND_LABEL[k].many}</div>
-                  {items
-                    .filter((i) => i.kind === k)
-                    .map((i) => (
-                      <RailLink key={i.id} href={href({ item: i.id })} active={itemId === i.id} label={i.label} count={i.documentCount} nested={i.parentId !== null} />
-                    ))}
+              {/* Same shape as the FOR picker: kinds first, things inside a thing last (spec §6). */}
+              {itemGroups(items).map((g) => (
+                <div key={g.title}>
+                  <div className="mt-2 px-3 text-label text-muted">{g.title}</div>
+                  {g.rows.map((i) => (
+                    <RailLink key={i.id} href={href({ item: i.id })} active={itemId === i.id} label={i.label} count={i.documentCount} />
+                  ))}
                 </div>
               ))}
             </div>
@@ -156,6 +155,22 @@ export default async function LibraryPage(props: PageProps<"/library">) {
       </main>
     </>
   );
+}
+
+/** Top-level items grouped by kind, then each parent's children under "In <parent>". */
+function itemGroups(items: Item[]): { title: string; rows: Item[] }[] {
+  const kinds = [...new Set(items.map((i) => i.kind))].sort(
+    (a, b) => ACTIVE_ITEM_KINDS.indexOf(a as never) - ACTIVE_ITEM_KINDS.indexOf(b as never),
+  );
+  const byKind = kinds
+    .map((k) => ({ title: ITEM_KIND_LABEL[k].many, rows: items.filter((i) => i.kind === k && i.parentId === null) }))
+    .filter((g) => g.rows.length > 0);
+  const nested = new Map<string, Item[]>();
+  for (const i of items.filter((i) => i.parentId !== null)) {
+    const key = i.parentLabel ?? "Inside";
+    nested.set(key, [...(nested.get(key) ?? []), i]);
+  }
+  return [...byKind, ...[...nested.entries()].map(([parent, rows]) => ({ title: `In ${parent}`, rows }))];
 }
 
 function RailLink({ href, active, label, count, nested = false, muted = false }: { href: string; active: boolean; label: string; count?: number; nested?: boolean; muted?: boolean }) {

@@ -175,12 +175,12 @@ export function UploadQueue({ categories, items }: { categories: Category[]; ite
         <input ref={inputRef} type="file" multiple accept={ACCEPT} className="hidden" onChange={(e) => e.target.files && void add(e.target.files)} />
       </div>
 
-      <div className="flex items-center gap-8 rounded-md border border-border px-5 py-4">
-        <div className="w-[236px] shrink-0">
+      <div className="flex items-center gap-6 rounded-md border border-border px-5 py-4">
+        <div className="w-[200px] shrink-0">
           <div className="text-row font-semibold">Apply to this batch</div>
           <div className="text-small text-muted">Files with a category skip the Inbox.</div>
         </div>
-        <div className="w-[300px] shrink-0">
+        <div className="w-[260px] shrink-0">
           <ItemPicker items={items} selected={defaults.itemIds} onChange={(ids) => setDefaults((d) => ({ ...d, itemIds: ids }))} />
         </div>
         <label className="flex flex-col gap-1.5">
@@ -188,7 +188,7 @@ export function UploadQueue({ categories, items }: { categories: Category[]; ite
           <select
             value={defaults.categoryId}
             onChange={(e) => setDefaults((d) => ({ ...d, categoryId: e.target.value }))}
-            className={`h-9 w-[240px] rounded-md border border-border bg-ground px-3 text-row ${defaults.categoryId ? "" : "text-muted"}`}
+            className={`h-9 w-[220px] rounded-md border border-border bg-ground px-3 text-row ${defaults.categoryId ? "" : "text-muted"}`}
           >
             <option value="">Inbox — decide later</option>
             {categories
