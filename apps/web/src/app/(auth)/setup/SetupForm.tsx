@@ -32,30 +32,44 @@ export function SetupForm() {
     }
   }
 
-  if (result) return <EnrolmentCard otpauthUri={result.otpauthUri} recoveryCodes={result.recoveryCodes} doneLabel="I've saved these — sign in" />;
+  if (result) {
+    return (
+      <>
+        <h1 className="text-[24px] font-bold leading-[30px] tracking-snug">Save these two things</h1>
+        <p className="mt-1 text-body text-muted">
+          Your account is created. This screen is shown once — the key and the codes are not stored anywhere you can read them again.
+        </p>
+        <EnrolmentCard otpauthUri={result.otpauthUri} recoveryCodes={result.recoveryCodes} doneLabel="I've saved these — sign in" />
+      </>
+    );
+  }
 
   return (
-    <form onSubmit={submit} className="mt-6 flex flex-col gap-4">
-      <label className="flex flex-col gap-1.5">
-        <span className="label">Your name</span>
-        <input required autoFocus value={displayName} onChange={(e) => setDisplayName(e.target.value)} autoComplete="name" className={input} />
-      </label>
-      <label className="flex flex-col gap-1.5">
-        <span className="label">Email</span>
-        <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="username" className={input} />
-      </label>
-      <label className="flex flex-col gap-1.5">
-        <span className="label">Password (12+ characters)</span>
-        <input type="password" required minLength={12} autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} className={input} />
-      </label>
-      <label className="flex flex-col gap-1.5">
-        <span className="label">Password again</span>
-        <input type="password" required minLength={12} autoComplete="new-password" value={confirm} onChange={(e) => setConfirm(e.target.value)} className={input} />
-      </label>
-      {error && <p className="text-small text-danger">{error}</p>}
-      <button type="submit" disabled={busy} className="mt-1 h-11 rounded-md bg-accent text-body font-semibold text-white disabled:opacity-60">
-        {busy ? "Creating…" : "Create the first owner"}
-      </button>
-    </form>
+    <>
+      <h1 className="text-[24px] font-bold leading-[30px] tracking-snug">Set up your vault</h1>
+      <p className="mt-1 text-body text-muted">This vault has no owner yet. Create the first account — the one that invites the rest of the household from Settings.</p>
+      <form onSubmit={submit} className="mt-6 flex flex-col gap-4">
+        <label className="flex flex-col gap-1.5">
+          <span className="label">Your name</span>
+          <input required autoFocus value={displayName} onChange={(e) => setDisplayName(e.target.value)} autoComplete="name" className={input} />
+        </label>
+        <label className="flex flex-col gap-1.5">
+          <span className="label">Email</span>
+          <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="username" className={input} />
+        </label>
+        <label className="flex flex-col gap-1.5">
+          <span className="label">Password (12+ characters)</span>
+          <input type="password" required minLength={12} autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} className={input} />
+        </label>
+        <label className="flex flex-col gap-1.5">
+          <span className="label">Password again</span>
+          <input type="password" required minLength={12} autoComplete="new-password" value={confirm} onChange={(e) => setConfirm(e.target.value)} className={input} />
+        </label>
+        {error && <p className="text-small text-danger">{error}</p>}
+        <button type="submit" disabled={busy} className="mt-1 h-11 rounded-md bg-accent text-body font-semibold text-white disabled:opacity-60">
+          {busy ? "Creating…" : "Create the first owner"}
+        </button>
+      </form>
+    </>
   );
 }

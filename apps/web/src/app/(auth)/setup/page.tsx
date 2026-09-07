@@ -18,8 +18,7 @@ export default async function SetupPage() {
       <div className="flex w-[480px] flex-col items-center gap-7">
         <Brand />
         <div className="w-full rounded-lg border border-border bg-ground p-8">
-          <h1 className="text-[24px] font-bold leading-[30px] tracking-snug">Set up your vault</h1>
-          <p className="mt-1 text-body text-muted">This vault has no owner yet. Create the first account — the one that invites the rest of the household from Settings.</p>
+          {/* The heading belongs to the form: once the account exists, "no owner yet" is a lie. */}
           <SetupForm />
         </div>
         <p className="max-w-[420px] text-center text-small text-muted">Every owner sees everything. Sign-in is a password plus an authenticator code; there is no email reset, so the recovery codes on the next screen matter.</p>
