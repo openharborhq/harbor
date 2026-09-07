@@ -17,6 +17,12 @@ One `suggestions` row per current `document_files` row, from a single structured
 | `document_date`, `expires_at` | ISO dates or `null`; expiry only when the document states one | Home *Expiring soon*, item tables |
 | `tags[]` | ≤ 3, from existing tags only | Detail |
 | `confidence` | `high` / `medium` / `low` | *Accept all suggestions* takes `high` only |
+| `keep` | `paperwork` / `not_paperwork`; borderline resolves to `paperwork` | Inbox holds `not_paperwork` back under *Probably not paperwork*, with a bulk delete |
+
+`keep` is the one field that changes what the reader is shown rather than what is prefilled: a
+mailbox hands over every attachment, and leaflets, newsletters and safety notices arrive beside
+the bill. They are held back from the review queue — counted, one link away, deletable in bulk —
+never deleted silently, and never on the strength of who sent them.
 
 Model output never writes to `documents`. Accepting copies fields over and stamps
 `suggestions.accepted_at`; rejecting stamps `rejected_at`. Both are audited.
@@ -39,8 +45,12 @@ paperwork, and neither the scan nor its title contains the words they would sear
   weight B, never displayed. The summary only helps when it happens to use the searched word;
   aliases are asked for directly, so they do not depend on luck.
 
-Bumping `PROMPT_VERSION` re-runs both for existing documents; the unique index on
-`(document_file_id, model, prompt_version)` keeps old rows for comparison.
+Bumping `PROMPT_VERSION` changes what new documents are asked. Existing ones keep the answer they
+gave to the older question until someone re-reads them deliberately — `node dist/suggester.js
+rerun` (`--dry-run` first, it says how many). Nothing re-runs on deploy: at a hosted provider a
+whole vault costs real money, and a document whose suggestion the reader already accepted or
+rejected is skipped, because their judgement is the answer. The unique index on
+`(document_file_id, provider, model, prompt_version)` keeps the old rows for comparison.
 
 ## Choosing a provider
 

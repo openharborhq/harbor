@@ -177,3 +177,17 @@ export function displayTitle(doc: Pick<DocumentSummary, "title" | "file" | "sugg
 /** Clearing out a batch at once — the Inbox's answer to a backfill that filed more than you want. */
 export const BulkDeleteDocuments = z.object({ ids: z.array(z.string().uuid()).min(1).max(500) });
 export type BulkDeleteDocuments = z.infer<typeof BulkDeleteDocuments>;
+
+/**
+ * Did the model think this is something a household keeps at all (spec §5, `keep`)?
+ *
+ * A mailbox hands over every attachment a sender chose to include, and a good share of them are
+ * leaflets, newsletters and safety notices that arrived alongside the bill. They are not wrong
+ * to have downloaded — you cannot tell without reading them — but they should not sit in the
+ * queue of things awaiting a decision. An undecided suggestion is the only thing that can move a
+ * document out of the way: once you accept or reject one, your judgement stands.
+ */
+export function looksLikeClutter(doc: Pick<DocumentSummary, "suggestion">): boolean {
+  const s = doc.suggestion;
+  return Boolean(s && !s.acceptedAt && !s.rejectedAt && s.payload.keep === "not_paperwork");
+}

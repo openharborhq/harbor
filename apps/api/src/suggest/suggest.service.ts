@@ -1,6 +1,6 @@
 import { Inject, Injectable, Logger } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
-import { and, desc, eq, inArray } from "drizzle-orm";
+import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import { readFileSync } from "node:fs";
 import { categories, documentFiles, documentText, documents, suggestions, tags, type Db } from "@harbor/db";
 import { SuggestionPayload, type SuggestionView } from "@harbor/shared";
@@ -57,6 +57,38 @@ export class SuggestService {
   ) {
     this.sendPeople = config.get("SUGGEST_SEND_PEOPLE", { infer: true });
     this.readerLanguage = config.get("SUGGEST_READER_LANGUAGE", { infer: true });
+  }
+
+  /**
+   * Files whose newest suggestion predates the current prompt, plus files that have text and no
+   * suggestion at all (a provider that was `none`, or an outage).
+   *
+   * A prompt version is bumped because the model is now asked something new — `keep` was added
+   * this way, and every stored suggestion still answered the older question. Nothing re-runs on
+   * its own: re-reading a whole vault costs real money at a hosted provider, so it is an action
+   * someone takes deliberately (`node dist/suggester.js rerun`), not a surprise on deploy.
+   *
+   * A document whose suggestion the reader already accepted or rejected is left alone: their
+   * judgement is the answer, and asking the model again would not change it.
+   */
+  async staleFiles(limit: number): Promise<string[]> {
+    const rows = await this.db
+      .select({ id: documentFiles.id })
+      .from(documentFiles)
+      .innerJoin(documentText, eq(documentText.documentFileId, documentFiles.id))
+      .where(
+        and(
+          eq(documentFiles.isCurrent, true),
+          sql`not exists (
+            select 1 from suggestions s
+            where s.document_file_id = ${documentFiles.id}
+              and (s.prompt_version >= ${PROMPT_VERSION} or s.accepted_at is not null or s.rejected_at is not null)
+          )`,
+        ),
+      )
+      .orderBy(desc(documentFiles.createdAt))
+      .limit(limit);
+    return rows.map((r) => r.id);
   }
 
   /** Stage 4 (spec §2, §5). Returns the stored suggestion id, or null when the provider had nothing to say. */

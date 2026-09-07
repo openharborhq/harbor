@@ -17,6 +17,7 @@
     "setup:owner": "nest build && node --env-file=../../.env dist/setup.js",
     "start:worker:dev": "nest build && node --env-file=../../.env dist/worker.js",
     "start:suggester:dev": "nest build && node --env-file=../../.env dist/suggester.js",
+    "start:suggester:rerun": "nest build && node --env-file=../../.env dist/suggester.js rerun",
     "start:mailfetch:dev": "nest build && node --env-file=../../.env dist/mailfetch.js",
     "start:backup:dev": "nest build && node --env-file=../../.env dist/backup.js"
   },

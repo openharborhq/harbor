@@ -188,6 +188,11 @@ everything in the next milestones.
 ## Day-two
 
 - **Logs:** `docker compose … logs -f worker` shows every OCR job with engine, pages and time.
+- **Suggestions after an update:** a release can change what the model is asked. The suggester
+  says at boot how many documents still answer the older prompt;
+  `docker compose … exec suggester node dist/suggester.js rerun --dry-run` counts them and
+  `… rerun --limit 50` re-reads that many. It is never automatic — with a hosted provider it
+  spends per document.
 - **Backups:** Settings → Backups shows every run. `docker compose … logs -f backup` for the
   detail. A backup on demand: `docker compose … exec backup node dist/backup.js run backup`.
 - **Update:** back up first, then `docker compose … pull && docker compose … up -d` (migrations
