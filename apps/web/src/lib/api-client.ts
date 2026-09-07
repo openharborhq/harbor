@@ -27,14 +27,22 @@ export async function sha256Hex(file: File): Promise<string> {
   return Array.from(new Uint8Array(digest), (b) => b.toString(16).padStart(2, "0")).join("");
 }
 
+export interface UploadOptions {
+  /** Batch defaults / version target; arrays are JSON-encoded as multipart text fields. */
+  fields?: { categoryId?: string; personIds?: string[]; tags?: string[]; versionOf?: string };
+  onProgress?: (fraction: number) => void;
+  /** Abort the in-flight request (Cancel remaining / Pause). */
+  signal?: AbortSignal;
+}
+
 /** Multipart upload with progress; XHR because fetch has no upload progress events. */
-export function uploadFile<T>(file: File, onProgress: (fraction: number) => void): Promise<T> {
+export function uploadFile<T>(file: File, opts: UploadOptions = {}): Promise<T> {
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
     xhr.open("POST", "/api/documents");
     xhr.withCredentials = true;
     xhr.upload.onprogress = (e) => {
-      if (e.lengthComputable) onProgress(e.loaded / e.total);
+      if (e.lengthComputable) opts.onProgress?.(e.loaded / e.total);
     };
     xhr.onload = () => {
       if (xhr.status >= 200 && xhr.status < 300) resolve(JSON.parse(xhr.responseText) as T);
@@ -49,8 +57,15 @@ export function uploadFile<T>(file: File, onProgress: (fraction: number) => void
       }
     };
     xhr.onerror = () => reject(new Error("Network error during upload"));
+    xhr.onabort = () => reject(Object.assign(new Error("Cancelled"), { cancelled: true }));
+    opts.signal?.addEventListener("abort", () => xhr.abort(), { once: true });
     const form = new FormData();
     form.append("file", file, file.name);
+    const f = opts.fields ?? {};
+    if (f.categoryId) form.append("categoryId", f.categoryId);
+    if (f.personIds?.length) form.append("personIds", JSON.stringify(f.personIds));
+    if (f.tags?.length) form.append("tags", JSON.stringify(f.tags));
+    if (f.versionOf) form.append("versionOf", f.versionOf);
     xhr.send(form);
   });
 }

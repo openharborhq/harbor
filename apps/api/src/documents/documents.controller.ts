@@ -16,7 +16,7 @@ import {
 } from "@nestjs/common";
 import { FileInterceptor } from "@nestjs/platform-express";
 import type { Request, Response } from "express";
-import { UpdateDocument, type AcceptAllResult, type DocumentSummary, type SessionUser, type UploadResult } from "@trustworthier/shared";
+import { UpdateDocument, parseUploadFields, type AcceptAllResult, type DocumentSummary, type SessionUser, type UploadResult } from "@trustworthier/shared";
 import { CurrentUser } from "../auth/current-user.decorator";
 import { ZodPipe } from "../common/zod.pipe";
 import { DocumentsService } from "./documents.service";
@@ -30,7 +30,13 @@ export class DocumentsController {
   @UseInterceptors(FileInterceptor("file"))
   async upload(@UploadedFile() file: Express.Multer.File | undefined, @CurrentUser() user: SessionUser, @Req() req: Request): Promise<UploadResult> {
     if (!file) throw new BadRequestException("Send the document as a multipart field named `file`.");
-    return this.documents.ingestUpload({ path: file.path, originalName: file.originalname, byteSize: file.size }, user.id, req.ip ?? null);
+    let fields;
+    try {
+      fields = parseUploadFields((req.body ?? {}) as Record<string, unknown>);
+    } catch (err) {
+      throw new BadRequestException(`Invalid upload fields: ${(err as Error).message}`);
+    }
+    return this.documents.ingestUpload({ path: file.path, originalName: file.originalname, byteSize: file.size }, fields, user.id, req.ip ?? null);
   }
 
   /** Pre-upload check so the UI can ask "add as new version, or skip?" before sending bytes. */

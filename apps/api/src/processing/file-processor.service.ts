@@ -4,7 +4,7 @@ import { UnrecoverableError } from "bullmq";
 import { eq, sql } from "drizzle-orm";
 import { open, readFile, rm, mkdir } from "node:fs/promises";
 import path from "node:path";
-import { documentFiles, documentText, documents, type Db } from "@trustworthier/db";
+import { documentFiles, documentPeople, documentTags, documentText, documents, people, tags, type Db } from "@trustworthier/db";
 import type { ProcessingStatus } from "@trustworthier/shared";
 import { sniffKind, type FileKind } from "../common/sniff";
 import type { Env } from "../config/env";
@@ -149,10 +149,15 @@ export class FileProcessor {
             },
           });
         const indexed = text.slice(0, MAX_INDEXED_CHARS);
+        const [tagRows, peopleRows] = await Promise.all([
+          tx.select({ name: tags.name }).from(documentTags).innerJoin(tags, eq(tags.id, documentTags.tagId)).where(eq(documentTags.documentId, df.documentId)),
+          tx.select({ name: people.displayName }).from(documentPeople).innerJoin(people, eq(people.id, documentPeople.personId)).where(eq(documentPeople.documentId, df.documentId)),
+        ]);
+        const weightB = [...tagRows, ...peopleRows].map((r) => r.name).join(" ");
         await tx.execute(sql`
           insert into document_search (document_id, tsv, updated_at)
           values (${df.documentId},
-                  setweight(to_tsvector(${TS_CONFIG}, ${title}), 'A') || setweight(to_tsvector(${TS_CONFIG}, ${indexed}), 'C'),
+                  setweight(to_tsvector(${TS_CONFIG}, ${title}), 'A') || setweight(to_tsvector(${TS_CONFIG}, ${weightB}), 'B') || setweight(to_tsvector(${TS_CONFIG}, ${indexed}), 'C'),
                   now())
           on conflict (document_id) do update set tsv = excluded.tsv, updated_at = now()
         `);

@@ -27,10 +27,12 @@ export const DocumentSummary = z.object({
   /** null = Inbox */
   category: z.object({ id: z.string().uuid(), name: z.string(), path: z.string() }).nullable(),
   people: z.array(z.object({ id: z.string().uuid(), displayName: z.string() })),
+  tags: z.array(z.string()),
   /** The latest suggestion for the current file, if any (spec §5). */
   suggestion: SuggestionView.nullable(),
   file: z.object({
     id: z.string().uuid(),
+    version: z.number().int().positive(),
     originalFilename: z.string(),
     mimeType: z.string(),
     byteSize: z.number().int().nonnegative(),
@@ -60,6 +62,7 @@ export const UpdateDocument = z.object({
   documentDate: z.string().date().nullable().optional(),
   expiresAt: z.string().date().nullable().optional(),
   notes: z.string().max(5000).nullable().optional(),
+  tags: z.array(z.string().trim().min(1).max(40)).max(10).optional(),
 });
 export type UpdateDocument = z.infer<typeof UpdateDocument>;
 

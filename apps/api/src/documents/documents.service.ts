@@ -5,7 +5,7 @@ import { open, rm } from "node:fs/promises";
 import path from "node:path";
 import type { Readable } from "node:stream";
 import { categories, documentFiles, documentPeople, documents, people, type Db } from "@trustworthier/db";
-import type { AcceptAllResult, DocumentSummary, SuggestionView, UpdateDocument, UploadResult } from "@trustworthier/shared";
+import type { AcceptAllResult, DocumentSummary, SuggestionView, UpdateDocument, UploadFields, UploadResult } from "@trustworthier/shared";
 import { AuditService } from "../audit/audit.service";
 import { MIME_BY_KIND, sniffKind } from "../common/sniff";
 import { CryptoService } from "../crypto/crypto.service";
@@ -14,6 +14,7 @@ import { InjectProcessFileQueue, type ProcessFileJob } from "../queue/queue.modu
 import { BlobStore } from "../storage/blob-store.service";
 import { SuggestService } from "../suggest/suggest.service";
 import { CategoriesService } from "../vocabulary/categories.service";
+import { TagsService } from "../vocabulary/tags.service";
 
 export interface IncomingFile {
   /** Path of the plaintext temp file written by the upload middleware. Deleted by this service. */
@@ -34,16 +35,23 @@ export class DocumentsService {
     private readonly audit: AuditService,
     private readonly suggest: SuggestService,
     private readonly categoriesService: CategoriesService,
+    private readonly tagsService: TagsService,
     @InjectProcessFileQueue() private readonly queue: Queue<ProcessFileJob>,
   ) {}
 
   // ---------- intake (spec §2 stage 0) ----------
 
-  async ingestUpload(file: IncomingFile, userId: string, ip: string | null): Promise<UploadResult> {
+  async ingestUpload(file: IncomingFile, fields: UploadFields, userId: string, ip: string | null): Promise<UploadResult> {
     try {
       const [sha256, head] = await Promise.all([this.blobs.sha256(file.path), readHead(file.path)]);
       const kind = sniffKind(head);
       const duplicateOf = await this.findDuplicate(sha256);
+      if (fields.categoryId) {
+        const exists = await this.db.query.categories.findFirst({ where: eq(categories.id, fields.categoryId) });
+        if (!exists) throw new BadRequestException("Unknown category");
+      }
+      /** "Add as new version": the file joins the existing document instead of creating one (spec §1). */
+      const versionOf = fields.versionOf ? await this.loadRow(fields.versionOf) : null;
 
       const dek = this.crypto.generateDek();
       const sealed = await this.blobs.sealFile(file.path, dek);
@@ -52,11 +60,27 @@ export class DocumentsService {
 
       const title = titleFromFilename(file.originalName);
       const created = await this.db.transaction(async (tx) => {
-        const [doc] = await tx.insert(documents).values({ title, source: "upload", createdBy: userId }).returning();
+        let doc: DocRow;
+        let version = 1;
+        if (versionOf) {
+          doc = versionOf.doc;
+          version = versionOf.df.version + 1;
+          await tx.update(documentFiles).set({ isCurrent: false }).where(eq(documentFiles.documentId, doc.id));
+          await tx.update(documents).set({ updatedAt: new Date() }).where(eq(documents.id, doc.id));
+        } else {
+          const [inserted] = await tx
+            .insert(documents)
+            .values({ title, source: "upload", createdBy: userId, categoryId: fields.categoryId ?? null })
+            .returning();
+          doc = inserted!;
+          if (fields.personIds.length) await tx.insert(documentPeople).values(fields.personIds.map((personId) => ({ documentId: doc.id, personId })));
+          if (fields.tags.length) await this.tagsService.setForDocument(doc.id, fields.tags, tx);
+        }
         const [df] = await tx
           .insert(documentFiles)
           .values({
-            documentId: doc!.id,
+            documentId: doc.id,
+            version,
             storageKey: sealed.storageKey,
             sha256,
             originalFilename: file.originalName.slice(0, 255),
@@ -68,16 +92,16 @@ export class DocumentsService {
             uploadedBy: userId,
           })
           .returning();
-        return { doc: doc!, df: df! };
+        return { doc, df: df! };
       });
 
       await this.queue.add("process", { documentFileId: created.df.id }, { jobId: created.df.id });
       await this.audit.record({
-        action: "document.upload",
+        action: versionOf ? "document.new_version" : "document.upload",
         actorUserId: userId,
         entityType: "document",
         entityId: created.doc.id,
-        metadata: { filename: file.originalName, bytes: sealed.byteSize, kind, duplicateOf: duplicateOf?.documentId ?? null },
+        metadata: { filename: file.originalName, bytes: sealed.byteSize, kind, version: created.df.version, filedTo: fields.categoryId ?? null, duplicateOf: duplicateOf?.documentId ?? null },
         ip,
       });
 
@@ -149,6 +173,7 @@ export class DocumentsService {
         await tx.delete(documentPeople).where(eq(documentPeople.documentId, documentId));
         if (patch.personIds.length) await tx.insert(documentPeople).values(patch.personIds.map((personId) => ({ documentId, personId })));
       }
+      if (patch.tags !== undefined) await this.tagsService.setForDocument(documentId, patch.tags, tx);
     });
     await this.audit.record({ action: "document.update", actorUserId: userId, entityType: "document", entityId: documentId, metadata: { fields: Object.keys(patch) }, ip });
     return this.get(documentId);
@@ -215,7 +240,7 @@ export class DocumentsService {
   private async assemble(rows: { doc: DocRow; df: FileRow }[]): Promise<DocumentSummary[]> {
     if (rows.length === 0) return [];
     const docIds = rows.map((r) => r.doc.id);
-    const [cats, links, sugg] = await Promise.all([
+    const [cats, links, sugg, tagNames] = await Promise.all([
       this.categoriesService.index(),
       this.db
         .select({ documentId: documentPeople.documentId, id: people.id, displayName: people.displayName })
@@ -223,12 +248,13 @@ export class DocumentsService {
         .innerJoin(people, eq(people.id, documentPeople.personId))
         .where(inArray(documentPeople.documentId, docIds)),
       this.suggest.latestForFiles(rows.map((r) => r.df.id)),
+      this.tagsService.namesForDocuments(docIds),
     ]);
     const peopleByDoc = new Map<string, { id: string; displayName: string }[]>();
     for (const l of links) peopleByDoc.set(l.documentId, [...(peopleByDoc.get(l.documentId) ?? []), { id: l.id, displayName: l.displayName }]);
     return rows.map(({ doc, df }) => {
       const cat = doc.categoryId ? cats.get(doc.categoryId) : undefined;
-      return toSummary(doc, df, cat ? { id: cat.cat.id, name: cat.cat.name, path: cat.path } : null, peopleByDoc.get(doc.id) ?? [], sugg.get(df.id) ?? null);
+      return toSummary(doc, df, cat ? { id: cat.cat.id, name: cat.cat.name, path: cat.path } : null, peopleByDoc.get(doc.id) ?? [], tagNames.get(doc.id) ?? [], sugg.get(df.id) ?? null);
     });
   }
 }
@@ -238,6 +264,7 @@ export function toSummary(
   df: FileRow,
   category: DocumentSummary["category"],
   folks: DocumentSummary["people"],
+  tagNames: string[],
   suggestion: SuggestionView | null,
 ): DocumentSummary {
   return {
@@ -250,9 +277,11 @@ export function toSummary(
     notes: doc.notes,
     category,
     people: folks,
+    tags: tagNames,
     suggestion,
     file: {
       id: df.id,
+      version: df.version,
       originalFilename: df.originalFilename,
       mimeType: df.mimeType,
       byteSize: df.byteSize,
