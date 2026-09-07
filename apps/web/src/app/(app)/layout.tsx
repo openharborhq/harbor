@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { Sidebar } from "@/components/shell/Sidebar";
-import type { Category, RecentDocument } from "@trustworthier/shared";
+import type { Category, RecentDocument } from "@harbor/shared";
 import { apiFetch, currentUser } from "@/lib/api-server";
 
 /** Everything under (app) requires a fully verified session; the API is the source of truth. */

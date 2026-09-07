@@ -1,6 +1,6 @@
 import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
 import { and, asc, eq, inArray, isNull, sql } from "drizzle-orm";
-import { documentItems, documents, itemKeyDocuments, items, type Db } from "@trustworthier/db";
+import { documentItems, documents, itemKeyDocuments, items, type Db } from "@harbor/db";
 import {
   DEFAULT_KEY_DOCUMENTS,
   itemSubtitle,
@@ -10,7 +10,7 @@ import {
   type KeyDocumentSlot,
   type UpdateItem,
   type UpsertKeyDocument,
-} from "@trustworthier/shared";
+} from "@harbor/shared";
 import { AuditService } from "../audit/audit.service";
 import { InjectDb } from "../db/db.module";
 import { SearchIndexService } from "../search/search-index.service";

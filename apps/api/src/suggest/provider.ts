@@ -1,4 +1,4 @@
-import type { SuggestionPayload } from "@trustworthier/shared";
+import type { SuggestionPayload } from "@harbor/shared";
 
 /** Everything a provider may see (spec §5 "what leaves the house"). Nothing else is passed. */
 export interface SuggestInput {
@@ -31,5 +31,5 @@ export interface SuggestionProvider {
 }
 
 /** Bump when the prompt or schema changes so old suggestions can be told apart and re-run. */
-export const PROMPT_VERSION = 3;
+export const PROMPT_VERSION = 4;
 export const TEXT_CHARS = 4000;

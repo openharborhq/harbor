@@ -3,7 +3,7 @@ import { Logger } from "@nestjs/common";
 import { NestFactory } from "@nestjs/core";
 import { Worker, type Job } from "bullmq";
 import type IORedis from "ioredis";
-import { closeDb, createDb, runMigrations } from "@trustworthier/db";
+import { closeDb, createDb, runMigrations } from "@harbor/db";
 import { loadEnv } from "./config/env";
 import { FileProcessor, JOB_TIMEOUT_MS } from "./processing/file-processor.service";
 import { PROCESS_FILE_QUEUE, REDIS, type ProcessFileJob } from "./queue/queue.module";

@@ -1,4 +1,4 @@
-import type { ItemKind } from "@trustworthier/shared";
+import type { ItemKind } from "@harbor/shared";
 
 /** People get their initial; things get a glyph, so a grid of both reads at a glance (spec §6). */
 export function itemGlyph(kind: ItemKind, label: string): string {

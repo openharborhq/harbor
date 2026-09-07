@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
-import type { Category, DocumentSummary, Item } from "@trustworthier/shared";
+import { displayTitle, type Category, type DocumentSummary, type Item, type MuteResult } from "@harbor/shared";
 import { ItemPicker } from "./ItemPicker";
 import { api } from "@/lib/api-client";
 import { formatBytes, formatRelative, pages } from "@/lib/format";
@@ -15,6 +15,8 @@ import { StatusPill, isProcessing } from "./StatusPill";
  * Four states: processing, suggestion, no-suggestion (heuristics only), failed.
  */
 export function InboxCard({ doc, categories, items }: { doc: DocumentSummary; categories: Category[]; items: Item[] }) {
+  /** Who emailed it. On the document itself, so pruning the ingest log cannot take it away (§7). */
+  const fromAddr = doc.mailFrom;
   const router = useRouter();
   const f = doc.file;
   const s = doc.suggestion;
@@ -25,7 +27,7 @@ export function InboxCard({ doc, categories, items }: { doc: DocumentSummary; ca
   // Union, not either/or: an upload's FOR default was a deliberate choice, and the suggestion is
   // strictly more informed — showing only one of the two hides work the filer would have to redo.
   const [itemIds, setItemIds] = useState<string[]>([...new Set([...doc.items.map((i) => i.id), ...(s?.resolved.itemIds ?? [])])]);
-  const [busy, setBusy] = useState<"file" | "delete" | null>(null);
+  const [busy, setBusy] = useState<"file" | "delete" | "delete-all" | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -49,11 +51,32 @@ export function InboxCard({ doc, categories, items }: { doc: DocumentSummary; ca
     }
   }
 
-  /** Soft delete: the card leaves the Inbox and waits in Recently deleted (spec §1 deleted_at). */
-  async function deleteItem() {
-    setBusy("delete");
+  /**
+   * Soft delete: the card leaves the Inbox and waits in Recently deleted (spec §1 deleted_at).
+   *
+   * The moment you delete something is also the moment you know whether you ever want it again,
+   * so the confirmation is where "and never from this sender" belongs (§7.6). Muting sweeps the
+   * rest of that sender's unfiled mail too — deleting one Spotify receipt and leaving the other
+   * eleven would not be what anyone meant.
+   */
+  async function deleteItem(alsoMute = false) {
+    setBusy(alsoMute ? "delete-all" : "delete");
     try {
-      await api(`/documents/${doc.id}`, { method: "DELETE" });
+      if (alsoMute && fromAddr) {
+        /**
+         * The mute sweeps every unfiled document from this sender — which includes this one, so
+         * it is the whole delete, not a step before it. Deleting again afterwards asked the API
+         * for a document that was already gone and failed with "Document not found", making a
+         * successful bulk action look like a broken one.
+         */
+        const { deleted } = await api<MuteResult>("/mail/senders/mute", { method: "POST", body: JSON.stringify({ fromAddrs: [fromAddr], deleteFiled: true }) });
+        // If the sweep matched nothing — an attribution mismatch, say — the button would have
+        // muted the sender and left the card sitting there, which reads as "nothing happened".
+        // It says delete, so it deletes.
+        if (deleted === 0) await api(`/documents/${doc.id}`, { method: "DELETE" });
+      } else {
+        await api(`/documents/${doc.id}`, { method: "DELETE" });
+      }
       router.refresh();
     } catch (err) {
       setError((err as Error).message);
@@ -67,13 +90,15 @@ export function InboxCard({ doc, categories, items }: { doc: DocumentSummary; ca
     pages(f.pageCount) || formatBytes(f.byteSize),
   ];
 
+  const shownTitle = displayTitle(doc);
+
   return (
     <article className="flex items-start gap-6 rounded-card border border-border p-6">
-      <DocThumb documentId={doc.id} hasThumbnail={f.hasThumbnail} version={f.version} width={200} height={283} dim={processing} />
+      <DocThumb documentId={doc.id} hasThumbnail={f.hasThumbnail} version={f.version} width={200} height={283} dim={processing} href={`/documents/${doc.id}`} label={shownTitle} />
       <div className="flex min-w-0 flex-1 flex-col gap-[18px] self-stretch">
         <div>
           <Link href={`/documents/${doc.id}`} className="text-section font-semibold tracking-snug hover:text-accent">
-            {s && hasSummary && s.payload.title && !s.acceptedAt ? s.payload.title : doc.title}
+            {shownTitle}
           </Link>
           <div className="mt-1 flex items-center gap-2 text-small text-muted">
             {meta.map((m, i) => (
@@ -182,11 +207,23 @@ export function InboxCard({ doc, categories, items }: { doc: DocumentSummary; ca
               {busy === "file" ? "Filing…" : s && unchanged && !s.rejectedAt ? "Accept & file" : "File it"}
             </button>
             {confirmDelete ? (
-              <span className="flex items-center gap-3 text-row">
+              <span className="flex flex-wrap items-center gap-3 text-row">
                 <span className="text-muted">Delete it?</span>
-                <button type="button" onClick={deleteItem} disabled={busy !== null} className="font-semibold text-danger">
+                <button type="button" onClick={() => deleteItem(false)} disabled={busy !== null} className="font-semibold text-danger hover:underline underline-offset-2">
                   {busy === "delete" ? "Deleting…" : "Yes, delete"}
                 </button>
+                {/* Only offered when we know who sent it — an upload has no sender to disregard. */}
+                {fromAddr && (
+                  <button
+                    type="button"
+                    onClick={() => deleteItem(true)}
+                    disabled={busy !== null}
+                    title={`Delete this, remove everything else from ${fromAddr} still waiting, and never file from them again`}
+                    className="font-semibold text-danger hover:underline underline-offset-2"
+                  >
+                    {busy === "delete-all" ? "Deleting…" : "Delete and disregard all"}
+                  </button>
+                )}
                 <button type="button" onClick={() => setConfirmDelete(false)} className="font-medium text-muted">
                   Keep
                 </button>

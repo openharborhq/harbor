@@ -12,7 +12,7 @@ import {
   type Item,
   type KeyDocumentSlot,
   type SessionUser,
-} from "@trustworthier/shared";
+} from "@harbor/shared";
 import { CurrentUser } from "../auth/current-user.decorator";
 import { ZodPipe } from "../common/zod.pipe";
 import { CategoriesService } from "./categories.service";

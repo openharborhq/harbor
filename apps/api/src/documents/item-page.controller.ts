@@ -1,5 +1,5 @@
 import { Controller, Get, Param, ParseUUIDPipe } from "@nestjs/common";
-import type { DocumentSummary, Item, KeyDocumentSlot } from "@trustworthier/shared";
+import type { DocumentSummary, Item, KeyDocumentSlot } from "@harbor/shared";
 import { ItemsService } from "../vocabulary/items.service";
 import { DocumentsService } from "./documents.service";
 

@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ACTIVE_ITEM_KINDS, ITEM_KIND_LABEL, type Category, type DocumentSummary, type Item, type SearchResponse } from "@trustworthier/shared";
+import { ACTIVE_ITEM_KINDS, ITEM_KIND_LABEL, type Category, type DocumentSummary, type Item, type SearchResponse } from "@harbor/shared";
 import { Snippet } from "@/components/Snippet";
 import { DocThumb } from "@/components/DocThumb";
 import { StatusPill } from "@/components/StatusPill";

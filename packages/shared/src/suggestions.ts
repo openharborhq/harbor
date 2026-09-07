@@ -28,6 +28,24 @@ export const SuggestionPayload = z.object({
    * reader's — "birth certificate" for an Abstammungsurkunde (spec §5). Indexed, never displayed.
    */
   aliases: z.array(z.string().max(60)).max(8),
+  /**
+   * Whether this is a document a household files at all (§5).
+   *
+   * The other fields answer "where does this go?", and that question always has an answer — a
+   * propane safety leaflet and a slide deck get categorised as confidently as an invoice, which
+   * is how an Inbox fills with things nobody would ever look for. This asks the question that
+   * was missing, from the document's own text rather than its filename.
+   *
+   * Advisory only. Nothing is deleted on the model's say-so; it decides which pile a card
+   * starts in, and that is all.
+   *
+   * Defaulted, not required, because this schema validates rows already in the database as well
+   * as output coming back from the model. Adding a required field made every suggestion written
+   * before it existed fail `safeParse`, and the read path drops what it cannot parse — so 273
+   * perfectly good summaries vanished from the UI at once. Any field added here later must carry
+   * a default for the same reason.
+   */
+  keep: z.enum(["paperwork", "not_paperwork"]).default("paperwork"),
   /** Language the document is written in, ISO 639-1. */
   language: z.string().max(8),
   confidence: z.enum(["high", "medium", "low"]),

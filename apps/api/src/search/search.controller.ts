@@ -1,5 +1,5 @@
 import { Controller, Get, Query } from "@nestjs/common";
-import { SearchQuery, type SearchResponse } from "@trustworthier/shared";
+import { SearchQuery, type SearchResponse } from "@harbor/shared";
 import { ZodPipe } from "../common/zod.pipe";
 import { SearchService } from "./search.service";
 

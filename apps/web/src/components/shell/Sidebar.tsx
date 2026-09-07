@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import type { Category, RecentDocument, SessionUser } from "@trustworthier/shared";
+import type { Category, RecentDocument, SessionUser } from "@harbor/shared";
 import { api } from "@/lib/api-client";
 import { initials } from "@/lib/initials";
 import { Brand } from "./Brand";

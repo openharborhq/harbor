@@ -1,11 +1,12 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { notFound } from "next/navigation";
-import type { ActivityEntry, Category, DocumentSummary, DocumentText, DocumentVersion, Item } from "@trustworthier/shared";
+import { displayTitle, type ActivityEntry, type Category, type DocumentSummary, type DocumentText, type DocumentVersion, type Item } from "@harbor/shared";
 import { AutoRefresh } from "@/components/AutoRefresh";
 import { DocumentDetail } from "@/components/DocumentDetail";
 import { PdfPages } from "@/components/PdfPages";
 import { isProcessing } from "@/components/StatusPill";
+import { DocumentTitle } from "@/components/DocumentTitle";
+import { BackLink } from "@/components/BackLink";
 import { TopBar } from "@/components/shell/TopBar";
 import { ApiError, apiFetch } from "@/lib/api-server";
 
@@ -39,10 +40,10 @@ export default async function DocumentPage(props: PageProps<"/documents/[id]">) 
       <main className="flex max-w-[1400px] flex-col gap-6 px-14 py-8">
         <div className="flex items-start justify-between gap-6">
           <div className="min-w-0">
-            <Link href={doc.category ? "/library" : "/inbox"} className="text-small font-medium text-accent">
+            <BackLink href={doc.category ? "/library" : "/inbox"} className="text-small font-medium text-accent">
               ← {doc.category ? "Library" : "Inbox"}
-            </Link>
-            <h1 className="mt-2 truncate text-[24px] font-bold leading-[30px] tracking-snug">{doc.title}</h1>
+            </BackLink>
+            <DocumentTitle documentId={doc.id} title={displayTitle(doc)} />
             <p className="mt-1 text-row text-muted">
               <span className={doc.category ? "text-accent" : ""}>{doc.category ? doc.category.path : "Inbox"}</span>
               {doc.items.length ? ` · ${doc.items.map((p) => p.label).join(", ")}` : ""}

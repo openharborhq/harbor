@@ -1,5 +1,5 @@
 import Link from "next/link";
-import type { DocumentSummary } from "@trustworthier/shared";
+import { displayTitle, type DocumentSummary } from "@harbor/shared";
 import { formatBytes, formatRelative, pages } from "@/lib/format";
 import { DocThumb } from "./DocThumb";
 import { StatusPill, isProcessing } from "./StatusPill";
@@ -7,6 +7,7 @@ import { StatusPill, isProcessing } from "./StatusPill";
 /** Inbox card, milestone-1 form: the summary/suggestion block arrives with the LLM pass (M2). */
 export function DocumentCard({ doc }: { doc: DocumentSummary }) {
   const f = doc.file;
+  const shownTitle = displayTitle(doc);
   const processing = isProcessing(f.processingStatus);
   const meta = [
     doc.source === "email" ? "Forwarded by email" : "Uploaded",
@@ -16,11 +17,11 @@ export function DocumentCard({ doc }: { doc: DocumentSummary }) {
 
   return (
     <article className="flex items-start gap-6 rounded-card border border-border p-6">
-      <DocThumb documentId={doc.id} hasThumbnail={f.hasThumbnail} version={f.version} width={200} height={283} dim={processing} />
+      <DocThumb documentId={doc.id} hasThumbnail={f.hasThumbnail} version={f.version} width={200} height={283} dim={processing} href={`/documents/${doc.id}`} label={shownTitle} />
       <div className="flex min-w-0 flex-1 flex-col gap-4 self-stretch">
         <div>
           <Link href={`/documents/${doc.id}`} className="text-section font-semibold tracking-snug hover:text-accent">
-            {doc.title}
+            {shownTitle}
           </Link>
           <div className="mt-1 flex items-center gap-2 text-small text-muted">
             {meta.map((m, i) => (

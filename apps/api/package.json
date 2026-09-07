@@ -1,5 +1,5 @@
 {
-  "name": "@trustworthier/api",
+  "name": "@harbor/api",
   "version": "0.0.1",
   "private": true,
   "license": "AGPL-3.0-only",
@@ -8,40 +8,43 @@
     "dev": "nest start --watch",
     "start": "node dist/main.js",
     "start:worker": "node dist/worker.js",
+    "start:mailfetch": "node dist/mailfetch.js",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "eslint \"src/**/*.ts\"",
     "test": "node --test --import tsx --test-reporter spec 'src/**/*.spec.ts'",
     "start:dev": "nest build && node --env-file=../../.env dist/main.js",
     "setup:owner": "nest build && node --env-file=../../.env dist/setup.js",
     "start:worker:dev": "nest build && node --env-file=../../.env dist/worker.js",
-    "start:suggester:dev": "nest build && node --env-file=../../.env dist/suggester.js"
+    "start:suggester:dev": "nest build && node --env-file=../../.env dist/suggester.js",
+    "start:mailfetch:dev": "nest build && node --env-file=../../.env dist/mailfetch.js"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.80.0",
     "@nestjs/common": "^11.0.0",
     "@nestjs/config": "^4.0.0",
     "@nestjs/core": "^11.0.0",
     "@nestjs/platform-express": "^11.0.0",
-    "@trustworthier/db": "workspace:*",
-    "@trustworthier/shared": "workspace:*",
-    "reflect-metadata": "^0.2.2",
-    "rxjs": "^7.8.1",
-    "zod": "^3.23.8",
+    "@harbor/db": "workspace:*",
+    "@harbor/shared": "workspace:*",
     "argon2": "^0.41.1",
-    "otplib": "^12.0.1",
+    "bullmq": "^5.34.0",
     "cookie": "^1.0.2",
     "drizzle-orm": "^0.36.0",
-    "bullmq": "^5.34.0",
+    "imapflow": "^1.7.8",
     "ioredis": "^5.4.1",
-    "@anthropic-ai/sdk": "^0.80.0"
+    "otplib": "^12.0.1",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.1",
+    "zod": "^3.23.8"
   },
   "devDependencies": {
     "@nestjs/cli": "^11.0.0",
     "@nestjs/schematics": "^11.0.0",
+    "@types/cookie": "^0.6.0",
     "@types/express": "^5.0.0",
+    "@types/multer": "^1.4.12",
     "@types/node": "^22.10.0",
     "tsx": "^4.19.0",
-    "typescript": "^5.6.0",
-    "@types/cookie": "^0.6.0",
-    "@types/multer": "^1.4.12"
+    "typescript": "^5.6.0"
   }
 }

@@ -1,4 +1,4 @@
-import type { SuggestionPayload } from "@trustworthier/shared";
+import { titleFromFilename, type SuggestionPayload } from "@harbor/shared";
 import type { SuggestInput, SuggestOutput, SuggestionProvider } from "./provider";
 
 /**
@@ -24,6 +24,9 @@ export class NoneProvider implements SuggestionProvider {
       expiresAt: null,
       tags: [],
       aliases: [],
+      // Heuristics cannot tell a leaflet from a bill, and the borderline rule is the same as the
+      // model's: never hide something that might matter.
+      keep: "paperwork",
       language: /\b(rechnung|versicherung|vertrag|bescheinigung)\b/.test(haystack) ? "de" : "en",
       confidence: categorySlug && itemLabels.length ? "medium" : "low",
     };
@@ -81,14 +84,7 @@ export function firstDateInText(text: string): string | null {
   return null;
 }
 
-export function titleFromFilename(name: string): string {
-  return name
-    .replace(/\.[a-z0-9]{2,5}$/i, "")
-    .replace(/[_\-.]+/g, " ")
-    .replace(/\s+/g, " ")
-    .trim()
-    .slice(0, 60);
-}
+
 
 function escape(s: string): string {
   return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");

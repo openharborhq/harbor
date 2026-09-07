@@ -1,5 +1,5 @@
 import { cookies } from "next/headers";
-import type { SessionUser } from "@trustworthier/shared";
+import type { SessionUser } from "@harbor/shared";
 
 const API = process.env.API_INTERNAL_URL ?? "http://localhost:4000";
 

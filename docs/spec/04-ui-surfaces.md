@@ -14,8 +14,9 @@ accent, Inter, 7-step type scale. All desktop artboards 1440 px; sidebar 248, co
 | Item | Drawn | per-item docs, children, `item_key_documents` | — |
 | Document detail | Drawn | `document_text`, versions, `audit_log` | Edit mode; trash/restore |
 | Settings | Drawn | users, invites, sessions, `email_ingest_log`, `backup_runs`, host metrics | — |
-| Mail connections | **Not drawn** — mock before build | `mail_connections`, `mail_senders` | Connect flow (address → autodiscover → credential → test), connection health, scope choice with the §7.8 trade-off named inline |
-| Backfill review | **Not drawn** — mock before build | backfill dry-run grouped by sender | Bulk approve/ignore per sender; becomes `mail_senders` (§7.5) |
+| Mail connections | Built, **not drawn** — `/settings/mail` | `mail_connections`, `mail_senders` | Built from the system rather than mocked first. `senders` scope has no control yet; the §7.10 trade-off is stated on the page |
+| Backfill review | Built, **not drawn** — `/settings/mail/[id]` | backfill dry-run grouped by sender | Bulk approve/ignore with a category, owner-only (§7.7). Held mail listed below it |
+| LLM provider settings | **Not drawn** — mock before build | provider config | Preset picker (Claude / OpenAI / Groq / Ollama / custom), base URL + key + model, live test call (§5) |
 | Login + TOTP | **Not drawn** — mock before build | | |
 | Setup wizard | **Not drawn** — mock before build | | |
 | Invite acceptance, held-mail review, add/edit item, manage categories, recently deleted, empty states | Not drawn — build from the system | | |
@@ -25,15 +26,15 @@ accent, Inter, 7-step type scale. All desktop artboards 1440 px; sidebar 248, co
 
 `person_key_documents` (absence as a slot) · `user_pins` · `backup_runs` ·
 `email_ingest_log.status/raw_blob_key` · `document_files.processing_status/page_progress/key_version` ·
-`mail_connections.status/last_ok_at` (a broken connection must be visible, §7.8).
+`mail_connections.status/last_ok_at` (a broken connection must be visible, §7.10).
 
 ## Inbox card states
 
 The drawn card is the LLM state (summary + prefilled FILE TO / FOR) — the primary v1
 experience (§5). Three more states need mocks before build: **processing** (OCR/suggestion
 pending), **no suggestion** (provider `none`, refusal, or failure — summary block collapses,
-heuristic prefill), and **failed** (with Retry). A fourth arrives with §7.7: **fetch reminder**
-— a portal notification with no document in it, offering the vendor link rather than a file.
+heuristic prefill), and **failed** (with Retry). A fourth — **fetch reminder**, for portal
+notifications with no document in them — is deferred to v1.1 with the feature itself (§7.9).
 
 ## Known continuity issues in the original artboards (to fix)
 

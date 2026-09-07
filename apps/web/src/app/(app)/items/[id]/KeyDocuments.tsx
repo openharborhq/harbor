@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import type { KeyDocumentSlot } from "@trustworthier/shared";
+import type { KeyDocumentSlot } from "@harbor/shared";
 import { api } from "@/lib/api-client";
 import { daysUntil, formatDate } from "@/lib/format";
 

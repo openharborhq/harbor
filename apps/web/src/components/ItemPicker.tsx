@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ACTIVE_ITEM_KINDS, ITEM_KIND_LABEL, type Item, type ItemKind } from "@trustworthier/shared";
+import { ACTIVE_ITEM_KINDS, ITEM_KIND_LABEL, type Item, type ItemKind } from "@harbor/shared";
 import { ItemIcon } from "./ItemIcon";
 
 const PANEL_WIDTH = 420;

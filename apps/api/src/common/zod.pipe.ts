@@ -1,7 +1,7 @@
 import { BadRequestException, Injectable, type PipeTransform } from "@nestjs/common";
 import type { z } from "zod/v4";
 
-/** Validate a request body/query against a Zod (v4) schema from @trustworthier/shared. */
+/** Validate a request body/query against a Zod (v4) schema from @harbor/shared. */
 @Injectable()
 export class ZodPipe<T extends z.ZodType> implements PipeTransform<unknown, z.infer<T>> {
   constructor(private readonly schema: T) {}

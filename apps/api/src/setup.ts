@@ -3,7 +3,7 @@ import { mkdirSync, existsSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { createInterface } from "node:readline";
 import { NestFactory } from "@nestjs/core";
-import { closeDb, createDb, runMigrations } from "@trustworthier/db";
+import { closeDb, createDb, runMigrations } from "@harbor/db";
 import { AppModule } from "./app.module";
 import { AuthService } from "./auth/auth.service";
 import { CryptoService } from "./crypto/crypto.service";
@@ -14,13 +14,13 @@ import { CryptoService } from "./crypto/crypto.service";
  *   2. apply migrations
  *   3. create the first owner with TOTP + recovery codes, print what must go on paper
  *
- * Usage: pnpm --filter @trustworthier/api setup -- --email you@example.com --name "Kai"
- * Password is prompted (hidden), or read from TW_SETUP_PASSWORD for non-interactive use.
+ * Usage: pnpm --filter @harbor/api setup -- --email you@example.com --name "Kai"
+ * Password is prompted (hidden), or read from HARBOR_SETUP_PASSWORD for non-interactive use.
  */
 async function main() {
   const args = parseArgs(process.argv.slice(2));
-  const kekFile = process.env.TW_KEK_FILE;
-  if (!kekFile) fail("TW_KEK_FILE is not set (see .env.example).");
+  const kekFile = process.env.HARBOR_KEK_FILE;
+  if (!kekFile) fail("HARBOR_KEK_FILE is not set (see .env.example).");
 
   if (!existsSync(kekFile)) {
     mkdirSync(path.dirname(kekFile), { recursive: true, mode: 0o700 });
@@ -49,7 +49,7 @@ async function main() {
     }
     const email = args.email ?? fail("--email is required");
     const name = args.name ?? fail("--name is required");
-    const password = process.env.TW_SETUP_PASSWORD ?? (await promptHidden("Password (min 12 chars): "));
+    const password = process.env.HARBOR_SETUP_PASSWORD ?? (await promptHidden("Password (min 12 chars): "));
     if (password.length < 12) fail("Password must be at least 12 characters.");
 
     const result = await auth.createOwner({ email, displayName: name, password });

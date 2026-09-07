@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import type { DocumentSummary } from "@trustworthier/shared";
+import type { DocumentSummary } from "@harbor/shared";
 import { api } from "@/lib/api-client";
 
 const MAX = 5000;

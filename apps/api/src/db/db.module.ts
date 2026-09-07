@@ -1,6 +1,6 @@
 import { Global, Inject, Module, OnApplicationShutdown } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
-import { closeDb, createDb, type Db } from "@trustworthier/db";
+import { closeDb, createDb, type Db } from "@harbor/db";
 import type { Env } from "../config/env";
 
 export const DB = Symbol("DB");

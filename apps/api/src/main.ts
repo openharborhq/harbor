@@ -2,7 +2,7 @@ import "reflect-metadata";
 import { NestFactory } from "@nestjs/core";
 import type { NestExpressApplication } from "@nestjs/platform-express";
 import { Logger } from "@nestjs/common";
-import { runMigrations, type Db } from "@trustworthier/db";
+import { runMigrations, type Db } from "@harbor/db";
 import { AppModule } from "./app.module";
 import { loadEnv } from "./config/env";
 import { DB } from "./db/db.module";

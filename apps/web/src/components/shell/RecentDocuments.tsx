@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-import type { RecentDocument } from "@trustworthier/shared";
+import type { RecentDocument } from "@harbor/shared";
 import { api } from "@/lib/api-client";
 
 /** Rows visible before the list starts scrolling, and the height that many rows occupy. */

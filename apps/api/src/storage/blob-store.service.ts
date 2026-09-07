@@ -17,7 +17,7 @@ export interface SealedBlob {
 }
 
 /**
- * Encrypted-at-rest file storage under $TW_DATA_DIR/blobs (spec §3.3).
+ * Encrypted-at-rest file storage under $HARBOR_DATA_DIR/blobs (spec §3.3).
  * Each file is AES-256-GCM under its own DEK; the DEK is wrapped by the KEK (CryptoService)
  * and stored in Postgres next to the IV and auth tag. The blob on disk is ciphertext only.
  * Blobs are never shared between documents; sha256 exists for duplicate *detection* (spec §2).
@@ -32,7 +32,7 @@ export class BlobStore implements OnModuleInit {
     config: ConfigService<Env, true>,
     private readonly crypto: CryptoService,
   ) {
-    this.dataDir = config.get("TW_DATA_DIR", { infer: true });
+    this.dataDir = config.get("HARBOR_DATA_DIR", { infer: true });
     this.blobsDir = path.join(this.dataDir, "blobs");
     this.tmpDir = path.join(this.dataDir, "tmp");
   }

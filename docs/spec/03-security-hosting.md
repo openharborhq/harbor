@@ -21,7 +21,7 @@ Tailscale account. No E2EE.
 
 A **connected inbox (§7) widens the first of those**: a live compromise reaches not just the
 filed documents but the mailbox behind them, and Gmail's app password carries SMTP send as
-well as read. That is a real cost of the convenience, not a defended-against case. §7.8 states
+well as read. That is a real cost of the convenience, not a defended-against case. §7.10 states
 it in those words and offers the narrower options — folder-scoped access, or a forwarding
 mailbox the vault holds no credential to.
 
@@ -87,8 +87,8 @@ Egress allow-list — one host each, nothing else:
 
 | Container | Egress |
 |---|---|
-| `mailfetch` | IMAP host(s) of configured connections; `login.microsoftonline.com` for device-code refresh; `autoconfig.thunderbird.net` during setup only |
-| `suggester` | LLM API host |
+| `mailfetch` | IMAP host(s) of configured connections; `autoconfig.thunderbird.net` during setup only |
+| `suggester` | The configured provider's host, and nothing else — a LAN address, and no internet route at all, when that provider is local (§5) |
 | `backup` | Backblaze B2 |
 | `tailscale` | Tailscale |
 

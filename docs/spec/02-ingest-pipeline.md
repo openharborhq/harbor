@@ -75,16 +75,16 @@ inbox** of §7, which points the vault at a mailbox you already use. The rules b
 common floor; §7 says where a connected inbox differs and why.
 
 - Fetch from the vault mailbox (`vault@…`) over IMAP/TLS with an app password. **IDLE with a
-  periodic resync**, not a fixed poll interval (§7.4).
+  periodic resync**, not a fixed poll interval (§7.5).
 - **Allowed senders** list. Mail from anyone else is **held for review** (`status = held`,
   raw message kept in `raw_blob_key`) — never dropped silently, never auto-ingested. On a
-  connected inbox this list is built by the backfill dry-run (§7.5).
+  connected inbox this list is built by the backfill dry-run (§7.6).
 - Attachments only (PDF, images); size caps. Each attachment is untrusted input and goes
   through the isolated worker. HTML bodies are ignored here; on a connected inbox they are a
-  first-class case, since many invoices have no attachment at all (§7.7).
+  first-class case, since many invoices have no attachment at all (§7.9).
 - Processed mail is deleted from the mailbox after 30 days. **This applies only to a
   dedicated forwarding mailbox** — the vault never deletes from a mailbox it does not own
-  (§7.6).
+  (§7.8).
 
 ## Phone capture — parked
 

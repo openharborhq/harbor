@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import type { Category } from "@trustworthier/shared";
+import type { Category } from "@harbor/shared";
 import { api } from "@/lib/api-client";
 
 /** Rename, reorder and remove, plus adding a subcategory. Two levels is the whole model (spec §1). */

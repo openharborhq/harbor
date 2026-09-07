@@ -4,8 +4,9 @@ import { Queue } from "bullmq";
 import { open, rm } from "node:fs/promises";
 import path from "node:path";
 import type { Readable } from "node:stream";
-import { auditLog, categories, documentFiles, documentItems, documentText, documentViews, documents, items, users, type Db } from "@trustworthier/db";
-import type { AcceptAllResult, AcceptSuggestion, ActivityEntry, DeletedDocument, DocumentSummary, DocumentText, DocumentVersion, RecentDocument, SuggestionView, UpdateDocument, UploadFields, UploadResult } from "@trustworthier/shared";
+import { auditLog, categories, documentFiles, documentItems, documentText, documentViews, documents, items, users, type Db } from "@harbor/db";
+import { titleFromFilename } from "@harbor/shared";
+import type { AcceptAllResult, AcceptSuggestion, ActivityEntry, DeletedDocument, DocumentSummary, DocumentText, DocumentVersion, RecentDocument, SuggestionView, UpdateDocument, UploadFields, UploadResult } from "@harbor/shared";
 import { AuditService } from "../audit/audit.service";
 import { SearchIndexService } from "../search/search-index.service";
 import { MIME_BY_KIND, sniffKind } from "../common/sniff";
@@ -16,6 +17,15 @@ import { BlobStore } from "../storage/blob-store.service";
 import { SuggestService } from "../suggest/suggest.service";
 import { CategoriesService } from "../vocabulary/categories.service";
 import { TagsService } from "../vocabulary/tags.service";
+
+/** Who the document belongs to and how it got here. `source` is stored on `documents` (spec §1). */
+export interface IngestContext {
+  userId: string;
+  ip?: string | null;
+  source?: "upload" | "email";
+  /** Who emailed it. Stored on the document so it survives the ingest log being pruned (§7). */
+  mailFrom?: string | null;
+}
 
 export interface IncomingFile {
   /** Path of the plaintext temp file written by the upload middleware. Deleted by this service. */
@@ -48,7 +58,14 @@ export class DocumentsService {
 
   // ---------- intake (spec §2 stage 0) ----------
 
-  async ingestUpload(file: IncomingFile, fields: UploadFields, userId: string, ip: string | null): Promise<UploadResult> {
+  /**
+   * Stage 0 for every path into the vault (spec §2): the web upload and, since §7, an attachment
+   * pulled off a mailbox. Both get identical treatment — same duplicate check, same per-file DEK,
+   * same queue, same Inbox card — because "the original bytes are sacred" cannot depend on how
+   * the bytes arrived. `source` is the only thing that differs, and it is only ever a label.
+   */
+  async ingest(file: IncomingFile, fields: UploadFields, opts: IngestContext): Promise<UploadResult> {
+    const { userId, ip = null, source = "upload", mailFrom = null } = opts;
     try {
       const [sha256, head] = await Promise.all([this.blobs.sha256(file.path), readHead(file.path)]);
       const kind = sniffKind(head);
@@ -77,7 +94,7 @@ export class DocumentsService {
         } else {
           const [inserted] = await tx
             .insert(documents)
-            .values({ title, source: "upload", createdBy: userId, categoryId: fields.categoryId ?? null })
+            .values({ title, source, mailFrom, createdBy: userId, categoryId: fields.categoryId ?? null })
             .returning();
           doc = inserted!;
           if (fields.itemIds.length) await tx.insert(documentItems).values(fields.itemIds.map((itemId: string) => ({ documentId: doc.id, itemId })));
@@ -104,7 +121,7 @@ export class DocumentsService {
 
       await this.queue.add("process", { documentFileId: created.df.id }, { jobId: created.df.id });
       await this.audit.record({
-        action: versionOf ? "document.new_version" : "document.upload",
+        action: versionOf ? "document.new_version" : source === "email" ? "document.email_in" : "document.upload",
         actorUserId: userId,
         entityType: "document",
         entityId: created.doc.id,
@@ -280,6 +297,30 @@ export class DocumentsService {
     await this.loadRow(documentId);
     await this.db.update(documents).set({ deletedAt: new Date(), updatedAt: new Date() }).where(eq(documents.id, documentId));
     await this.audit.record({ action: "document.delete", actorUserId: userId, entityType: "document", entityId: documentId, ip });
+  }
+
+  /**
+   * Soft-delete a batch. The Inbox's answer to a backfill that filed more than you wanted: clearing
+   * forty receipts one confirmation at a time is not a thing anyone does, so they would stay.
+   *
+   * Soft, like the single-document delete — Recently deleted holds them, and a bulk judgement made
+   * in one click needs to be undoable in one click.
+   */
+  async bulkSoftDelete(ids: string[], userId: string, ip: string | null): Promise<{ deleted: number }> {
+    if (!ids.length) return { deleted: 0 };
+    const rows = await this.db
+      .update(documents)
+      .set({ deletedAt: new Date() })
+      .where(and(inArray(documents.id, ids), isNull(documents.deletedAt)))
+      .returning({ id: documents.id });
+    await this.audit.record({
+      action: "document.bulk_delete",
+      actorUserId: userId,
+      entityType: "document",
+      metadata: { count: rows.length, ids: rows.slice(0, 50).map((r) => r.id) },
+      ip,
+    });
+    return { deleted: rows.length };
   }
 
   async restore(documentId: string, userId: string, ip: string | null): Promise<DocumentSummary> {
@@ -475,6 +516,7 @@ export function toSummary(
     id: doc.id,
     title: doc.title,
     source: doc.source,
+    mailFrom: doc.mailFrom,
     createdAt: doc.createdAt.toISOString(),
     updatedAt: doc.updatedAt.toISOString(),
     documentDate: doc.documentDate,
@@ -499,11 +541,7 @@ export function toSummary(
   };
 }
 
-export function titleFromFilename(name: string): string {
-  const base = path.basename(name).replace(/\.[a-z0-9]{2,5}$/i, "");
-  const cleaned = base.replace(/[_\-.]+/g, " ").replace(/\s+/g, " ").trim();
-  return (cleaned || "Untitled document").slice(0, 120);
-}
+
 
 function isoDate(v: string | null): string | null | undefined {
   if (!v) return undefined;

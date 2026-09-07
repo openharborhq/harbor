@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import type { ActivityEntry, Category, DocumentSummary, DocumentText, DocumentVersion, Item } from "@trustworthier/shared";
+import type { ActivityEntry, Category, DocumentSummary, DocumentText, DocumentVersion, Item, UpdateDocument } from "@harbor/shared";
 import { DocumentNotes } from "./DocumentNotes";
 import { ItemPicker } from "./ItemPicker";
 import { api } from "@/lib/api-client";
@@ -191,22 +191,43 @@ function EditForm({ doc, categories, items, onDone }: { doc: DocumentSummary; ca
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  /**
+   * Sends only what was actually changed.
+   *
+   * Sending the whole form made every save a statement about the category, including the fields
+   * nobody touched — so renaming a document on this page silently re-filed it, and because this
+   * form (unlike the Inbox card) does not pre-select the suggested category, "save" on an unfiled
+   * document sent `categoryId: null` and quietly un-filed anything that already had one.
+   *
+   * Editing a title should not move a document between the Inbox and the Library. Filing stays a
+   * deliberate act, on the Inbox card or by changing this field on purpose.
+   */
+  function changes(): UpdateDocument {
+    const patch: UpdateDocument = {};
+    const currentTags = tags.split(",").map((t) => t.trim()).filter(Boolean);
+
+    if (title !== doc.title) patch.title = title;
+    if (categoryId !== (doc.category?.id ?? "")) patch.categoryId = categoryId || null;
+    if (!sameIds(itemIds, doc.items.map((i) => i.id))) patch.itemIds = itemIds;
+    if ((documentDate || null) !== doc.documentDate) patch.documentDate = documentDate || null;
+    if ((expiresAt || null) !== doc.expiresAt) patch.expiresAt = expiresAt || null;
+    if (!sameIds(currentTags, doc.tags)) patch.tags = currentTags;
+    return patch;
+  }
+
   async function save(e: React.FormEvent) {
     e.preventDefault();
+    const patch = changes();
+    // Nothing edited: closing is the whole outcome, and a no-op PATCH would still write an
+    // audit row saying the document was updated.
+    if (Object.keys(patch).length === 0) {
+      onDone();
+      return;
+    }
     setBusy(true);
     setError(null);
     try {
-      await api(`/documents/${doc.id}`, {
-        method: "PATCH",
-        body: JSON.stringify({
-          title,
-          categoryId: categoryId || null,
-          itemIds,
-          documentDate: documentDate || null,
-          expiresAt: expiresAt || null,
-          tags: tags.split(",").map((t) => t.trim()).filter(Boolean),
-        }),
-      });
+      await api(`/documents/${doc.id}`, { method: "PATCH", body: JSON.stringify(patch) });
       onDone();
       router.refresh();
     } catch (err) {
@@ -303,4 +324,11 @@ function describe(a: ActivityEntry): string {
     default:
       return a.action.replace("document.", "").replace(/_/g, " ");
   }
+}
+
+/** Order-insensitive comparison for the two list fields, so reordering alone is not a change. */
+function sameIds(a: string[], b: string[]): boolean {
+  if (a.length !== b.length) return false;
+  const set = new Set(b);
+  return a.every((v) => set.has(v));
 }

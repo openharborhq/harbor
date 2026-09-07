@@ -14,7 +14,7 @@ import {
   type RecoveryCodesResult,
   type SessionInfo,
   type SessionUser,
-} from "@trustworthier/shared";
+} from "@harbor/shared";
 import { ZodPipe } from "../common/zod.pipe";
 import { AuthService, SESSION_COOKIE, type RequestMeta } from "./auth.service";
 import { CurrentUser } from "./current-user.decorator";

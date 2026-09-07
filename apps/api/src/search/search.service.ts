@@ -1,7 +1,7 @@
 import { Injectable } from "@nestjs/common";
 import { sql } from "drizzle-orm";
-import type { Db } from "@trustworthier/db";
-import type { SearchHit, SearchQuery, SearchResponse } from "@trustworthier/shared";
+import type { Db } from "@harbor/db";
+import type { SearchHit, SearchQuery, SearchResponse } from "@harbor/shared";
 
 import { InjectDb } from "../db/db.module";
 import { CategoriesService } from "../vocabulary/categories.service";

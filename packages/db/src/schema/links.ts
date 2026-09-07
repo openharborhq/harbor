@@ -40,7 +40,7 @@ export const itemKeyDocuments = pgTable(
 
 /**
  * Model output is a proposal, never written to `documents` directly (spec §1, §5).
- * `payload` is the validated SuggestionPayload from @trustworthier/shared.
+ * `payload` is the validated SuggestionPayload from @harbor/shared.
  */
 export const suggestions = pgTable(
   "suggestions",
@@ -60,7 +60,9 @@ export const suggestions = pgTable(
     rejectedAt: timestamp("rejected_at", { withTimezone: true }),
   },
   (t) => [
-    uniqueIndex("suggestions_file_model_idx").on(t.documentFileId, t.model, t.promptVersion),
+    // provider is part of the key: two backends can return the same model string ("gpt-5" direct
+    // and via OpenRouter, any Llama tag), and re-running one must not collide with the other's row.
+    uniqueIndex("suggestions_file_model_idx").on(t.documentFileId, t.provider, t.model, t.promptVersion),
     index("suggestions_document_idx").on(t.documentId),
   ],
 );

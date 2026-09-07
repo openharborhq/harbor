@@ -15,9 +15,9 @@ const MAX_UPLOAD_BYTES = 200 * 1024 * 1024; // matches the drop-zone copy in the
     SearchIndexModule,
     MulterModule.registerAsync({
       inject: [ConfigService],
-      // Plaintext lands in $TW_DATA_DIR/tmp (on the encrypted volume) and is deleted by DocumentsService.
+      // Plaintext lands in $HARBOR_DATA_DIR/tmp (on the encrypted volume) and is deleted by DocumentsService.
       useFactory: (config: ConfigService<Env, true>) => ({
-        dest: path.join(config.get("TW_DATA_DIR", { infer: true }), "tmp"),
+        dest: path.join(config.get("HARBOR_DATA_DIR", { infer: true }), "tmp"),
         limits: { fileSize: MAX_UPLOAD_BYTES, files: 1 },
       }),
     }),

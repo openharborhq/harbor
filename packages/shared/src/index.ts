@@ -5,3 +5,4 @@ export * from "./vocabulary";
 export * from "./suggestions";
 export * from "./upload";
 export * from "./home";
+export * from "./mail";

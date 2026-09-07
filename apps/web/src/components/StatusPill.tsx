@@ -1,4 +1,4 @@
-import type { ProcessingStatus } from "@trustworthier/shared";
+import type { ProcessingStatus } from "@harbor/shared";
 
 const LABEL: Record<ProcessingStatus, string> = {
   queued: "Waiting",

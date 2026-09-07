@@ -11,7 +11,7 @@ export const KEY_BYTES = 32;
 export const CURRENT_KEY_VERSION = 1;
 
 /**
- * Key-encryption-key operations. The KEK is read once from TW_KEK_FILE (a Docker secret in
+ * Key-encryption-key operations. The KEK is read once from HARBOR_KEK_FILE (a Docker secret in
  * production) and never leaves this process. Everything sensitive at rest — per-file DEKs,
  * TOTP secrets — is sealed with AES-256-GCM under it.
  */
@@ -20,7 +20,7 @@ export class CryptoService {
   private readonly kek: Buffer;
 
   constructor(config: ConfigService<Env, true>) {
-    this.kek = CryptoService.loadKek(config.get("TW_KEK_FILE", { infer: true }));
+    this.kek = CryptoService.loadKek(config.get("HARBOR_KEK_FILE", { infer: true }));
   }
 
   static loadKek(file: string): Buffer {
@@ -28,7 +28,7 @@ export class CryptoService {
     try {
       raw = readFileSync(file, "utf8").trim();
     } catch (err) {
-      throw new Error(`Cannot read the master key file at ${file}. Run \`setup\` first, or check TW_KEK_FILE. (${(err as Error).message})`);
+      throw new Error(`Cannot read the master key file at ${file}. Run \`setup\` first, or check HARBOR_KEK_FILE. (${(err as Error).message})`);
     }
     const key = Buffer.from(raw, "base64");
     if (key.length !== KEY_BYTES) {

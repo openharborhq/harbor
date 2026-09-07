@@ -3,13 +3,13 @@
 # Apple Silicon; the images must run on both (spec §3.7).
 #
 #   scripts/build-images.sh                 # local single-arch build, loaded into the docker daemon
-#   scripts/build-images.sh --push v0.1.0   # linux/amd64 + linux/arm64, pushed to $TW_IMAGE_PREFIX-*:v0.1.0
+#   scripts/build-images.sh --push v0.1.0   # linux/amd64 + linux/arm64, pushed to $HARBOR_IMAGE_PREFIX-*:v0.1.0
 #
 # Requires docker buildx. For --push, `docker login ghcr.io` first.
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
-PREFIX="${TW_IMAGE_PREFIX:-ghcr.io/pradelkai/trustworthier}"
+PREFIX="${HARBOR_IMAGE_PREFIX:-ghcr.io/openharborhq/harbor}"
 PUSH=0
 TAG="dev"
 if [ "${1:-}" = "--push" ]; then

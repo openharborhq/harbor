@@ -1,4 +1,4 @@
-# Deploying trustworthier on your own box
+# Deploying harbor on your own box
 
 This is the milestone-1 runbook: from a blank appliance to *"a scanned PDF goes in, a word
 from inside it comes out of search, and the bytes on disk are ciphertext."* It is written for a
@@ -63,33 +63,33 @@ tailscale ip -4         # note this address, e.g. 100.101.102.103
 Either pull the published multi-arch images (once a release exists):
 
 ```sh
-mkdir -p /opt/trustworthier && cd /opt/trustworthier
-curl -fsSLO https://raw.githubusercontent.com/pradelkai/trustworthier/main/infra/compose.yml
-curl -fsSLO https://raw.githubusercontent.com/pradelkai/trustworthier/main/infra/compose.prod.yml
-curl -fsSLO https://raw.githubusercontent.com/pradelkai/trustworthier/main/infra/check-data-volume.sh
+mkdir -p /opt/harbor && cd /opt/harbor
+curl -fsSLO https://raw.githubusercontent.com/pradelkai/harbor/main/infra/compose.yml
+curl -fsSLO https://raw.githubusercontent.com/pradelkai/harbor/main/infra/compose.prod.yml
+curl -fsSLO https://raw.githubusercontent.com/pradelkai/harbor/main/infra/check-data-volume.sh
 ```
 
 …or build them on the box from source (slower, no registry needed):
 
 ```sh
 apt install -y git
-git clone https://github.com/pradelkai/trustworthier /opt/trustworthier/src
-cd /opt/trustworthier/src
+git clone https://github.com/pradelkai/harbor /opt/harbor/src
+cd /opt/harbor/src
 docker compose -f infra/compose.yml build          # ~10 minutes on an N100
 ```
 
 ## 5. Configure
 
 ```sh
-cat > /data/trustworthier.env <<'EOF'
-TW_DATA_DIR=/data
-TW_BIND=100.101.102.103                 # the tailnet IP from step 3
+cat > /data/harbor.env <<'EOF'
+HARBOR_DATA_DIR=/data
+HARBOR_BIND=100.101.102.103                 # the tailnet IP from step 3
 WEB_ORIGIN=http://100.101.102.103:3000  # or your https://box.tailnet.ts.net if you use `tailscale serve`
 SESSION_COOKIE_SECURE=false             # true once you are on https via tailscale serve
 OCR_CONCURRENCY=2                       # cores - 1 on a 4-core box
 OCR_LANGUAGES=deu+eng
 EOF
-chmod 600 /data/trustworthier.env
+chmod 600 /data/harbor.env
 
 mkdir -p /data/secrets && chmod 700 /data/secrets
 openssl rand -base64 32 > /data/secrets/kek && chmod 600 /data/secrets/kek   # the master key
@@ -103,9 +103,9 @@ printed break-glass page (step 8) and nowhere else.
 ## 6. Start
 
 ```sh
-export $(grep -v '^#' /data/trustworthier.env | xargs)
-docker compose --env-file /data/trustworthier.env -f compose.yml -f compose.prod.yml up -d
-docker compose --env-file /data/trustworthier.env -f compose.yml -f compose.prod.yml logs -f api
+export $(grep -v '^#' /data/harbor.env | xargs)
+docker compose --env-file /data/harbor.env -f compose.yml -f compose.prod.yml up -d
+docker compose --env-file /data/harbor.env -f compose.yml -f compose.prod.yml logs -f api
 ```
 
 Wait for `API listening on :4000` (migrations run first). The web app is now at
@@ -114,8 +114,8 @@ Wait for `API listening on :4000` (migrations run first). The web app is now at
 ## 7. Create the first owner
 
 ```sh
-docker compose --env-file /data/trustworthier.env -f compose.yml -f compose.prod.yml \
-  run --rm -e TW_SETUP_PASSWORD='choose-a-long-password' api node dist/setup.js \
+docker compose --env-file /data/harbor.env -f compose.yml -f compose.prod.yml \
+  run --rm -e HARBOR_SETUP_PASSWORD='choose-a-long-password' api node dist/setup.js \
   --email you@example.com --name "Your name"
 ```
 

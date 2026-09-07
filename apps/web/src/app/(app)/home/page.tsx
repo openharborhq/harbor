@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import type { HomeData } from "@trustworthier/shared";
+import type { HomeData } from "@harbor/shared";
 import { TopBar } from "@/components/shell/TopBar";
 import { apiFetch } from "@/lib/api-server";
 import { formatDate, formatRelative } from "@/lib/format";

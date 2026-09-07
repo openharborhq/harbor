@@ -1,0 +1,1 @@
+ALTER TABLE "mail_connections" ADD COLUMN "discovered_folders" text[] DEFAULT '{}' NOT NULL;

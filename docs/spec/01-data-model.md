@@ -36,16 +36,16 @@ document_search      document_id, tsv (GIN)   -- A: title, B: tags+items+notes+c
 
 suggestions          id, document_id, model, payload jsonb, created_at,
                      accepted_at, rejected_at
-mail_connections     id, owner_user_id, label, email_address, auth_kind, provider_hint,
-                     imap_host, imap_port, imap_username,
-                     secret_enc, iv, auth_tag, key_version,
-                     scope_mode (folder|full_mailbox), folders[], write_back, retention_days,
+mail_connections     id, owner_user_id, label, email_address, kind (forwarding|inbox),
+                     provider_hint, imap_host, imap_port, imap_username, secret_enc,
+                     scope_mode (folder|senders), folders[], write_back, retention_days,
+                     backfill_started_at, backfill_completed_at,
                      status, status_detail, last_ok_at, last_sync_at, uidvalidity jsonb
 mail_senders         id, connection_id, from_addr, decision (file|ignore|hold),
-                     default_category_id, default_item_ids[], default_tag_ids[], learned_from
-email_ingest_log     id, connection_id, message_id, imap_uid, tier, from_addr, subject,
-                     status (accepted|held|rejected), raw_blob_key, received_at,
-                     document_ids[]   -- unique (connection_id, message_id)
+                     default_category_slug, default_item_labels[], default_tags[], learned_from
+email_ingest_log     id, connection_id, message_id, imap_uid, folder, tier, from_addr,
+                     subject, status (accepted|held|rejected), held_reason, raw_blob_key,
+                     received_at, document_ids[]  -- unique (connection_id, message_id)
 backup_runs          id, kind (backup|restore_test), status, started_at, finished_at,
                      snapshot_id, bytes, document_count, detail
 audit_log            id, actor_user_id, action, entity_type, entity_id, metadata jsonb,
@@ -65,9 +65,15 @@ audit_log            id, actor_user_id, action, entity_type, entity_id, metadata
   4 Mar — add as new version, or skip?"), but every file gets its own blob and DEK. This
   removes the need for refcounting/GC. See §2.
 - **Mail credentials live in `mail_connections`, encrypted under the KEK** like a DEK —
-  `secret_enc`/`iv`/`auth_tag`/`key_version`, never returned by the API once written. An
-  app password and an OAuth refresh token are the same column; `auth_kind` distinguishes
-  them. See §7.
+  one `secret_enc` column carrying its own key version, exactly as `totp_secret_enc` does, and
+  never returned by the API once written. Every connection is an app password; there is no OAuth
+  in v1 and no column anticipating one (§7.2).
+- **Sender rule defaults are slugs and labels, not ids** — resolved against the current
+  vocabulary when the rule fires, unknown values dropped, like `suggestions.payload`. A deleted
+  category cannot strand a rule.
+- **Unfiled mail is owned, filed documents are shared.** `email_ingest_log` rows are visible
+  only to their connection's `owner_user_id`; the document they produce is not (§7.7).
+  `raw_blob_key` stays NULL on connected inboxes — the vault is not the only copy there.
 - **`documents.source` stays `upload|email`.** Which mailbox a document arrived through is a
   join through `email_ingest_log`, not a new enum value.
 - **`person_key_documents` models absence.** A row with `document_id NULL` renders as

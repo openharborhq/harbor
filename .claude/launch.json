@@ -4,13 +4,13 @@
     {
       "name": "web",
       "runtimeExecutable": "pnpm",
-      "runtimeArgs": ["--filter", "@trustworthier/web", "dev"],
+      "runtimeArgs": ["--filter", "@harbor/web", "dev"],
       "port": 3000
     },
     {
       "name": "api",
       "runtimeExecutable": "pnpm",
-      "runtimeArgs": ["--filter", "@trustworthier/api", "start:dev"],
+      "runtimeArgs": ["--filter", "@harbor/api", "start:dev"],
       "port": 4000
     }
   ]

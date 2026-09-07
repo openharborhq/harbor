@@ -17,7 +17,7 @@ import {
 } from "@nestjs/common";
 import { FileInterceptor } from "@nestjs/platform-express";
 import type { Request, Response } from "express";
-import { AcceptSuggestion, ListDocumentsQuery, UpdateDocument, parseUploadFields, type AcceptAllResult, type ActivityEntry, type DeletedDocument, type DocumentSummary, type DocumentText, type DocumentVersion, type RecentDocument, type SessionUser, type UploadResult } from "@trustworthier/shared";
+import { AcceptSuggestion, BulkDeleteDocuments, ListDocumentsQuery, UpdateDocument, parseUploadFields, type AcceptAllResult, type ActivityEntry, type DeletedDocument, type DocumentSummary, type DocumentText, type DocumentVersion, type RecentDocument, type SessionUser, type UploadResult } from "@harbor/shared";
 import { CurrentUser } from "../auth/current-user.decorator";
 import { ZodPipe } from "../common/zod.pipe";
 import { DocumentsService } from "./documents.service";
@@ -37,7 +37,7 @@ export class DocumentsController {
     } catch (err) {
       throw new BadRequestException(`Invalid upload fields: ${(err as Error).message}`);
     }
-    return this.documents.ingestUpload({ path: file.path, originalName: file.originalname, byteSize: file.size }, fields, user.id, req.ip ?? null);
+    return this.documents.ingest({ path: file.path, originalName: file.originalname, byteSize: file.size }, fields, { userId: user.id, ip: req.ip ?? null });
   }
 
   /** Pre-upload check so the UI can ask "add as new version, or skip?" before sending bytes. */
@@ -95,6 +95,17 @@ export class DocumentsController {
       res.end();
     });
     t.stream.pipe(res);
+  }
+
+  /** Declared before ":id" routes so "bulk-delete" is not read as a document id. */
+  @Post("bulk-delete")
+  @HttpCode(200)
+  bulkDelete(
+    @Body(new ZodPipe(BulkDeleteDocuments)) body: BulkDeleteDocuments,
+    @CurrentUser() user: SessionUser,
+    @Req() req: Request,
+  ): Promise<{ deleted: number }> {
+    return this.documents.bulkSoftDelete(body.ids, user.id, req.ip ?? null);
   }
 
   @Post(":id/reprocess")

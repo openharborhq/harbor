@@ -1,5 +1,5 @@
 import { Injectable, Logger } from "@nestjs/common";
-import { auditLog, type Db } from "@trustworthier/db";
+import { auditLog, type Db } from "@harbor/db";
 import { InjectDb } from "../db/db.module";
 
 export interface AuditEntry {

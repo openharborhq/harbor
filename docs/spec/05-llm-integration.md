@@ -42,9 +42,51 @@ paperwork, and neither the scan nor its title contains the words they would sear
 Bumping `PROMPT_VERSION` re-runs both for existing documents; the unique index on
 `(document_file_id, model, prompt_version)` keeps old rows for comparison.
 
-Implementations: `anthropic` (v1), `none` (v1, heuristics only — sender→item, filename date→document date),
-`ollama` (planned, for operators who want it fully local). Selected by config; the setup wizard
-asks for an Anthropic API key and offers *Skip → none*.
+## Choosing a provider
+
+**The operator picks the model, not the project.** Three implementations, and only three, no
+matter how many services are on the list:
+
+| Provider | Covers | Config |
+|---|---|---|
+| `anthropic` | Claude, via the official SDK | API key |
+| `openai-compatible` | OpenAI, Groq, Together, OpenRouter, DeepSeek, Mistral, **Ollama**, llama.cpp, LM Studio — anything speaking `/v1/chat/completions` | Base URL, model name, optional API key |
+| `none` | Heuristics only — sender→item, filename date→document date | — |
+
+The commercial services are **presets in the settings UI, not code paths**: choosing "Groq"
+fills in a base URL and a model name and then asks for a key. Adding a service is a row in a
+table, never a provider class — the same move as the mail autodiscover list in §7.3. Ollama is
+one of those presets pointing at `http://<host>:11434/v1`, with the key field hidden.
+
+The setup wizard asks which, defaults the key field to *Skip → none*, and runs a live test call
+against a fixed sample document before writing the config. A provider that cannot produce valid
+structured output fails at setup, not on your first real document.
+
+**Fully local is a first-class configuration.** Point `openai-compatible` at Ollama on the LAN
+and no part of this stack talks to the internet at all — the knowing exception in §0 becomes
+opt-in rather than the default. The trade is quality: a 7–8 B local model gives noticeably
+weaker summaries and misses categories a frontier model gets right. That is the operator's call
+to make, which is the point of offering it.
+
+### What differs by provider, honestly
+
+- **Structured output** is `client.messages.parse` + `zodOutputFormat` on Anthropic, and
+  `response_format: { type: "json_schema", strict: true }` on OpenAI-compatible endpoints. Both
+  validate against the *same* Zod schema in `packages/shared`. Many small local models comply
+  loosely; output that fails validation becomes a `null` suggestion, which is already a drawn
+  card state (§4), never a crash and never a half-filled form.
+- **Prompt caching** (`cache_control: ephemeral`, §5's cache-ordered prompt) is Anthropic's.
+  OpenAI caches automatically; most others not at all. The prompt order stays as specified —
+  it costs nothing where caching is absent.
+- **Batch backfill at 50 %** exists on Anthropic and OpenAI, nowhere else. Elsewhere a backfill
+  is serial calls with the same idempotency key.
+- **Refusals** are `stop_reason: "refusal"` on Anthropic and a `refusal` field on OpenAI;
+  everything else just returns something unparseable. All three land on the same `null`.
+- `suggestions` already stores `provider` and `model` separately, and the **unique index now
+  includes `provider`** — `(document_file_id, provider, model, prompt_version)`. Two backends can
+  return the same model string (`gpt-5` direct and through OpenRouter, any Llama tag), and
+  re-running one must not overwrite the other's row. Both rows survive, so the outputs stay
+  comparable.
 
 ## The `anthropic` provider
 
@@ -54,7 +96,10 @@ same one the API validates against. No prompt-parsing of JSON, no prefill.
 
 - **Model:** `claude-opus-5`. Adaptive thinking left on; `output_config.effort: "low"` — this is
   extraction, not reasoning, and low effort on a current model beats disabling thinking.
-  Operators can set `claude-haiku-4-5` for ~5× lower cost.
+  Operators can set `claude-sonnet-5` (~60 % cheaper) or `claude-haiku-4-5` (~80 %) — the task is
+  constrained extraction against a fixed vocabulary with a validated schema, which is where a
+  smaller model gives up least. The judgement calls are what degrade first: the summary reading
+  naturally, the bilingual aliases, and `keep` on a genuinely borderline document.
 - **Prompt shape, in cache order:** stable system prompt (role, output rules, tone) → the vault's
   category list and item labels (changes rarely; `cache_control: ephemeral`) → the
   per-document block: filename, source (`upload` / `email from <addr>`), page count, and the
@@ -89,13 +134,17 @@ reconstructible from `document_text` + those fields; it is not stored twice.
 | Model | Per document | 500-doc backfill (Batches, −50 %) | ~30 docs/month |
 |---|---|---|---|
 | `claude-opus-5` | ≈ $0.018 | ≈ $4.50 | ≈ $0.55 |
+| `claude-sonnet-5` | ≈ $0.007 | ≈ $1.75 | ≈ $0.21 |
 | `claude-haiku-4-5` | ≈ $0.0035 | ≈ $0.90 | ≈ $0.10 |
 
 Prompt caching cuts the system + list portion on repeated calls further. Cost is not a reason
-to skip this; the exposure decision is the only real one, and it is made.
+to skip this; the exposure decision is the only real one, and it is now the operator's to make
+rather than the project's — a local provider costs nothing and sends nothing.
 
 ## Where it runs
 
-The `suggester` container — the only processing container with internet egress, allow-listed
-to `api.anthropic.com`. It reads `document_text`, never blobs, and never runs OCR tooling.
-The OCR `worker` has no route to the internet at all (§3.6).
+The `suggester` container — the only processing container with egress, allow-listed to **the
+configured provider's host and nothing else**. With a local provider that host is on the LAN
+and the container needs no internet route at all. It reads `document_text`, never blobs, and
+never runs OCR tooling. The OCR `worker` has no route to the internet under any configuration
+(§3.6).

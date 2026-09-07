@@ -1,18 +1,18 @@
 # Local development + appliance deployment share this file; the appliance adds compose.prod.yml.
-name: trustworthier
+name: harbor
 
 services:
   postgres:
     image: postgres:16-alpine
     environment:
-      POSTGRES_USER: trustworthier
-      POSTGRES_PASSWORD: trustworthier
-      POSTGRES_DB: trustworthier
+      POSTGRES_USER: harbor
+      POSTGRES_PASSWORD: harbor
+      POSTGRES_DB: harbor
     # Spec §3.3: the data dir holds OCR plaintext and MUST live on the encrypted volume.
-    volumes: ["${TW_DATA_DIR:-../data}/postgres:/var/lib/postgresql/data"]
-    ports: ["127.0.0.1:${TW_PG_PORT:-5432}:5432"]
+    volumes: ["${HARBOR_DATA_DIR:-../data}/postgres:/var/lib/postgresql/data"]
+    ports: ["127.0.0.1:${HARBOR_PG_PORT:-5432}:5432"]
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U trustworthier"]
+      test: ["CMD-SHELL", "pg_isready -U harbor"]
       interval: 5s
       timeout: 3s
       retries: 20
@@ -22,8 +22,8 @@ services:
   redis:
     image: redis:7-alpine
     command: ["redis-server", "--save", "60", "1", "--appendonly", "yes"]
-    volumes: ["${TW_DATA_DIR:-../data}/redis:/data"]
-    ports: ["127.0.0.1:${TW_REDIS_PORT:-6379}:6379"]
+    volumes: ["${HARBOR_DATA_DIR:-../data}/redis:/data"]
+    ports: ["127.0.0.1:${HARBOR_REDIS_PORT:-6379}:6379"]
     networks: [internal, edge]
     restart: unless-stopped
 
@@ -31,13 +31,13 @@ services:
   worker:
     build: { context: .., dockerfile: infra/docker/worker.Dockerfile }
     environment:
-      DATABASE_URL: postgres://trustworthier:trustworthier@postgres:5432/trustworthier
+      DATABASE_URL: postgres://harbor:harbor@postgres:5432/harbor
       REDIS_URL: redis://redis:6379
-      TW_DATA_DIR: /data
-      TW_KEK_FILE: /run/secrets/kek
+      HARBOR_DATA_DIR: /data
+      HARBOR_KEK_FILE: /run/secrets/kek
       OCR_CONCURRENCY: ${OCR_CONCURRENCY:-2}
       OCR_LANGUAGES: ${OCR_LANGUAGES:-deu+eng}
-    volumes: ["${TW_DATA_DIR:-../data}/blobs:/data/blobs", "${TW_DATA_DIR:-../data}/tmp:/data/tmp"]
+    volumes: ["${HARBOR_DATA_DIR:-../data}/blobs:/data/blobs", "${HARBOR_DATA_DIR:-../data}/tmp:/data/tmp"]
     secrets: [kek]
     networks: [internal]
     restart: unless-stopped
@@ -52,19 +52,45 @@ services:
       redis: { condition: service_started }
 
   # Spec §3.6/§5: the only processing container with a route out. Reads document_text, never blobs.
+  mailfetch:
+    build: { context: .., dockerfile: infra/docker/api.Dockerfile }
+    command: ["node", "dist/mailfetch.js"]
+    environment:
+      DATABASE_URL: postgres://harbor:harbor@postgres:5432/harbor
+      REDIS_URL: redis://redis:6379
+      HARBOR_DATA_DIR: /data
+      HARBOR_KEK_FILE: /run/secrets/kek
+      MAIL_SYNC_INTERVAL_SECONDS: ${MAIL_SYNC_INTERVAL_SECONDS:-300}
+      # A self-hosted server or Proton Bridge with a private CA: mount it and point this at it.
+      NODE_EXTRA_CA_CERTS: ${NODE_EXTRA_CA_CERTS:-}
+    secrets: [kek]
+    volumes: ["${HARBOR_DATA_DIR:-../data}/blobs:/data/blobs", "${HARBOR_DATA_DIR:-../data}/tmp:/data/tmp"]
+    # edge because IMAP hosts are outside; it holds mail credentials and reaches nothing else (§3.6).
+    networks: [internal, edge]
+    restart: unless-stopped
+    read_only: true
+    tmpfs: ["/tmp"]
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_started }
+
   suggester:
     build: { context: .., dockerfile: infra/docker/api.Dockerfile }
     command: ["node", "dist/suggester.js"]
     environment:
-      DATABASE_URL: postgres://trustworthier:trustworthier@postgres:5432/trustworthier
+      DATABASE_URL: postgres://harbor:harbor@postgres:5432/harbor
       REDIS_URL: redis://redis:6379
-      TW_DATA_DIR: /data
-      TW_KEK_FILE: /run/secrets/kek
+      HARBOR_DATA_DIR: /data
+      HARBOR_KEK_FILE: /run/secrets/kek
       SUGGEST_PROVIDER: ${SUGGEST_PROVIDER:-none}
       SUGGEST_MODEL: ${SUGGEST_MODEL:-claude-opus-5}
+      SUGGEST_BASE_URL: ${SUGGEST_BASE_URL:-}
       SUGGEST_SEND_PEOPLE: ${SUGGEST_SEND_PEOPLE:-true}
       SUGGEST_READER_LANGUAGE: ${SUGGEST_READER_LANGUAGE:-en}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      SUGGEST_API_KEY: ${SUGGEST_API_KEY:-}
     secrets: [kek]
     networks: [internal, edge]
     restart: unless-stopped
@@ -79,13 +105,13 @@ services:
   api:
     build: { context: .., dockerfile: infra/docker/api.Dockerfile }
     environment:
-      DATABASE_URL: postgres://trustworthier:trustworthier@postgres:5432/trustworthier
+      DATABASE_URL: postgres://harbor:harbor@postgres:5432/harbor
       REDIS_URL: redis://redis:6379
-      TW_DATA_DIR: /data
-      TW_KEK_FILE: /run/secrets/kek
+      HARBOR_DATA_DIR: /data
+      HARBOR_KEK_FILE: /run/secrets/kek
       API_PORT: "4000"
       WEB_ORIGIN: ${WEB_ORIGIN:-http://localhost:3000}
-    volumes: ["${TW_DATA_DIR:-../data}/blobs:/data/blobs", "${TW_DATA_DIR:-../data}/tmp:/data/tmp"]
+    volumes: ["${HARBOR_DATA_DIR:-../data}/blobs:/data/blobs", "${HARBOR_DATA_DIR:-../data}/tmp:/data/tmp"]
     secrets: [kek]
     networks: [internal, edge]
     restart: unless-stopped
@@ -104,7 +130,7 @@ services:
 
 secrets:
   kek:
-    file: ${TW_DATA_DIR:-../data}/secrets/kek
+    file: ${HARBOR_DATA_DIR:-../data}/secrets/kek
 
 networks:
   # No route to the internet. Postgres, Redis, worker and api only.

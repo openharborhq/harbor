@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ACTIVE_ITEM_KINDS, ITEM_KIND_LABEL, itemSubtitle, type Item } from "@trustworthier/shared";
+import { ACTIVE_ITEM_KINDS, ITEM_KIND_LABEL, itemSubtitle, type Item } from "@harbor/shared";
 import { TopBar } from "@/components/shell/TopBar";
 import { EmptyState } from "@/components/EmptyState";
 import { apiFetch } from "@/lib/api-server";

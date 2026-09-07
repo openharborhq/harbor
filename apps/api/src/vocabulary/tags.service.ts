@@ -1,7 +1,7 @@
 import { Injectable } from "@nestjs/common";
 import { eq, inArray, sql } from "drizzle-orm";
-import { documentTags, tags, type Db } from "@trustworthier/db";
-import { slugify } from "@trustworthier/shared";
+import { documentTags, tags, type Db } from "@harbor/db";
+import { slugify } from "@harbor/shared";
 import { InjectDb } from "../db/db.module";
 
 type Tx = Parameters<Parameters<Db["transaction"]>[0]>[0];

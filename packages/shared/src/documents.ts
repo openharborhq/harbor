@@ -20,6 +20,8 @@ export const DocumentSummary = z.object({
   id: z.string().uuid(),
   title: z.string(),
   source: DocumentSource,
+  /** Who emailed it, for `source = "email"`. Null for uploads. */
+  mailFrom: z.string().nullable(),
   createdAt: z.string().datetime(),
   /** Bumped by edits and new versions; the Inbox orders by this so a re-upload surfaces. */
   updatedAt: z.string().datetime(),
@@ -141,3 +143,37 @@ export const ListDocumentsQuery = z.object({
   limit: z.coerce.number().int().min(1).max(500).default(200),
 });
 export type ListDocumentsQuery = z.infer<typeof ListDocumentsQuery>;
+
+/**
+ * The title a document gets from its filename at intake (spec §2 stage 0) — `INV-2026-00417`,
+ * `R-2026-0147`. Placeholder, not a name.
+ *
+ * Shared rather than duplicated because `displayTitle` below has to recognise one, and a second
+ * copy that drifted would make it stop recognising them.
+ */
+export function titleFromFilename(name: string): string {
+  const base = (name.split(/[\\/]/).pop() ?? name).replace(/\.[a-z0-9]{2,5}$/i, "");
+  const cleaned = base.replace(/[_\-.]+/g, " ").replace(/\s+/g, " ").trim();
+  return (cleaned || "Untitled document").slice(0, 120);
+}
+
+/**
+ * What to call a document on screen — one rule, used everywhere a document is named, so the Inbox
+ * card and the document it opens can never disagree.
+ *
+ * A stored title that is still exactly what the filename produced is a placeholder nobody chose,
+ * so a pending suggestion's title is better and wins. Anything else is a title someone settled on
+ * — typed by hand, or copied over by accepting a suggestion — and nothing overrides it.
+ *
+ * This keeps §5 intact: the model's title is displayed, never written to `documents`, and the
+ * moment a person types their own it takes over for good.
+ */
+export function displayTitle(doc: Pick<DocumentSummary, "title" | "file" | "suggestion">): string {
+  const suggested = doc.suggestion && !doc.suggestion.acceptedAt && !doc.suggestion.rejectedAt ? doc.suggestion.payload.title?.trim() : null;
+  if (!suggested) return doc.title;
+  return doc.title === titleFromFilename(doc.file.originalFilename) ? suggested : doc.title;
+}
+
+/** Clearing out a batch at once — the Inbox's answer to a backfill that filed more than you want. */
+export const BulkDeleteDocuments = z.object({ ids: z.array(z.string().uuid()).min(1).max(500) });
+export type BulkDeleteDocuments = z.infer<typeof BulkDeleteDocuments>;

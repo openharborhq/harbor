@@ -1,6 +1,6 @@
 import { Injectable } from "@nestjs/common";
 import { sql, type SQL } from "drizzle-orm";
-import type { Db } from "@trustworthier/db";
+import type { Db } from "@harbor/db";
 import { InjectDb } from "../db/db.module";
 import { MAX_INDEXED_CHARS } from "../processing/text-quality";
 import { TS_CONFIGS } from "./ts-config";

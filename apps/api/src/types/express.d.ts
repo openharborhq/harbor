@@ -1,4 +1,4 @@
-import type { SessionUser } from "@trustworthier/shared";
+import type { SessionUser } from "@harbor/shared";
 import type { ResolvedSession } from "../auth/auth.service";
 
 declare global {

@@ -8,6 +8,7 @@ import { DbModule } from "./db/db.module";
 import { DocumentsModule } from "./documents/documents.module";
 import { HealthController } from "./health/health.controller";
 import { HomeModule } from "./home/home.module";
+import { MailModule } from "./mail/mail.module";
 import { QueueModule } from "./queue/queue.module";
 import { SearchModule } from "./search/search.module";
 import { StorageModule } from "./storage/storage.module";
@@ -32,6 +33,7 @@ import { VocabularyModule } from "./vocabulary/vocabulary.module";
     DocumentsModule,
     SearchModule,
     HomeModule,
+    MailModule,
   ],
   controllers: [HealthController],
 })

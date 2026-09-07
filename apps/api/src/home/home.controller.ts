@@ -1,5 +1,5 @@
 import { Controller, Get } from "@nestjs/common";
-import type { HomeData } from "@trustworthier/shared";
+import type { HomeData } from "@harbor/shared";
 import { HomeService } from "./home.service";
 
 @Controller("home")

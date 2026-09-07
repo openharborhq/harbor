@@ -4,7 +4,7 @@ import { ConfigModule } from "@nestjs/config";
 import { NestFactory } from "@nestjs/core";
 import { UnrecoverableError, Worker, type Job } from "bullmq";
 import type IORedis from "ioredis";
-import { closeDb, createDb, runMigrations, type Db } from "@trustworthier/db";
+import { closeDb, createDb, runMigrations, type Db } from "@harbor/db";
 import { AuditModule } from "./audit/audit.module";
 import { loadEnv } from "./config/env";
 import { CryptoModule } from "./crypto/crypto.module";

@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ITEM_KIND_LABEL, itemSubtitle, type DocumentSummary, type Item, type KeyDocumentSlot } from "@trustworthier/shared";
+import { ITEM_KIND_LABEL, itemSubtitle, type DocumentSummary, type Item, type KeyDocumentSlot } from "@harbor/shared";
 import { DocThumb } from "@/components/DocThumb";
 import { StatusPill } from "@/components/StatusPill";
+import { BackLink } from "@/components/BackLink";
 import { TopBar } from "@/components/shell/TopBar";
 import { ApiError, apiFetch } from "@/lib/api-server";
 import { ageFrom, formatDate, formatRelative } from "@/lib/format";
@@ -43,9 +44,9 @@ export default async function ItemPage(props: PageProps<"/items/[id]">) {
           <div className="flex size-[88px] items-center justify-center rounded-pill bg-surface text-[32px] font-semibold text-muted">{itemGlyph(item.kind, item.label)}</div>
           <div>
             <div className="flex items-center gap-2 text-small font-medium">
-              <Link href="/items" className="text-accent">
+              <BackLink href="/items" className="text-accent">
                 ← People &amp; things
-              </Link>
+              </BackLink>
               {item.parentId && (
                 <>
                   <span className="text-muted">/</span>

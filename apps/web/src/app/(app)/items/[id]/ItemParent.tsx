@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { ITEM_KIND_LABEL, type Item } from "@trustworthier/shared";
+import { ITEM_KIND_LABEL, type Item } from "@harbor/shared";
 import { api } from "@/lib/api-client";
 
 /**

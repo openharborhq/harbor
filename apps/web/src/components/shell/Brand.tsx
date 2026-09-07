@@ -7,7 +7,7 @@ export function Brand({ className = "" }: { className?: string }) {
           <path d="M7.5 1.1 13 3.05v4.6c0 3.2-2.13 5.9-5.5 7.25C4.13 13.55 2 10.85 2 7.65v-4.6L7.5 1.1Z" stroke="white" strokeWidth="1.6" strokeLinejoin="round" />
         </svg>
       </div>
-      <span className="text-section font-semibold tracking-snug">Trustworthier</span>
+      <span className="text-section font-semibold tracking-snug">Harbor</span>
     </div>
   );
 }

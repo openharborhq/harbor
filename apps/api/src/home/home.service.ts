@@ -1,7 +1,7 @@
 import { Injectable } from "@nestjs/common";
 import { and, asc, desc, eq, gte, inArray, isNull, lte, sql } from "drizzle-orm";
-import { documentItems, documents, items, type Db } from "@trustworthier/db";
-import { itemSubtitle, type HomeData, type Item } from "@trustworthier/shared";
+import { documentItems, documents, items, type Db } from "@harbor/db";
+import { itemSubtitle, type HomeData, type Item } from "@harbor/shared";
 import { InjectDb } from "../db/db.module";
 import { CategoriesService } from "../vocabulary/categories.service";
 import { ItemsService } from "../vocabulary/items.service";

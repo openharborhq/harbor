@@ -1,4 +1,4 @@
-import type { ItemKind } from "@trustworthier/shared";
+import type { ItemKind } from "@harbor/shared";
 
 /** Kind glyphs for the FOR control, traced from the Paper artboard "Inbox — For people and things". */
 export function ItemIcon({ kind, size = 13, className = "" }: { kind: ItemKind; size?: number; className?: string }) {

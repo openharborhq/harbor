@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
-import Link from "next/link";
-import type { DeletedDocument } from "@trustworthier/shared";
+import type { DeletedDocument } from "@harbor/shared";
 import { EmptyState } from "@/components/EmptyState";
+import { BackLink } from "@/components/BackLink";
 import { TopBar } from "@/components/shell/TopBar";
 import { apiFetch } from "@/lib/api-server";
 import { formatRelative } from "@/lib/format";
@@ -16,9 +16,9 @@ export default async function DeletedPage() {
       <TopBar />
       <main className="flex max-w-[1192px] flex-col gap-8 px-14 py-14">
         <div>
-          <Link href="/library" className="text-small font-medium text-accent">
+          <BackLink href="/library" className="text-small font-medium text-accent">
             ← Library
-          </Link>
+          </BackLink>
           <h1 className="mt-2 text-title font-bold tracking-snug">Recently deleted</h1>
           <p className="mt-1.5 text-body text-muted">Deleted documents stay here, encrypted, until they are purged. Restore puts them back exactly as they were.</p>
         </div>

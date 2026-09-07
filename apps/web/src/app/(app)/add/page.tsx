@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import type { Category, Item } from "@trustworthier/shared";
+import type { Category, Item } from "@harbor/shared";
 import { UploadQueue } from "@/components/UploadQueue";
 import { TopBar } from "@/components/shell/TopBar";
 import { apiFetch } from "@/lib/api-server";

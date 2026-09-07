@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { Category, DocumentSummary, Item, UploadResult } from "@trustworthier/shared";
+import type { Category, DocumentSummary, Item, UploadResult } from "@harbor/shared";
 import { ItemPicker } from "./ItemPicker";
 import { api, sha256Hex, uploadFile } from "@/lib/api-client";
 import { formatBytes, formatDate } from "@/lib/format";

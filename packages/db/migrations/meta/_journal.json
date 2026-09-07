@@ -78,6 +78,41 @@
       "when": 1788773937513,
       "tag": "0010_amazing_black_crow",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1788776102263,
+      "tag": "0011_uneven_bromley",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1788776918303,
+      "tag": "0012_lethal_silhouette",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1788777927318,
+      "tag": "0013_thin_zarek",
+      "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1788784932928,
+      "tag": "0014_supreme_ogun",
+      "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "7",
+      "when": 1788788916306,
+      "tag": "0015_legal_the_professor",
+      "breakpoints": true
     }
   ]
 }

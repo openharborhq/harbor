@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import type { AcceptAllResult } from "@trustworthier/shared";
+import type { AcceptAllResult } from "@harbor/shared";
 import { api } from "@/lib/api-client";
 
 export function AcceptAll({ eligible }: { eligible: number }) {

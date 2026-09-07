@@ -55,7 +55,7 @@ docs/
 4. [x] `apps/api` auth: `setup` CLI command creates the first owner (argon2 + TOTP secret, prints
        otpauth URI + recovery codes). `/auth/login` → password check → `/auth/totp` → session cookie.
        Guard on every other route. `audit_log` writes.
-5. [x] `apps/api` crypto + storage: `CryptoService` (KEK from `TW_KEK_FILE`, wrap/unwrap DEK,
+5. [x] `apps/api` crypto + storage: `CryptoService` (KEK from `HARBOR_KEK_FILE`, wrap/unwrap DEK,
        encrypt/decrypt streams), `BlobStore` (write ciphertext to `/data/blobs/<uuid>`, fsync).
 6. [x] `apps/api` ingest: `POST /documents` multipart → temp file → sha256 → duplicate check →
        encrypt → `documents` + `document_files(processing_status=queued)` → enqueue `process-file`.

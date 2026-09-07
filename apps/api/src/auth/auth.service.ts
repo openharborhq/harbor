@@ -9,8 +9,8 @@ import { ConfigService } from "@nestjs/config";
 import argon2 from "argon2";
 import { authenticator } from "otplib";
 import { and, eq, isNull, sql } from "drizzle-orm";
-import { invites, sessions, users, type Db } from "@trustworthier/db";
-import type { AcceptInviteResult, InviteInfo, OwnerInfo, SessionInfo, SessionUser } from "@trustworthier/shared";
+import { invites, sessions, users, type Db } from "@harbor/db";
+import type { AcceptInviteResult, InviteInfo, OwnerInfo, SessionInfo, SessionUser } from "@harbor/shared";
 import { AuditService } from "../audit/audit.service";
 import type { Env } from "../config/env";
 import { CryptoService } from "../crypto/crypto.service";
@@ -92,7 +92,7 @@ export class AuthService {
     await this.audit.record({ action: "auth.owner_created", actorUserId: user!.id, entityType: "user", entityId: user!.id });
     return {
       userId: user!.id,
-      otpauthUri: authenticator.keyuri(email, "Trustworthier", totpSecret),
+      otpauthUri: authenticator.keyuri(email, "Harbor", totpSecret),
       recoveryCodes: codes,
     };
   }

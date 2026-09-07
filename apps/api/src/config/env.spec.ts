@@ -5,8 +5,8 @@ import { loadEnv } from "./env";
 const base = {
   DATABASE_URL: "postgres://u:p@localhost:5432/db",
   REDIS_URL: "redis://localhost:6379",
-  TW_KEK_FILE: "/run/secrets/kek",
-  TW_DATA_DIR: "/data",
+  HARBOR_KEK_FILE: "/run/secrets/kek",
+  HARBOR_DATA_DIR: "/data",
 };
 
 test("loadEnv applies defaults", () => {
@@ -17,6 +17,6 @@ test("loadEnv applies defaults", () => {
 });
 
 test("loadEnv rejects a missing KEK path with a readable message", () => {
-  const { TW_KEK_FILE: _omit, ...rest } = base;
-  assert.throws(() => loadEnv(rest), /TW_KEK_FILE/);
+  const { HARBOR_KEK_FILE: _omit, ...rest } = base;
+  assert.throws(() => loadEnv(rest), /HARBOR_KEK_FILE/);
 });

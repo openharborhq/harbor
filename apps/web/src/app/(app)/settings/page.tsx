@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
-import type { InviteInfo, OwnerInfo, SessionInfo } from "@trustworthier/shared";
+import Link from "next/link";
+import type { InviteInfo, OwnerInfo, SessionInfo } from "@harbor/shared";
 import { TopBar } from "@/components/shell/TopBar";
 import { apiFetch, currentUser } from "@/lib/api-server";
 import { formatDate, formatRelative, isFuture } from "@/lib/format";
@@ -24,7 +25,7 @@ export default async function SettingsPage() {
       <main className="flex max-w-[1192px] flex-col gap-10 px-14 py-14">
         <div>
           <h1 className="text-title font-bold tracking-snug">Settings</h1>
-          <p className="mt-1.5 text-body text-muted">Account and household. Backups, email forwarding and the appliance panel arrive with their milestones.</p>
+          <p className="mt-1.5 text-body text-muted">Account, household and mailboxes. Backups and the appliance panel arrive with their milestones.</p>
         </div>
 
         <Panel title="Your account">
@@ -70,6 +71,14 @@ export default async function SettingsPage() {
           <div className="border-t border-border pt-4">
             <InviteForm />
           </div>
+        </Panel>
+
+        <Panel title="Email" sub="Connect a mailbox and the vault offers to file the paperwork that arrives in it.">
+          <Row
+            k="Mailboxes"
+            v={<Link href="/settings/mail" className="text-accent underline underline-offset-2">Email connections</Link>}
+            hint="Reads over IMAP with an app password you issue. It never deletes, moves or marks anything as read, and nothing is filed until you approve a sender."
+          />
         </Panel>
 
         <Panel title="Signed-in devices" sub="Sessions last 30 days and renew while in use. Revoke anything you don't recognise.">

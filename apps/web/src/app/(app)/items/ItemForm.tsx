@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { ITEM_DETAIL_FIELDS, ITEM_KIND_LABEL, NESTABLE_ITEM_KINDS, type Item, type ItemKind } from "@trustworthier/shared";
+import { ITEM_DETAIL_FIELDS, ITEM_KIND_LABEL, NESTABLE_ITEM_KINDS, type Item, type ItemKind } from "@harbor/shared";
 import { api } from "@/lib/api-client";
 
 const NESTABLE = new Set<string>(NESTABLE_ITEM_KINDS);

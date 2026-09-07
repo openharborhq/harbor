@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import type { InviteInfo, RecoveryCodesResult } from "@trustworthier/shared";
+import type { InviteInfo, RecoveryCodesResult } from "@harbor/shared";
 import { api } from "@/lib/api-client";
 
 const input = "h-10 w-full rounded-md border border-border-strong px-3 text-row";

@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 
 /**
@@ -14,6 +15,8 @@ export function DocThumb({
   height,
   dim = false,
   className = "",
+  href,
+  label,
 }: {
   documentId: string;
   hasThumbnail: boolean;
@@ -23,13 +26,18 @@ export function DocThumb({
   height: number;
   dim?: boolean;
   className?: string;
+  /** Makes the preview open something. A page of a document looks clickable, so it should be. */
+  href?: string;
+  /** The document's title. A link whose only content is a decorative image has no name without it. */
+  label?: string;
 }) {
   const [failed, setFailed] = useState(false);
   const show = hasThumbnail && !failed;
-  return (
+
+  const preview = (
     <div
       style={{ width, height }}
-      className={`shrink-0 overflow-hidden rounded-md border border-border bg-ground ${dim ? "opacity-55" : ""} ${className}`}
+      className={`overflow-hidden rounded-md border border-border bg-ground ${dim ? "opacity-55" : ""} ${href ? "transition-colors group-hover:border-border-strong" : ""} ${className}`}
     >
       {show ? (
         // eslint-disable-next-line @next/next/no-img-element
@@ -38,6 +46,13 @@ export function DocThumb({
         <Placeholder scale={width / 200} />
       )}
     </div>
+  );
+
+  if (!href) return <div className="shrink-0">{preview}</div>;
+  return (
+    <Link href={href} aria-label={label ? `Open ${label}` : "Open document"} className="group shrink-0 rounded-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent">
+      {preview}
+    </Link>
   );
 }
 

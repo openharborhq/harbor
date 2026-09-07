@@ -1,0 +1,1 @@
+ALTER TABLE "mail_connections" ADD COLUMN "backfill_months" integer;

@@ -2,8 +2,8 @@ import { Inject, Injectable, Logger } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { and, desc, eq, inArray } from "drizzle-orm";
 import { readFileSync } from "node:fs";
-import { categories, documentFiles, documentText, documents, suggestions, tags, type Db } from "@trustworthier/db";
-import { SuggestionPayload, type SuggestionView } from "@trustworthier/shared";
+import { categories, documentFiles, documentText, documents, suggestions, tags, type Db } from "@harbor/db";
+import { SuggestionPayload, type SuggestionView } from "@harbor/shared";
 import type { Env } from "../config/env";
 import { InjectDb } from "../db/db.module";
 import { SearchIndexService } from "../search/search-index.service";
@@ -11,17 +11,33 @@ import { CategoriesService } from "../vocabulary/categories.service";
 import { ItemsService } from "../vocabulary/items.service";
 import { AnthropicProvider } from "./anthropic.provider";
 import { NoneProvider } from "./none.provider";
+import { OpenAiCompatibleProvider } from "./openai-compatible.provider";
 import { PROMPT_VERSION, TEXT_CHARS, type SuggestInput, type SuggestionProvider } from "./provider";
 
 export const SUGGESTION_PROVIDER = Symbol("SUGGESTION_PROVIDER");
 
 export function buildProvider(config: ConfigService<Env, true>): SuggestionProvider {
   const kind = config.get("SUGGEST_PROVIDER", { infer: true });
+  const model = config.get("SUGGEST_MODEL", { infer: true });
   if (kind === "none") return new NoneProvider();
-  const keyFile = config.get("ANTHROPIC_API_KEY_FILE", { infer: true });
-  const apiKey = keyFile ? readFileSync(keyFile, "utf8").trim() : (process.env.ANTHROPIC_API_KEY ?? "");
+
+  if (kind === "openai-compatible") {
+    const baseUrl = config.get("SUGGEST_BASE_URL", { infer: true });
+    if (!baseUrl) throw new Error("SUGGEST_PROVIDER=openai-compatible but no SUGGEST_BASE_URL (e.g. http://ollama:11434/v1)");
+    // Optional on purpose: a model served on the LAN has nothing to authenticate.
+    const apiKey = readKey(config.get("SUGGEST_API_KEY_FILE", { infer: true }), "SUGGEST_API_KEY");
+    return new OpenAiCompatibleProvider(baseUrl, apiKey, model);
+  }
+
+  const apiKey = readKey(config.get("ANTHROPIC_API_KEY_FILE", { infer: true }), "ANTHROPIC_API_KEY");
   if (!apiKey) throw new Error("SUGGEST_PROVIDER=anthropic but no key: set ANTHROPIC_API_KEY_FILE (Docker secret) or ANTHROPIC_API_KEY");
-  return new AnthropicProvider(apiKey, config.get("SUGGEST_MODEL", { infer: true }));
+  return new AnthropicProvider(apiKey, model);
+}
+
+/** Docker secret first, environment second (spec §3.7: keys are secrets, not env vars, in production). */
+function readKey(file: string | undefined, envVar: string): string | null {
+  const key = file ? readFileSync(file, "utf8").trim() : (process.env[envVar] ?? "").trim();
+  return key || null;
 }
 
 @Injectable()
@@ -95,7 +111,7 @@ export class SuggestService {
           outputTokens: out.outputTokens,
         })
         .onConflictDoUpdate({
-          target: [suggestions.documentFileId, suggestions.model, suggestions.promptVersion],
+          target: [suggestions.documentFileId, suggestions.provider, suggestions.model, suggestions.promptVersion],
           set: { payload, textChars: input.text.length, inputTokens: out.inputTokens, outputTokens: out.outputTokens, createdAt: new Date(), acceptedAt: null, rejectedAt: null },
         })
         .returning({ id: suggestions.id });

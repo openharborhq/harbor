@@ -29,6 +29,15 @@ export const documents = pgTable(
     documentDate: date("document_date"),
     expiresAt: date("expires_at"),
     source: text("source", { enum: ["upload", "email"] }).notNull(),
+    /**
+     * Who emailed it, when `source = email` (spec §7).
+     *
+     * Denormalised on purpose. This lived only in `email_ingest_log.document_ids` — a join through
+     * an array column, in a table §7.8 treats as prunable — so pruning the log silently orphaned
+     * documents from their sender, and with it every "never file from this sender" affordance.
+     * How a document arrived is a fact about the document and does not belong somewhere disposable.
+     */
+    mailFrom: text("mail_from"),
     createdBy: uuid("created_by").references(() => users.id),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),

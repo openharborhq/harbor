@@ -1,4 +1,4 @@
-# trustworthier — Design Spec
+# harbor — Design Spec
 
 Self-hosted family document vault. A personal replacement for Trustworthy.com,
 run on hardware you own, open source.
@@ -24,8 +24,8 @@ Status: **design complete, pre-implementation.** UI designed in Paper
 | Stack | Turborepo: `apps/web` (Next, App Router), `apps/api` (Nest: REST + BullMQ worker), `packages/shared` (Zod). Postgres + `tsvector`. Redis. Docker Compose. |
 | Hosting | a spare **Protectli**, dedicated to this (not a firewall). Linux + Docker Compose. Reached over Tailscale only. Nothing rented. Disk unlocked by **passphrase at boot** (TPM auto-unlock is an opt-in setting). |
 | OCR | `OCRmyPDF` (Tesseract) as a subprocess in an isolated worker container. |
-| Suggestions | **LLM summarization + suggestions are a v1 feature** via a `SuggestionProvider` interface; `anthropic` (Claude, structured outputs) is the primary implementation, `none` the heuristic fallback, `ollama` planned. A knowing exception to the no-cloud rule: ~4k chars of OCR text per document goes to the provider. See §5. |
-| Ingest | Web bulk upload; email-in via **IMAP** (never inbound SMTP) — both a forwarding mailbox and a connected inbox (§7). OAuth only for Microsoft, via device code; no URL is hardcoded. Phone capture **parked** — phones scan with their own scanner and email the result. |
+| Suggestions | **LLM summarization + suggestions are a v1 feature** via a `SuggestionProvider` interface. Three implementations: `anthropic`, `openai-compatible` (OpenAI, Groq, OpenRouter, **Ollama**, llama.cpp — commercial services are settings presets, not code paths) and `none`. **The operator picks**, including fully local, in which case nothing leaves the house. With a hosted provider it is a knowing exception to the no-cloud rule: ~4k chars of OCR text per document. See §5. |
+| Ingest | Web bulk upload; email-in via **IMAP with an app password** (never inbound SMTP, never OAuth) — both a forwarding mailbox and a connected inbox (§7). Outlook/M365 unsupported by design. Phone capture **parked** — phones scan with their own scanner and email the result. |
 | Encryption | LUKS volume → app KEK → per-file DEKs. Encrypted offsite backups via restic. No E2EE (server-side OCR/search need plaintext). |
 | Open source | Multi-arch images, no telemetry, no secrets in repo, SECURITY.md threat model, printed restore runbook. License **AGPL-3.0**. |
 

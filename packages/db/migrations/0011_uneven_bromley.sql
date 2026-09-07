@@ -1,0 +1,2 @@
+DROP INDEX IF EXISTS "suggestions_file_model_idx";--> statement-breakpoint
+CREATE UNIQUE INDEX IF NOT EXISTS "suggestions_file_model_idx" ON "suggestions" USING btree ("document_file_id","provider","model","prompt_version");

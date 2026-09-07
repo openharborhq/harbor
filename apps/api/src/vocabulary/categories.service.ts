@@ -1,7 +1,7 @@
 import { BadRequestException, Injectable, Logger, NotFoundException } from "@nestjs/common";
 import { and, asc, eq, inArray, isNull, sql } from "drizzle-orm";
-import { categories, documents, tags, type Db } from "@trustworthier/db";
-import { categoryPath, slugify, type Category, type CreateCategory } from "@trustworthier/shared";
+import { categories, documents, tags, type Db } from "@harbor/db";
+import { categoryPath, slugify, type Category, type CreateCategory } from "@harbor/shared";
 import { AuditService } from "../audit/audit.service";
 import { InjectDb } from "../db/db.module";
 import { SearchIndexService } from "../search/search-index.service";

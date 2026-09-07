@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import type { AcceptInviteResult } from "@trustworthier/shared";
+import type { AcceptInviteResult } from "@harbor/shared";
 import { api } from "@/lib/api-client";
 
 export function JoinForm({ token, email }: { token: string; email: string }) {
