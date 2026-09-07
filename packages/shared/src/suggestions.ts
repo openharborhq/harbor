@@ -23,6 +23,11 @@ export const SuggestionPayload = z.object({
   expiresAt: z.string().nullable(),
   /** From the offered tags only, ≤ 3. */
   tags: z.array(z.string()).max(3),
+  /**
+   * Other names a reader might search this document by, in the document's language *and* the
+   * reader's — "birth certificate" for an Abstammungsurkunde (spec §5). Indexed, never displayed.
+   */
+  aliases: z.array(z.string().max(60)).max(8),
   /** Language the document is written in, ISO 639-1. */
   language: z.string().max(8),
   confidence: z.enum(["high", "medium", "low"]),

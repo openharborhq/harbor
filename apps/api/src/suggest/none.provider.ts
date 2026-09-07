@@ -23,6 +23,7 @@ export class NoneProvider implements SuggestionProvider {
       documentDate,
       expiresAt: null,
       tags: [],
+      aliases: [],
       language: /\b(rechnung|versicherung|vertrag|bescheinigung)\b/.test(haystack) ? "de" : "en",
       confidence: categorySlug && itemLabels.length ? "medium" : "low",
     };

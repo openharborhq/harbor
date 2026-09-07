@@ -32,6 +32,7 @@ test("none provider: category from keywords, person from text, date from filenam
   assert.deepEqual(out.payload.itemLabels, ["Anna"]);
   assert.equal(out.payload.documentDate, "2026-08-01");
   assert.equal(out.payload.summary, "");
+  assert.deepEqual(out.payload.aliases, [], "heuristics can't know synonyms");
   assert.equal(out.payload.confidence, "medium");
   assert.ok(SuggestionPayload.safeParse(out.payload).success, "payload validates against the shared schema");
 });
@@ -55,6 +56,7 @@ test("anthropic provider: structured output is validated, usage is summed, refus
     documentDate: "2026-08-01",
     expiresAt: "2026-09-15",
     tags: [],
+    aliases: ["electricity bill", "Stromrechnung", "utility bill"],
     language: "de",
     confidence: "high",
   };
@@ -79,6 +81,8 @@ test("anthropic provider: structured output is validated, usage is summed, refus
   assert.match(req.system[1]!.text, /real-estate\/utilities/);
   assert.match(req.system[1]!.text, /Musterstraße 7 \(property\)/);
   assert.match(req.messages[0]!.content, /Stadtwerke/);
+  assert.deepEqual(out.payload.aliases, ["electricity bill", "Stromrechnung", "utility bill"], "search aliases survive validation");
+  assert.match(req.system[0]!.text, /aliases:/, "the prompt asks for aliases");
 
   const refusing = { messages: { parse: async () => ({ stop_reason: "refusal", stop_details: { category: "test" }, parsed_output: null, usage: { input_tokens: 0, output_tokens: 0 } }) } };
   assert.equal(await new AnthropicProvider("sk-test", "claude-opus-5", refusing as never).suggest(input), null);

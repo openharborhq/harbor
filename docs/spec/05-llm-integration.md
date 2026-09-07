@@ -13,6 +13,7 @@ One `suggestions` row per current `document_files` row, from a single structured
 | `title` | ≤ 60 chars, human, no filename noise | Inbox, Library |
 | `category_slug` | **must be one of the vault's existing categories** or `null`; `new_category_hint` is a free-text side channel, never auto-created | FILE TO prefill |
 | `item_labels[]` | subset of the vault's item list (people and things) | FOR prefill |
+| `aliases[]` | ≤ 6 other names for this *kind* of document, in the document's language and the reader's | search only, never shown |
 | `document_date`, `expires_at` | ISO dates or `null`; expiry only when the document states one | Home *Expiring soon*, item tables |
 | `tags[]` | ≤ 3, from existing tags only | Detail |
 | `confidence` | `high` / `medium` / `low` | *Accept all suggestions* takes `high` only |
@@ -28,10 +29,18 @@ interface SuggestionProvider {
 }
 ```
 
-The summary is written in the reader's language, which makes it the **bridge across languages**:
-a household that reads English keeps German paperwork, and the summary is the only English
-description an Abstammungsurkunde has. It is indexed at weight C for exactly that reason —
-searching "birth certificate" finds nothing without it.
+Two fields exist only to bridge languages: a household that reads English keeps German
+paperwork, and neither the scan nor its title contains the words they would search for.
+
+- **`summary`** is written in the reader's language, so it is the only English description an
+  Abstammungsurkunde has. Indexed at weight C.
+- **`aliases`** names the *document type* in both languages — for an Abstammungsurkunde the
+  model returns "birth certificate", "Geburtsurkunde", "certificate of descent". Indexed at
+  weight B, never displayed. The summary only helps when it happens to use the searched word;
+  aliases are asked for directly, so they do not depend on luck.
+
+Bumping `PROMPT_VERSION` re-runs both for existing documents; the unique index on
+`(document_file_id, model, prompt_version)` keeps old rows for comparison.
 
 Implementations: `anthropic` (v1), `none` (v1, heuristics only — sender→item, filename date→document date),
 `ollama` (planned, for operators who want it fully local). Selected by config; the setup wizard

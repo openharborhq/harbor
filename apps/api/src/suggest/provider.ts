@@ -31,5 +31,5 @@ export interface SuggestionProvider {
 }
 
 /** Bump when the prompt or schema changes so old suggestions can be told apart and re-run. */
-export const PROMPT_VERSION = 2;
+export const PROMPT_VERSION = 3;
 export const TEXT_CHARS = 4000;

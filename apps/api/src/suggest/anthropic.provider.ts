@@ -72,6 +72,7 @@ Rules:
 - documentDate: the date the document is dated (issue date), ISO YYYY-MM-DD, or null.
 - expiresAt: only when the document itself states an expiry, renewal or due date that matters to keeping it (passport expiry, policy end, registration renewal). Payment due dates on bills count. Otherwise null.
 - tags: up to three from the TAGS list only; empty if none apply.
+- aliases: up to six other names a member of this household might type into search looking for this document, in BOTH the document's language and the reader's language. Include the everyday name for this kind of document, not only its formal one — an Abstammungsurkunde is also "birth certificate", "Geburtsurkunde" and "certificate of descent"; a KFZ-Versicherung is also "car insurance" and "auto policy". Name the document type, never its contents, and never repeat the title verbatim. Empty list if the document type is already obvious from the title in both languages.
 - language: ISO 639-1 code of the document's language.
 - confidence: high only when category, people and dates are all clear from the text; medium when the category is clear but something is missing; low otherwise.`;
 
