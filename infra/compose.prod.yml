@@ -1,0 +1,29 @@
+# Appliance overrides. Usage on the box:
+#   docker compose --env-file /data/trustworthier.env -f compose.yml -f compose.prod.yml up -d
+#
+# Differences from the dev file:
+#   - images come from the registry (built multi-arch by scripts/build-images.sh), not from source
+#   - Postgres and Redis publish no host ports at all
+#   - web is the only thing listening, and only on the tailnet address (TW_BIND, e.g. 100.x.y.z)
+#   - $TW_DATA_DIR must be the LUKS-backed mount (checked by check-data-volume.sh before `up`)
+name: trustworthier
+
+services:
+  postgres:
+    ports: !reset []
+  redis:
+    ports: !reset []
+  worker:
+    image: ${TW_IMAGE_PREFIX:-ghcr.io/pradelkai/trustworthier}-worker:${TW_IMAGE_TAG:-latest}
+    build: !reset null
+  api:
+    image: ${TW_IMAGE_PREFIX:-ghcr.io/pradelkai/trustworthier}-api:${TW_IMAGE_TAG:-latest}
+    build: !reset null
+    ports: !reset []
+    environment:
+      WEB_ORIGIN: ${WEB_ORIGIN}
+      SESSION_COOKIE_SECURE: "${SESSION_COOKIE_SECURE:-true}"
+  web:
+    image: ${TW_IMAGE_PREFIX:-ghcr.io/pradelkai/trustworthier}-web:${TW_IMAGE_TAG:-latest}
+    build: !reset null
+    ports: !reset ["${TW_BIND:?set TW_BIND to the tailnet IP}:3000:3000"]

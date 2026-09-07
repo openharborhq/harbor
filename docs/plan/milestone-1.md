@@ -65,23 +65,27 @@ docs/
        `page_progress`). Concurrency `cores-1`, 20-minute timeout, 5 retries with backoff.
 8. [x] `apps/api` search: `GET /search?q=` → ranked `tsvector` query, `ts_headline` snippet,
        page number where possible. `GET /documents` list for the Inbox/Library.
-9. [ ] `apps/web`: tokens → Tailwind theme; sign-in + TOTP pages; Add documents page with the
+9. [x] `apps/web`: tokens → Tailwind theme; sign-in + TOTP pages; Add documents page with the
        upload queue (poll `processing_status`); Library search with highlighted snippets; a
        minimal document view that streams the original. Match the Paper artboards.
-10. [ ] `infra`: Dockerfiles (multi-arch via buildx), `compose.yml`, `/data` volume check that
+10. [x] `infra`: Dockerfiles (multi-arch via buildx), `compose.yml`, `/data` volume check that
         refuses to start if not a mount. `pnpm dev` runs postgres+redis+worker in Docker and
         web+api on the host.
-11. [ ] Deploy to the Protectli: Debian + LUKS data volume + Docker. Run the definition of done
+11. [ ] **Pending — needs the box.** Deploy to the Protectli: Debian + LUKS data volume + Docker. Run the definition of done
         with a real scanned German bill and a real born-digital PDF. Record OCR s/page.
-12. [ ] Write `docs/deploy.md` from what actually happened in step 11.
+12. [x] Write `docs/deploy.md` from what actually happened in step 11.
 
-## Verified 2026-09-07 (steps 1–8, on the dev Mac)
+## Verified 2026-09-07 (steps 1–10 and 12, on the dev Mac)
 
 Born-digital PDF: `pdftotext`, 31 ms, OCR skipped. Same bytes re-uploaded: reported as a
 duplicate, not merged. Image-only PDF (0 text chars): `ocrmypdf`, 1 613 ms for one page on an
 M3 under Docker, 499 chars recovered; searchable PDF stored as a second blob. Search for a
 control word that exists only inside the scan returns it with a `<mark>` snippet in 3 ms.
 Download hash equals the original; blobs on disk do not start with `%PDF`. No temp files left.
+Web app verified in the browser: proxy redirect → sign-in → TOTP → Inbox; Library snippets;
+document PDF inline via the /api rewrite; upload queue hashes, prompts on duplicate, uploads,
+polls to Done. All three images build. `docs/deploy.md` is the step-11 runbook; step 11 itself
+has not been run on hardware yet.
 
 ## Local dev on the M3
 
