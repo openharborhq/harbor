@@ -32,4 +32,7 @@ services:
   web:
     image: ${HARBOR_IMAGE_PREFIX:-ghcr.io/openharborhq/harbor}-web:${HARBOR_IMAGE_TAG:-latest}
     build: !reset null
-    ports: !reset ["${HARBOR_BIND:?set HARBOR_BIND to the tailnet IP}:3000:3000"]
+    # !override, not !reset: reset removes the attribute and ignores what follows it, so this
+    # line published nothing and the appliance would have had no web port at all — found the
+    # first time the stack ran from images. The !reset [] lines above are correct: they remove.
+    ports: !override ["${HARBOR_BIND:?set HARBOR_BIND to the tailnet IP}:3000:3000"]

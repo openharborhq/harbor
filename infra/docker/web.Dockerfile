@@ -10,6 +10,13 @@ RUN pnpm install --frozen-lockfile --filter @harbor/web...
 COPY packages/shared ./packages/shared
 COPY apps/web ./apps/web
 ENV NEXT_TELEMETRY_DISABLED=1
+# next.config.ts reads this at BUILD time and bakes the /api rewrite destination into the routes
+# manifest; the runtime API_INTERNAL_URL that compose sets is ignored for that rewrite (it is still
+# read at request time by server-side fetches). Built without it, the image pointed the browser's
+# /api calls at localhost:4000 inside the web container — found the first time the stack ran from
+# images. Default to the compose service name; --build-arg overrides it if the API lives elsewhere.
+ARG API_INTERNAL_URL=http://api:4000
+ENV API_INTERNAL_URL=$API_INTERNAL_URL
 RUN pnpm --filter @harbor/web... build
 
 FROM base AS runtime

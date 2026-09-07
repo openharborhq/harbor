@@ -1,6 +1,12 @@
 import type { NextConfig } from "next";
 
-/** Where the API lives from the Next server's point of view (compose: http://api:4000). */
+/**
+ * Where the API lives from the Next server's point of view (compose: http://api:4000).
+ *
+ * Read at BUILD time: `rewrites()` is baked into the routes manifest, so the value in the image is
+ * whatever this was when `next build` ran — infra/docker/web.Dockerfile sets it. The runtime
+ * variable still matters for server-side fetches in lib/api-server.ts, which read it per request.
+ */
 const API_INTERNAL_URL = process.env.API_INTERNAL_URL ?? "http://localhost:4000";
 
 const nextConfig: NextConfig = {

@@ -40,8 +40,21 @@ export const Env = z.object({
 });
 export type Env = z.infer<typeof Env>;
 
+/**
+ * An empty variable is an unset one.
+ *
+ * Compose interpolates `${SUGGEST_BASE_URL:-}` to an empty string and passes it into the
+ * container; a shell would simply have left it unset. `z.string().url().optional()` accepts
+ * absent and rejects "", so the suggester container crash-looped on a URL nobody had set — found
+ * the first time the full stack ran from images. Dropping empties before validation makes the
+ * two mean the same thing everywhere.
+ */
+function withoutEmpty(source: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
+  return Object.fromEntries(Object.entries(source).filter(([, v]) => v !== "")) as NodeJS.ProcessEnv;
+}
+
 export function loadEnv(source: NodeJS.ProcessEnv = process.env): Env {
-  const parsed = Env.safeParse(source);
+  const parsed = Env.safeParse(withoutEmpty(source));
   if (!parsed.success) {
     const issues = parsed.error.issues.map((i) => `  ${i.path.join(".")}: ${i.message}`).join("\n");
     throw new Error(`Invalid environment:\n${issues}`);

@@ -18,7 +18,7 @@ laptop / phone  ──tailnet──▶  [appliance]  web :3000 ──▶ api :40
                               /data (LUKS)  ← blobs, postgres, redis, secrets
 ```
 
-Nothing listens on the internet. Backups and email-in come in later milestones.
+Nothing listens on the internet. Email-in is built (spec §7) and runs as the `mailfetch` container; backups come in a later milestone.
 
 ## 1. Operating system
 
@@ -36,11 +36,11 @@ unlocked by a passphrase at boot. Replace `/dev/nvme0n1p3` with your free partit
 
 ```sh
 cryptsetup luksFormat --type luks2 /dev/nvme0n1p3     # choose a long passphrase; it goes in the envelope
-cryptsetup open /dev/nvme0n1p3 twdata
-mkfs.ext4 -L twdata /dev/mapper/twdata
+cryptsetup open /dev/nvme0n1p3 harbordata
+mkfs.ext4 -L harbordata /dev/mapper/harbordata
 mkdir -p /data
-echo 'twdata /dev/nvme0n1p3 none luks' >> /etc/crypttab
-echo '/dev/mapper/twdata /data ext4 defaults 0 2' >> /etc/fstab
+echo 'harbordata /dev/nvme0n1p3 none luks' >> /etc/crypttab
+echo '/dev/mapper/harbordata /data ext4 defaults 0 2' >> /etc/fstab
 mount /data
 ```
 
@@ -64,16 +64,16 @@ Either pull the published multi-arch images (once a release exists):
 
 ```sh
 mkdir -p /opt/harbor && cd /opt/harbor
-curl -fsSLO https://raw.githubusercontent.com/pradelkai/harbor/main/infra/compose.yml
-curl -fsSLO https://raw.githubusercontent.com/pradelkai/harbor/main/infra/compose.prod.yml
-curl -fsSLO https://raw.githubusercontent.com/pradelkai/harbor/main/infra/check-data-volume.sh
+curl -fsSLO https://raw.githubusercontent.com/openharborhq/harbor/main/infra/compose.yml
+curl -fsSLO https://raw.githubusercontent.com/openharborhq/harbor/main/infra/compose.prod.yml
+curl -fsSLO https://raw.githubusercontent.com/openharborhq/harbor/main/infra/check-data-volume.sh
 ```
 
 …or build them on the box from source (slower, no registry needed):
 
 ```sh
 apt install -y git
-git clone https://github.com/pradelkai/harbor /opt/harbor/src
+git clone https://github.com/openharborhq/harbor /opt/harbor/src
 cd /opt/harbor/src
 docker compose -f infra/compose.yml build          # ~10 minutes on an N100
 ```
