@@ -32,10 +32,18 @@ async function main() {
   }
 
   // The restic repository password lives next to the KEK and goes in the same envelope (spec §3.4).
+  // Inside a container the KEK is a read-only Docker secret under /run/secrets, and the password
+  // is the appliance's to create (check-data-volume.sh does), so a refusal to write there is fine.
   const resticFile = path.join(path.dirname(kekFile), "restic-password");
   if (!existsSync(resticFile)) {
-    writeFileSync(resticFile, CryptoService.generateKek() + "\n", { mode: 0o600 });
-    console.log(`Created backup repository password at ${resticFile} — this goes in the break-glass envelope too.`);
+    try {
+      writeFileSync(resticFile, CryptoService.generateKek() + "\n", { mode: 0o600 });
+      console.log(`Created backup repository password at ${resticFile} — this goes in the break-glass envelope too.`);
+    } catch (err) {
+      const code = (err as NodeJS.ErrnoException).code;
+      if (code !== "EACCES" && code !== "EROFS" && code !== "EPERM") throw err;
+      console.log(`No backup repository password next to the master key (${path.dirname(kekFile)} is read-only here); the appliance creates it in the data volume.`);
+    }
   }
 
   {
