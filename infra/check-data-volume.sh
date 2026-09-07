@@ -29,13 +29,25 @@ if ! lsblk -n -o TYPE "$DEV" 2>/dev/null | grep -q "^crypt$" && \
   fi
 fi
 
-for sub in blobs tmp postgres redis secrets; do
+for sub in blobs tmp dumps backup postgres redis secrets; do
   mkdir -p "$DATA/$sub"
 done
-chmod 700 "$DATA/blobs" "$DATA/tmp" "$DATA/secrets"
+chmod 700 "$DATA/blobs" "$DATA/tmp" "$DATA/dumps" "$DATA/secrets"
+# The app containers run as uid 1000 (node) and the bind mounts keep host ownership: created by
+# root, these directories would be unwritable inside the containers on Linux. (Docker Desktop on a
+# Mac maps ownership away, which is why a dev machine never sees it.) Postgres and Redis manage
+# their own directories.
+chown 1000:1000 "$DATA/blobs" "$DATA/tmp" "$DATA/dumps" "$DATA/backup"
 
 if [ ! -s "$DATA/secrets/kek" ]; then
   echo "check-data-volume: no master key at $DATA/secrets/kek yet - the first api start will refuse to boot until \`setup:owner\` has run." >&2
+fi
+
+# The backup container mounts this as a secret and will not start without it (spec §3.4).
+if [ ! -s "$DATA/secrets/restic-password" ]; then
+  umask 077
+  head -c 32 /dev/urandom | base64 > "$DATA/secrets/restic-password"
+  echo "check-data-volume: created the backup repository password at $DATA/secrets/restic-password - it goes in the break-glass envelope with the master key." >&2
 fi
 
 echo "check-data-volume: ok ($DATA on $DEV)"

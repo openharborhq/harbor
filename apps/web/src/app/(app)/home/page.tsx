@@ -11,6 +11,14 @@ export const metadata: Metadata = { title: "Home" };
 
 export default async function HomePage() {
   const h = await apiFetch<HomeData>("/home");
+  const backupNote =
+    h.backup.state === "ok" && h.backup.at
+      ? `backed up ${formatRelative(h.backup.at).toLowerCase()}`
+      : h.backup.state === "failed"
+        ? "last backup failed"
+        : h.backup.state === "never"
+          ? "never backed up"
+          : "no backups configured";
   const tops = h.categories.filter((c) => c.parentId === null).sort((a, b) => a.sortOrder - b.sortOrder);
   const children = (id: string) => h.categories.filter((c) => c.parentId === id).sort((a, b) => a.sortOrder - b.sortOrder);
   const countOf = (id: string) => (h.categories.find((c) => c.id === id)?.documentCount ?? 0) + children(id).reduce((n, c) => n + c.documentCount, 0);
@@ -51,7 +59,7 @@ export default async function HomePage() {
 
         {/* Categories */}
         <section className="flex flex-col gap-5">
-          <SectionHeader title="Categories" meta={`${tops.length} categories · ${h.totalDocuments} documents`} />
+          <SectionHeader title="Categories" meta={`${tops.length} categories · ${h.totalDocuments} documents · ${backupNote}`} />
           <div className="grid grid-cols-4 gap-4">
             {tops.map((c) => (
               <Link key={c.id} href={`/library?category=${c.id}`} className="flex flex-col gap-2 rounded-lg border border-border px-5 py-4 hover:bg-surface">

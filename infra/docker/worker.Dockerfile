@@ -18,8 +18,9 @@ ENV NODE_ENV=production
 # ocrmypdf pulls tesseract, ghostscript, qpdf, unpaper. eng+deu language packs. poppler for pdftotext/pdfinfo.
 RUN apt-get update && apt-get install -y --no-install-recommends \
       ocrmypdf tesseract-ocr-eng tesseract-ocr-deu poppler-utils libheif-examples \
-    && rm -rf /var/lib/apt/lists/* \
-    && useradd -u 10001 -r -s /usr/sbin/nologin worker
+    && rm -rf /var/lib/apt/lists/*
 COPY --from=build /out /app
-USER 10001
+# Same uid as the api (node, 1000): the blobs it reads and the tmp it writes are bind mounts the
+# api owns. A separate uid was isolation in name only and made those mounts unreadable on Linux.
+USER node
 CMD ["node", "dist/worker.js"]

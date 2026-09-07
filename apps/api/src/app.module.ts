@@ -2,6 +2,7 @@ import { Module } from "@nestjs/common";
 import { ConfigModule } from "@nestjs/config";
 import { AuditModule } from "./audit/audit.module";
 import { AuthModule } from "./auth/auth.module";
+import { BackupsModule } from "./backups/backups.module";
 import { loadEnv } from "./config/env";
 import { CryptoModule } from "./crypto/crypto.module";
 import { DbModule } from "./db/db.module";
@@ -34,6 +35,7 @@ import { VocabularyModule } from "./vocabulary/vocabulary.module";
     SearchModule,
     HomeModule,
     MailModule,
+    BackupsModule,
   ],
   controllers: [HealthController],
 })

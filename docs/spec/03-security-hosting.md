@@ -59,13 +59,21 @@ LUKS volume  — passphrase at boot ———————— protects the powere
 ## 3.4 Backups
 
 **restic → Backblaze B2** (or a second disk / SFTP for the no-cloud option). Client-side
-encrypted, deduplicated, retention **30 daily / 12 monthly**.
+encrypted, deduplicated, retention **30 daily / 12 monthly**. Built as the `backup` container
+(`apps/api/src/backup.ts`), `docs/restore.md` is the runbook.
 
-- Nightly `pg_dump` → `/data/dumps`, then one restic snapshot of `/data` (KEK excluded).
-- **B2 object lock** so ransomware on the box cannot delete history.
-- **Monthly automated restore test:** restore latest snapshot to scratch, start ephemeral
-  Postgres, load dump, decrypt 20 random blobs with the KEK, verify sha256 against
-  `document_files.sha256`. Result → `backup_runs` → Settings.
+- Nightly `pg_dump` → `/data/dumps/harbor.dump`, then one restic snapshot of `/data/dumps` and
+  `/data/blobs`. Deliberately not in it: `secrets/` (KEK and restic password — the envelope holds
+  them), `postgres/` (a live data directory is inconsistent while the server runs; the dump *is*
+  the database), `redis/` (queues, rebuilt from Postgres), `tmp/`.
+- **Ransomware on the box cannot delete history:** restic gets a B2 application key without
+  `deleteFiles` and `BACKUP_PRUNE=false`; pruning happens from a machine holding a full key.
+  (Bucket-level Object Lock is not something restic can drive; the capability-restricted key is
+  the equivalent.)
+- **Monthly automated restore test:** restore the latest snapshot to scratch, load the dump into a
+  scratch database on the same server, decrypt 20 random blobs with the KEK, verify sha256 against
+  `document_files.sha256`. Result → `backup_runs` → Settings, beside *Back up now* and *Test a
+  restore*. A test that never ran, or failed, is shown — never an empty list.
 - **Break-glass envelope** (printed, in the safe): KEK, restic password, B2 key, Tailscale
   auth key, `docs/restore.md`. Reprinted on any key change.
 

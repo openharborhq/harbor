@@ -18,7 +18,9 @@ laptop / phone  ──tailnet──▶  [appliance]  web :3000 ──▶ api :40
                               /data (LUKS)  ← blobs, postgres, redis, secrets
 ```
 
-Nothing listens on the internet. Email-in is built (spec §7) and runs as the `mailfetch` container; backups come in a later milestone.
+Nothing listens on the internet. Email-in runs as the `mailfetch` container (spec §7); backups as
+the `backup` container (spec §3.4) — a nightly encrypted snapshot to wherever you point it, and a
+monthly automated restore test.
 
 ## 1. Operating system
 
@@ -92,13 +94,43 @@ EOF
 chmod 600 /data/harbor.env
 
 mkdir -p /data/secrets && chmod 700 /data/secrets
-openssl rand -base64 32 > /data/secrets/kek && chmod 600 /data/secrets/kek   # the master key
+openssl rand -base64 32 > /data/secrets/kek && chmod 600 /data/secrets/kek                         # the master key
+openssl rand -base64 32 > /data/secrets/restic-password && chmod 600 /data/secrets/restic-password  # the backup password
 
 sh check-data-volume.sh   # must print "ok"; it refuses to continue if /data is not on LUKS
 ```
 
 The master key file is the only copy of the key that decrypts every document. It goes on the
-printed break-glass page (step 8) and nowhere else.
+printed break-glass page (step 8) and nowhere else. The backup password encrypts every snapshot
+before it leaves the box; same envelope.
+
+**Where backups go.** Add to `/data/harbor.env` one of:
+
+```sh
+# Backblaze B2 (recommended offsite). Make an application key restricted to this bucket.
+RESTIC_REPOSITORY=b2:your-bucket-name:/harbor
+B2_ACCOUNT_ID=…
+B2_ACCOUNT_KEY=…
+
+# …or any SFTP host you already have (a NAS, a relative's box)
+RESTIC_REPOSITORY=sftp:backup@nas.local:/srv/harbor
+
+# …or a second disk in this machine — the no-cloud option. A backup on the *same* disk is not one.
+# (mkdir it and `chown 1000:1000` it: the backup container writes as that uid.)
+HARBOR_BACKUP_DIR=/mnt/backupdisk/harbor
+RESTIC_REPOSITORY=/backup
+
+TZ=Europe/Berlin        # BACKUP_HOUR (default 3) is read in this zone
+```
+
+Leave `RESTIC_REPOSITORY` unset and the vault runs but Settings → Backups says *Not configured*
+and every night records a failed run — on purpose.
+
+**Ransomware on the box must not be able to delete history.** With B2, give restic a key
+*without* the `deleteFiles` capability and set `BACKUP_PRUNE=false`; snapshots then accumulate
+until you prune from a laptop that holds a full key (`restic forget --keep-daily 30
+--keep-monthly 12 --prune`). Anyone who takes over the appliance can add snapshots but never
+remove one.
 
 ## 6. Start
 
@@ -129,11 +161,13 @@ On one sheet of paper, by hand or printed:
 
 1. The LUKS passphrase (step 2)
 2. The master key: `cat /data/secrets/kek`
-3. Where the box and its backups are (backups arrive in milestone 5)
-4. This page's URL
+3. The backup password: `cat /data/secrets/restic-password`
+4. Where the backups are: the `RESTIC_REPOSITORY` line and its credentials (the B2 key, the
+   SFTP login, or which disk)
+5. This page's URL and `docs/restore.md`
 
 Put it in a safe, or with a relative. Without it a dead disk means the documents are gone;
-that is the point of running this yourself.
+that is the point of running this yourself. Reprint it whenever any of these change.
 
 ## 9. Prove it
 
@@ -146,18 +180,26 @@ that is the point of running this yourself.
 Record how long OCR took per page in the Inbox card; that number is the box's budget for
 everything in the next milestones.
 
+6. Settings → Backups → **Back up now**, then **Test a restore**. Both must show *OK* before you
+   trust the box with anything. The nightly run starts at `BACKUP_HOUR`; the restore test repeats
+   itself on the first of every month.
+
 ## Day-two
 
 - **Logs:** `docker compose … logs -f worker` shows every OCR job with engine, pages and time.
-- **Update:** `docker compose … pull && docker compose … up -d` (migrations apply on start).
-  Take a backup first once milestone 5 exists.
+- **Backups:** Settings → Backups shows every run. `docker compose … logs -f backup` for the
+  detail. A backup on demand: `docker compose … exec backup node dist/backup.js run backup`.
+- **Update:** back up first, then `docker compose … pull && docker compose … up -d` (migrations
+  apply on start):
+  ```sh
+  docker compose … exec backup node dist/backup.js run backup && docker compose … pull && docker compose … up -d
+  ```
 - **Reboot:** type the LUKS passphrase at the console or via SSH-in-initramfs; containers
   restart on their own.
 - **HTTPS on the tailnet:** `tailscale serve --bg 3000`, then set `WEB_ORIGIN` to the
   `https://…ts.net` name and `SESSION_COOKIE_SECURE=true`, and `up -d` again.
 
-## Restore (milestone 5 will make this one command)
+## Restore
 
-Until backups exist, "restore" means: the LUKS passphrase unlocks `/data`; the master key in
-`/data/secrets/kek` decrypts the blobs; Postgres in `/data/postgres` holds everything else.
-Copy `/data` to a new box, repeat steps 3–6, and you are back.
+See [`docs/restore.md`](restore.md): from the envelope and the repository to a signed-in vault on
+new hardware, and the shorter path when only the database is lost.

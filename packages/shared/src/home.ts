@@ -19,6 +19,8 @@ export const HomeData = z.object({
   things: z.array(HomeItem),
   categories: z.array(Category),
   totalDocuments: z.number().int().nonnegative(),
+  /** Spec §4: Home carries the backup state, because a vault nobody backs up should say so. */
+  backup: z.object({ state: z.enum(["ok", "failed", "never", "unconfigured"]), at: z.string().datetime().nullable() }),
   expiringSoon: z.array(
     z.object({
       documentId: z.string().uuid(),

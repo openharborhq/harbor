@@ -10,7 +10,8 @@ import { CryptoService } from "./crypto/crypto.service";
 
 /**
  * First-run setup (milestone 1 form; the wizard UI in Paper replaces the prompts later):
- *   1. create the master key file if it doesn't exist (0600, base64, 32 bytes)
+ *   1. create the master key file if it doesn't exist (0600, base64, 32 bytes), and the restic
+ *      repository password next to it
  *   2. apply migrations
  *   3. create the first owner with TOTP + recovery codes, print what must go on paper
  *
@@ -28,6 +29,13 @@ async function main() {
     console.log(`Created master key at ${kekFile} — this goes in the break-glass envelope.`);
   } else {
     console.log(`Using existing master key at ${kekFile}.`);
+  }
+
+  // The restic repository password lives next to the KEK and goes in the same envelope (spec §3.4).
+  const resticFile = path.join(path.dirname(kekFile), "restic-password");
+  if (!existsSync(resticFile)) {
+    writeFileSync(resticFile, CryptoService.generateKek() + "\n", { mode: 0o600 });
+    console.log(`Created backup repository password at ${resticFile} — this goes in the break-glass envelope too.`);
   }
 
   {

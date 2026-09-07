@@ -6,3 +6,4 @@ export * from "./suggestions";
 export * from "./upload";
 export * from "./home";
 export * from "./mail";
+export * from "./backups";

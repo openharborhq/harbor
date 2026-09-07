@@ -1,20 +1,23 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import type { InviteInfo, OwnerInfo, SessionInfo } from "@harbor/shared";
+import type { BackupRun, BackupStatus, InviteInfo, OwnerInfo, SessionInfo } from "@harbor/shared";
 import { TopBar } from "@/components/shell/TopBar";
 import { apiFetch, currentUser } from "@/lib/api-server";
-import { formatDate, formatRelative, isFuture } from "@/lib/format";
+import { formatBytes, formatDate, formatRelative, isFuture } from "@/lib/format";
 import { initials } from "@/lib/initials";
+import { BackupActions } from "./backup-forms";
 import { InviteForm, NameForm, PasswordForm, RecoveryCodesForm, RevokeSessionButton } from "./forms";
 
 export const metadata: Metadata = { title: "Settings" };
 
 export default async function SettingsPage() {
-  const [me, owners, invites, sessions] = await Promise.all([
+  const [me, owners, invites, sessions, backup, backupRuns] = await Promise.all([
     currentUser(),
     apiFetch<OwnerInfo[]>("/auth/owners"),
     apiFetch<InviteInfo[]>("/auth/invites"),
     apiFetch<SessionInfo[]>("/auth/sessions"),
+    apiFetch<BackupStatus>("/backups"),
+    apiFetch<BackupRun[]>("/backups/runs"),
   ]);
   const self = owners.find((o) => o.isYou);
   const pending = invites.filter((i) => !i.acceptedAt && isFuture(i.expiresAt));
@@ -25,7 +28,7 @@ export default async function SettingsPage() {
       <main className="flex max-w-[1192px] flex-col gap-10 px-14 py-14">
         <div>
           <h1 className="text-title font-bold tracking-snug">Settings</h1>
-          <p className="mt-1.5 text-body text-muted">Account, household and mailboxes. Backups and the appliance panel arrive with their milestones.</p>
+          <p className="mt-1.5 text-body text-muted">Account, household, mailboxes and backups. The appliance panel arrives with its milestone.</p>
         </div>
 
         <Panel title="Your account">
@@ -81,6 +84,46 @@ export default async function SettingsPage() {
           />
         </Panel>
 
+        <Panel
+          title="Backups"
+          sub="Every night: a database dump and one encrypted snapshot of it and the documents. Once a month the vault restores that snapshot and checks it can read what came back."
+        >
+          <Row
+            k="Destination"
+            v={backup.configured ? <code className="text-row">{backup.repository}</code> : "Not configured"}
+            hint={
+              backup.configured
+                ? `Nightly at ${String(backup.backupHour).padStart(2, "0")}:00 · restore test on day ${backup.restoreTestDay} of each month · 30 daily and 12 monthly snapshots kept. Encrypted before it leaves the box; the repository password is in the break-glass envelope.`
+                : "Set RESTIC_REPOSITORY on the appliance — a Backblaze B2 bucket, an SFTP host, or a second disk (docs/deploy.md, step 5). Until then a dead disk means the documents are gone."
+            }
+          />
+          <Row k="Last backup" v={<RunLine run={backup.lastBackup} />} />
+          <Row
+            k="Last restore test"
+            v={<RunLine run={backup.lastRestoreTest} />}
+            hint="Proof the backup can be read back: the dump loads into a scratch database and twenty random documents decrypt to exactly the bytes that were uploaded."
+          >
+            <BackupActions configured={backup.configured} running={backup.running?.kind ?? null} />
+          </Row>
+          {backupRuns.length > 0 && (
+            <div className="border-t border-border py-4">
+              <h3 className="text-small font-semibold uppercase tracking-label text-muted">Recent runs</h3>
+              <ul className="mt-2 flex flex-col gap-1.5">
+                {backupRuns.slice(0, 8).map((r) => (
+                  <li key={r.id} className="flex items-baseline gap-2 text-small">
+                    <RunBadge status={r.status} />
+                    <span className="w-24 shrink-0">{r.kind === "backup" ? "Backup" : "Restore test"}</span>
+                    <span className="shrink-0 text-muted">{formatRelative(r.startedAt)}</span>
+                    <span className="min-w-0 truncate text-muted" title={r.summary ?? undefined}>
+                      {r.summary}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </Panel>
+
         <Panel title="Signed-in devices" sub="Sessions last 30 days and renew while in use. Revoke anything you don't recognise.">
           {sessions.map((s) => (
             <div key={s.id} className="flex items-center gap-3 border-t border-border py-3 text-row first:border-t-0">
@@ -129,6 +172,28 @@ function Row({ k, v, hint, children }: { k: string; v: React.ReactNode; hint?: s
       </div>
     </div>
   );
+}
+
+/** One run, as Settings summarises it: outcome, when, and the numbers that make it checkable. */
+function RunLine({ run }: { run: BackupRun | null }) {
+  if (!run) return <span>Never</span>;
+  const numbers = [run.documentCount !== null && `${run.documentCount} documents`, run.bytes !== null && formatBytes(run.bytes)].filter(Boolean).join(" · ");
+  return (
+    <span className="flex flex-col gap-1">
+      <span className="flex items-center gap-2">
+        <RunBadge status={run.status} />
+        {run.status === "running" ? `Started ${formatRelative(run.startedAt)}` : formatRelative(run.finishedAt ?? run.startedAt)}
+        {numbers && <span className="text-muted">· {numbers}</span>}
+      </span>
+      {run.status === "failed" && run.summary && <span className="text-small text-danger">{run.summary}</span>}
+    </span>
+  );
+}
+
+function RunBadge({ status }: { status: BackupRun["status"] }) {
+  if (status === "ok") return <Badge>OK</Badge>;
+  const cls = status === "failed" ? "bg-danger/10 text-danger" : "bg-surface text-muted";
+  return <span className={`inline-flex h-5 items-center rounded-sm px-1.5 text-label font-bold uppercase tracking-label ${cls}`}>{status === "failed" ? "Failed" : "Running"}</span>;
 }
 
 function Badge({ children }: { children: React.ReactNode }) {

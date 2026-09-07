@@ -37,6 +37,26 @@ export const Env = z.object({
   SUGGEST_API_KEY_FILE: z.string().optional(),
   /** How often mailfetch sweeps every connection (spec §7.5). IDLE will make this the fallback, not the driver. */
   MAIL_SYNC_INTERVAL_SECONDS: z.coerce.number().int().min(60).default(300),
+  /**
+   * Backups (spec §3.4). Unset RESTIC_REPOSITORY means "not configured": the backup container
+   * still runs, so that Settings can say so, and every scheduled run is recorded as failed.
+   * The repository password is a Docker secret file next to the KEK, never the value itself.
+   */
+  RESTIC_REPOSITORY: z.string().min(1).optional(),
+  RESTIC_PASSWORD_FILE: z.string().min(1).optional(),
+  /** Local hour the nightly backup starts, and the day of month of the automated restore test. */
+  BACKUP_HOUR: z.coerce.number().int().min(0).max(23).default(3),
+  BACKUP_RESTORE_TEST_DAY: z.coerce.number().int().min(1).max(28).default(1),
+  BACKUP_KEEP_DAILY: z.coerce.number().int().min(1).default(30),
+  BACKUP_KEEP_MONTHLY: z.coerce.number().int().min(0).default(12),
+  /**
+   * `false` for a repository whose key cannot delete (the ransomware-proof B2 setup, §3.4):
+   * `forget --prune` would fail there, so prune from a machine that holds a full key instead.
+   */
+  BACKUP_PRUNE: z
+    .enum(["true", "false"])
+    .default("true")
+    .transform((v) => v === "true"),
 });
 export type Env = z.infer<typeof Env>;
 

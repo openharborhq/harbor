@@ -2,6 +2,7 @@ import { Injectable } from "@nestjs/common";
 import { and, asc, desc, eq, gte, inArray, isNull, lte, sql } from "drizzle-orm";
 import { documentItems, documents, items, type Db } from "@harbor/db";
 import { itemSubtitle, type HomeData, type Item } from "@harbor/shared";
+import { BackupsService } from "../backups/backups.service";
 import { InjectDb } from "../db/db.module";
 import { CategoriesService } from "../vocabulary/categories.service";
 import { ItemsService } from "../vocabulary/items.service";
@@ -16,12 +17,13 @@ export class HomeService {
     @InjectDb() private readonly db: Db,
     private readonly categoriesService: CategoriesService,
     private readonly itemsService: ItemsService,
+    private readonly backups: BackupsService,
   ) {}
 
   async load(): Promise<HomeData> {
     const today = isoToday();
     const horizon = addDays(today, HORIZON_DAYS);
-    const [allItems, categories, cats, expiring, recent, totalRow] = await Promise.all([
+    const [allItems, categories, cats, expiring, recent, totalRow, backupStatus] = await Promise.all([
       this.itemsService.list(),
       this.categoriesService.list(),
       this.categoriesService.index(),
@@ -38,7 +40,15 @@ export class HomeService {
         .orderBy(desc(documents.createdAt))
         .limit(RECENT_LIMIT),
       this.db.select({ n: sql<number>`count(*)::int` }).from(documents).where(isNull(documents.deletedAt)),
+      this.backups.status(),
     ]);
+    // Spec §4: Home says whether the vault is backed up. Only the last *completed* backup counts.
+    const lastBackup = backupStatus.lastBackup?.status === "running" ? null : backupStatus.lastBackup;
+    const backup: HomeData["backup"] = !backupStatus.configured
+      ? { state: "unconfigured", at: null }
+      : !lastBackup
+        ? { state: "never", at: null }
+        : { state: lastBackup.status === "ok" ? "ok" : "failed", at: lastBackup.finishedAt ?? lastBackup.startedAt };
 
     // Items on the expiring documents, and each item's soonest future expiry — two small queries.
     const expiringIds = expiring.map((d) => d.id);
@@ -77,6 +87,7 @@ export class HomeService {
       things: allItems.filter((i) => i.kind !== "person" && i.parentId === null).map(toHomeItem),
       categories,
       totalDocuments: totalRow[0]?.n ?? 0,
+      backup,
       expiringSoon: expiring.map((d) => ({
         documentId: d.id,
         title: d.title,
