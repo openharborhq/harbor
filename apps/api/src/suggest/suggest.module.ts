@@ -1,5 +1,6 @@
 import { Global, Module, type DynamicModule } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
+import { SearchIndexModule } from "../search/search-index.module";
 import { NoneProvider } from "./none.provider";
 import { SUGGESTION_PROVIDER, SuggestService, buildProvider } from "./suggest.service";
 
@@ -14,6 +15,7 @@ export class SuggestModule {
   static register(opts: { withProvider: boolean }): DynamicModule {
     return {
       module: SuggestModule,
+      imports: [SearchIndexModule],
       providers: [
         opts.withProvider
           ? { provide: SUGGESTION_PROVIDER, inject: [ConfigService], useFactory: buildProvider }

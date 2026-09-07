@@ -32,7 +32,7 @@ document_files       id, document_id, version, is_current,
                      processing_error, page_progress, uploaded_by
 document_text        document_file_id, text_content, ocr_engine, ocr_ms,
                      searchable_pdf_key, completed_at
-document_search      document_id, tsv (GIN)   -- A: title, B: tags+items, C: OCR text
+document_search      document_id, tsv (GIN)   -- A: title, B: tags+items+notes+category, C: text+summary
 
 suggestions          id, document_id, model, payload jsonb, created_at,
                      accepted_at, rejected_at

@@ -1,20 +1,20 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { UnrecoverableError } from "bullmq";
-import { eq, sql } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { open, readFile, rm, mkdir } from "node:fs/promises";
 import path from "node:path";
-import { documentFiles, documentItems, documentTags, documentText, documents, items, tags, type Db } from "@trustworthier/db";
+import { documentFiles, documentText, documents, type Db } from "@trustworthier/db";
 import type { ProcessingStatus } from "@trustworthier/shared";
 import { sniffKind, type FileKind } from "../common/sniff";
 import type { Env } from "../config/env";
 import { InjectDb } from "../db/db.module";
 import { InjectSuggestQueue, type SuggestJob } from "../queue/queue.module";
 import type { Queue } from "bullmq";
-import { TS_CONFIG } from "../search/search.service";
+import { SearchIndexService } from "../search/search-index.service";
 import { BlobStore } from "../storage/blob-store.service";
 import { ExecError, run } from "./exec";
-import { hasUsableTextLayer, MAX_INDEXED_CHARS, pageFromOcrLine, pagesFromPdfInfo } from "./text-quality";
+import { hasUsableTextLayer, pageFromOcrLine, pagesFromPdfInfo } from "./text-quality";
 
 /** Hard ceiling per job; a 100-page scan on a fanless box fits comfortably (spec §2 stage 2). */
 export const JOB_TIMEOUT_MS = 20 * 60 * 1000;
@@ -45,6 +45,7 @@ export class FileProcessor {
     @InjectDb() private readonly db: Db,
     private readonly blobs: BlobStore,
     @InjectSuggestQueue() private readonly suggestQueue: Queue<SuggestJob>,
+    private readonly searchIndex: SearchIndexService,
     config: ConfigService<Env, true>,
   ) {
     this.ocrLanguages = config.get("OCR_LANGUAGES", { infer: true });
@@ -160,20 +161,9 @@ export class FileProcessor {
               completedAt: new Date(),
             },
           });
-        const indexed = text.slice(0, MAX_INDEXED_CHARS);
-        const [tagRows, itemRows] = await Promise.all([
-          tx.select({ name: tags.name }).from(documentTags).innerJoin(tags, eq(tags.id, documentTags.tagId)).where(eq(documentTags.documentId, df.documentId)),
-          tx.select({ name: items.label }).from(documentItems).innerJoin(items, eq(items.id, documentItems.itemId)).where(eq(documentItems.documentId, df.documentId)),
-        ]);
-        // Same weight B as SearchIndexService.reindex(): tags, item labels and the document's notes.
-        const weightB = [...tagRows, ...itemRows].map((r) => r.name).concat(notes ?? []).join(" ");
-        await tx.execute(sql`
-          insert into document_search (document_id, tsv, updated_at)
-          values (${df.documentId},
-                  setweight(to_tsvector(${TS_CONFIG}, ${title}), 'A') || setweight(to_tsvector(${TS_CONFIG}, ${weightB}), 'B') || setweight(to_tsvector(${TS_CONFIG}, ${indexed}), 'C'),
-                  now())
-          on conflict (document_id) do update set tsv = excluded.tsv, updated_at = now()
-        `);
+        // One place decides what goes into the vector and at which weight. This ran its own copy
+        // of that SQL until the two drifted apart twice in a row.
+        await this.searchIndex.reindex([df.documentId], tx);
         await tx
           .update(documentFiles)
           .set({

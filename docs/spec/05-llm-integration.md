@@ -28,6 +28,11 @@ interface SuggestionProvider {
 }
 ```
 
+The summary is written in the reader's language, which makes it the **bridge across languages**:
+a household that reads English keeps German paperwork, and the summary is the only English
+description an Abstammungsurkunde has. It is indexed at weight C for exactly that reason —
+searching "birth certificate" finds nothing without it.
+
 Implementations: `anthropic` (v1), `none` (v1, heuristics only — sender→item, filename date→document date),
 `ollama` (planned, for operators who want it fully local). Selected by config; the setup wizard
 asks for an Anthropic API key and offers *Skip → none*.

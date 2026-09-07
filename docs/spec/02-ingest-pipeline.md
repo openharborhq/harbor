@@ -43,7 +43,9 @@ silently. `page_progress` is updated per page for the upload UI.
 
 ## Stage 3 — Index
 
-Build `tsv` weighted A = title, B = tags + items, C = OCR text. The index is a cache —
+Build `tsv` weighted A = title, B = tags + items + notes + category path, C = OCR text + the
+model summary. One place builds it — `SearchIndexService.reindex()` — called by the worker here
+and again by the suggester once the summary exists, so the two can never disagree. The index is a cache —
 rebuildable from source at any time, never the source of truth.
 
 ## Stage 4 — Suggest

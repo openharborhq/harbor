@@ -6,6 +6,7 @@ import { categories, documentFiles, documentText, documents, suggestions, tags, 
 import { SuggestionPayload, type SuggestionView } from "@trustworthier/shared";
 import type { Env } from "../config/env";
 import { InjectDb } from "../db/db.module";
+import { SearchIndexService } from "../search/search-index.service";
 import { CategoriesService } from "../vocabulary/categories.service";
 import { ItemsService } from "../vocabulary/items.service";
 import { AnthropicProvider } from "./anthropic.provider";
@@ -34,6 +35,7 @@ export class SuggestService {
     @Inject(SUGGESTION_PROVIDER) private readonly provider: SuggestionProvider,
     private readonly categoriesService: CategoriesService,
     private readonly itemsService: ItemsService,
+    private readonly searchIndex: SearchIndexService,
     config: ConfigService<Env, true>,
   ) {
     this.sendPeople = config.get("SUGGEST_SEND_PEOPLE", { infer: true });
@@ -98,6 +100,9 @@ export class SuggestService {
         })
         .returning({ id: suggestions.id });
       await tx.update(documentFiles).set({ processingStatus: "ready" }).where(eq(documentFiles.id, documentFileId));
+      // The worker built the vector before this summary existed; it is the document's only
+      // English description when the paperwork itself is German (spec §5).
+      await this.searchIndex.reindex([row.doc.id], tx);
       return inserted!.id;
     });
     this.log.log(`${documentFileId}: ${this.provider.name}/${out.model} · ${payload.confidence} · ${out.inputTokens ?? "?"} in / ${out.outputTokens ?? "?"} out`);

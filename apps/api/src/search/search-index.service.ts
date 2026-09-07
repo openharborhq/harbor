@@ -6,8 +6,13 @@ import { MAX_INDEXED_CHARS } from "../processing/text-quality";
 import { TS_CONFIG } from "./search.service";
 
 /**
- * Rebuilds `document_search` rows from what is in Postgres — title (A), tags, item labels and the
- * document's notes (B), and the stored OCR text (C). The worker builds the same vector at the end of processing; this is
+ * Rebuilds `document_search` rows from what is in Postgres — title (A); tags, item labels, notes
+ * and the category path (B); the OCR text and the model's summary (C).
+ *
+ * The summary and the category path are the bridge across languages: the vault holds German
+ * paperwork that an English-speaking household searches for in English, and the model already
+ * writes an English summary of every document. Indexing it costs nothing and is the difference
+ * between "birth" finding an Abstammungsurkunde and finding nothing (spec §5). The worker builds the same vector at the end of processing; this is
  * for everything that changes those inputs afterwards: retitling, refiling, and deleting an item
  * whose name would otherwise keep matching. Touches no blobs, so any container may call it.
  */
@@ -23,7 +28,8 @@ export class SearchIndexService {
       select d.id,
              setweight(to_tsvector(${TS_CONFIG}, d.title), 'A')
           || setweight(to_tsvector(${TS_CONFIG}, coalesce(b.words, '')), 'B')
-          || setweight(to_tsvector(${TS_CONFIG}, left(coalesce(t.text_content, ''), ${MAX_INDEXED_CHARS})), 'C'),
+          || setweight(to_tsvector(${TS_CONFIG}, left(coalesce(t.text_content, ''), ${MAX_INDEXED_CHARS})), 'C')
+          || setweight(to_tsvector(${TS_CONFIG}, coalesce(sg.summary, '')), 'C'),
              now()
       from documents d
       left join lateral (
@@ -34,10 +40,18 @@ export class SearchIndexService {
           select i.label from document_items di join items i on i.id = di.item_id where di.document_id = d.id
           union all
           select d.notes where d.notes is not null
+          union all
+          select case when parent.name is null then cat.name else parent.name || ' ' || cat.name end
+          from categories cat left join categories parent on parent.id = cat.parent_id
+          where cat.id = d.category_id
         ) x
       ) b on true
       left join document_files df on df.document_id = d.id and df.is_current
       left join document_text t on t.document_file_id = df.id
+      left join lateral (
+        select payload->>'summary' as summary from suggestions
+        where document_file_id = df.id order by prompt_version desc, created_at desc limit 1
+      ) sg on true
       where d.id in (${sql.join(documentIds.map((id) => sql`${id}::uuid`), sql`, `)})
       on conflict (document_id) do update set tsv = excluded.tsv, updated_at = now()
     `);
