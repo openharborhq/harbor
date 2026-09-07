@@ -3,19 +3,24 @@ import { sql } from "drizzle-orm";
 import type { Db } from "@trustworthier/db";
 import type { SearchHit, SearchQuery, SearchResponse } from "@trustworthier/shared";
 import { InjectDb } from "../db/db.module";
+import { CategoriesService } from "../vocabulary/categories.service";
 
 /** Text search config. 'simple' = no stemming, so mixed German/English documents behave predictably. */
 export const TS_CONFIG = "simple";
 
 @Injectable()
 export class SearchService {
-  constructor(@InjectDb() private readonly db: Db) {}
+  constructor(
+    @InjectDb() private readonly db: Db,
+    private readonly categories: CategoriesService,
+  ) {}
 
   async search(q: SearchQuery): Promise<SearchResponse> {
     const started = Date.now();
     const rows = await this.db.execute<{
       document_id: string;
       title: string;
+      category_id: string | null;
       document_date: string | null;
       source: "upload" | "email";
       rank: number;
@@ -25,6 +30,7 @@ export class SearchService {
       with q as (select websearch_to_tsquery(${TS_CONFIG}, ${q.q}) as query)
       select d.id as document_id,
              d.title,
+             d.category_id,
              d.document_date,
              d.source,
              ts_rank_cd(s.tsv, q.query) as rank,
@@ -41,10 +47,11 @@ export class SearchService {
       limit ${q.limit} offset ${q.offset}
     `);
 
+    const cats = await this.categories.index();
     const hits: SearchHit[] = rows.map((r) => ({
       documentId: r.document_id,
       title: r.title,
-      categoryPath: null, // categories arrive in M4
+      categoryPath: r.category_id ? (cats.get(r.category_id)?.path ?? null) : null,
       documentDate: r.document_date,
       source: r.source,
       snippetHtml: r.snippet ?? "",

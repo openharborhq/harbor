@@ -108,3 +108,14 @@ export const DeletedDocument = z.object({
   originalFilename: z.string(),
 });
 export type DeletedDocument = z.infer<typeof DeletedDocument>;
+
+/** GET /documents query. `category` includes its subcategories. */
+export const ListDocumentsQuery = z.object({
+  inbox: z.enum(["1", "true"]).optional(),
+  category: z.string().uuid().optional(),
+  person: z.string().uuid().optional(),
+  source: DocumentSource.optional(),
+  sort: z.enum(["newest", "oldest", "title", "date", "expires"]).default("newest"),
+  limit: z.coerce.number().int().min(1).max(500).default(200),
+});
+export type ListDocumentsQuery = z.infer<typeof ListDocumentsQuery>;

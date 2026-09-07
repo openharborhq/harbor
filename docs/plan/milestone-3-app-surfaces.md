@@ -32,7 +32,7 @@ upload page can file documents directly (batch defaults) so the Inbox is optiona
        people, dates, tags, notes), Extracted text (`GET /documents/:id/text`), Versions,
        Activity (`audit_log` for the document); Delete = soft delete with a Recently deleted list
        and restore.
-10. [ ] **Library browse**: category tree + table view, sort, filters by person/source/date;
+10. [x] **Library browse**: category tree + table view, sort, filters by person/source/date;
         search results get category paths and "page N of M".
 11. [ ] **Categories management**: create (already), rename, reorder, pin to sidebar (`user_pins`).
 12. [ ] **Settings** (account + household only for now): change password, regenerate recovery

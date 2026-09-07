@@ -17,7 +17,7 @@ import {
 } from "@nestjs/common";
 import { FileInterceptor } from "@nestjs/platform-express";
 import type { Request, Response } from "express";
-import { UpdateDocument, parseUploadFields, type AcceptAllResult, type ActivityEntry, type DeletedDocument, type DocumentSummary, type DocumentText, type DocumentVersion, type SessionUser, type UploadResult } from "@trustworthier/shared";
+import { ListDocumentsQuery, UpdateDocument, parseUploadFields, type AcceptAllResult, type ActivityEntry, type DeletedDocument, type DocumentSummary, type DocumentText, type DocumentVersion, type SessionUser, type UploadResult } from "@trustworthier/shared";
 import { CurrentUser } from "../auth/current-user.decorator";
 import { ZodPipe } from "../common/zod.pipe";
 import { DocumentsService } from "./documents.service";
@@ -48,8 +48,8 @@ export class DocumentsController {
   }
 
   @Get()
-  list(@Query("inbox") inbox?: string): Promise<DocumentSummary[]> {
-    return this.documents.list({ inboxOnly: inbox === "1" || inbox === "true" });
+  list(@Query(new ZodPipe(ListDocumentsQuery)) q: ListDocumentsQuery): Promise<DocumentSummary[]> {
+    return this.documents.list({ inboxOnly: q.inbox !== undefined, categoryId: q.category, personId: q.person, source: q.source, sort: q.sort, limit: q.limit });
   }
 
   /** Files every high-confidence, unresolved Inbox suggestion. */

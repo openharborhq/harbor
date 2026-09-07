@@ -1,71 +1,61 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import type { Category, DocumentSummary, SearchResponse } from "@trustworthier/shared";
+import type { Category, DocumentSummary, Person, SearchResponse } from "@trustworthier/shared";
 import { Snippet } from "@/components/Snippet";
 import { StatusPill } from "@/components/StatusPill";
 import { TopBar } from "@/components/shell/TopBar";
 import { apiFetch } from "@/lib/api-server";
-import { formatDate, formatRelative, pages } from "@/lib/format";
+import { formatDate, formatRelative } from "@/lib/format";
 
 export const metadata: Metadata = { title: "Library" };
 
+const SORTS: { key: string; label: string }[] = [
+  { key: "newest", label: "Newest first" },
+  { key: "oldest", label: "Oldest first" },
+  { key: "title", label: "Title A–Z" },
+  { key: "date", label: "Document date" },
+  { key: "expires", label: "Expiring first" },
+];
+
 export default async function LibraryPage(props: PageProps<"/library">) {
   const sp = await props.searchParams;
-  const q = typeof sp.q === "string" ? sp.q.trim() : "";
+  const str = (k: string) => (typeof sp[k] === "string" ? (sp[k] as string).trim() : "");
+  const q = str("q");
 
-  if (q) {
-    const result = await apiFetch<SearchResponse>(`/search?q=${encodeURIComponent(q)}`);
-    return (
-      <>
-        <TopBar query={q} />
-        <main className="flex max-w-[1192px] flex-col gap-8 px-14 py-14">
-          <div>
-            <h1 className="text-title font-bold tracking-snug">Library</h1>
-            <p className="mt-1.5 text-body text-muted">Every document in the vault, including the words inside them.</p>
-          </div>
-          <div className="flex items-baseline justify-between">
-            <div className="flex items-baseline gap-2.5">
-              <h2 className="text-section font-semibold tracking-snug">
-                {result.total} result{result.total === 1 ? "" : "s"} for &ldquo;{q}&rdquo;
-              </h2>
-              <span className="text-small text-muted">{result.tookMs} ms</span>
-            </div>
-            <Link href="/library" className="text-row font-medium text-accent">
-              Clear search
-            </Link>
-          </div>
-          {result.hits.length === 0 && (
-            <p className="text-body text-muted">No document contains that. Search looks at titles and the text read from every page; spelling must match.</p>
-          )}
-          <ul className="flex flex-col">
-            {result.hits.map((h) => (
-              <li key={h.documentId} className="flex items-start gap-4 border-t border-border py-4 last:border-b">
-                <div className="h-14 w-11 shrink-0 rounded-sm border border-border bg-surface" />
-                <div className="flex min-w-0 flex-1 flex-col gap-1.5">
-                  <div className="flex items-baseline gap-2.5">
-                    <Link href={`/documents/${h.documentId}`} className="text-row font-semibold hover:text-accent">
-                      {h.title}
-                    </Link>
-                    <span className="text-small text-muted">
-                      {h.categoryPath ?? "Inbox"} · {h.documentDate ? formatDate(h.documentDate) : "no date yet"}
-                    </span>
-                  </div>
-                  <Snippet html={h.snippetHtml} />
-                </div>
-                <span className="w-24 shrink-0 text-right text-small text-muted">{h.source === "email" ? "Email" : "Upload"}</span>
-              </li>
-            ))}
-          </ul>
-        </main>
-      </>
-    );
-  }
+  if (q) return <SearchResults q={q} />;
 
-  const categoryFilter = typeof sp.category === "string" ? sp.category : null;
-  const [all, categories] = await Promise.all([apiFetch<DocumentSummary[]>("/documents"), apiFetch<Category[]>("/categories")]);
-  const filterCat = categoryFilter ? categories.find((c) => c.id === categoryFilter) : undefined;
-  const inFilter = new Set(filterCat ? categories.filter((c) => c.id === filterCat.id || c.parentId === filterCat.id).map((c) => c.id) : []);
-  const docs = filterCat ? all.filter((d) => d.category && inFilter.has(d.category.id)) : all;
+  const category = str("category");
+  const person = str("person");
+  const source = str("source");
+  const sort = SORTS.some((s) => s.key === str("sort")) ? str("sort") : "newest";
+  const params = new URLSearchParams();
+  if (category) params.set("category", category);
+  if (person) params.set("person", person);
+  if (source) params.set("source", source);
+  params.set("sort", sort);
+
+  const [docs, categories, people, all] = await Promise.all([
+    apiFetch<DocumentSummary[]>(`/documents?${params}`),
+    apiFetch<Category[]>("/categories"),
+    apiFetch<Person[]>("/people"),
+    apiFetch<DocumentSummary[]>("/documents?limit=500"),
+  ]);
+  const href = (patch: Record<string, string>) => {
+    const p = new URLSearchParams(params);
+    for (const [k, v] of Object.entries(patch)) {
+      if (v) p.set(k, v);
+      else p.delete(k);
+    }
+    return `/library?${p}`;
+  };
+  const tops = categories.filter((c) => c.parentId === null).sort((a, b) => a.sortOrder - b.sortOrder);
+  const kids = (id: string) => categories.filter((c) => c.parentId === id).sort((a, b) => a.sortOrder - b.sortOrder);
+  const countTop = (id: string) => (categories.find((c) => c.id === id)?.documentCount ?? 0) + kids(id).reduce((n, c) => n + c.documentCount, 0);
+  const activeCat = categories.find((c) => c.id === category);
+  const activeTop = activeCat ? (activeCat.parentId ? categories.find((c) => c.id === activeCat.parentId) : activeCat) : undefined;
+  const bySource = { upload: all.filter((d) => d.source === "upload").length, email: all.filter((d) => d.source === "email").length };
+  const inbox = all.filter((d) => !d.category).length;
+
   return (
     <>
       <TopBar />
@@ -73,31 +63,140 @@ export default async function LibraryPage(props: PageProps<"/library">) {
         <div>
           <h1 className="text-title font-bold tracking-snug">Library</h1>
           <p className="mt-1.5 text-body text-muted">
-            {filterCat ? `${filterCat.name} · ` : ""}
-            {docs.length} document{docs.length === 1 ? "" : "s"} · search above to look inside them.
-            {filterCat && (
-              <>
-                {" "}
-                <Link href="/library" className="font-medium text-accent">
-                  Show all
-                </Link>
-              </>
-            )}
+            {all.length} document{all.length === 1 ? "" : "s"}
+            {inbox ? ` · ${inbox} still in the Inbox` : ""} · search above to look inside them.
           </p>
         </div>
+
+        <div className="flex items-start gap-12">
+          <aside className="flex w-[220px] shrink-0 flex-col gap-7">
+            <div className="flex flex-col gap-1">
+              <div className="label mb-1.5">Category</div>
+              <RailLink href={href({ category: "" })} active={!category} label="Everything" count={all.length} />
+              <RailLink href="/inbox" active={false} label="Inbox" count={inbox} muted />
+              {tops.map((t) => (
+                <div key={t.id}>
+                  <RailLink href={href({ category: t.id })} active={category === t.id} label={t.name} count={countTop(t.id)} />
+                  {activeTop?.id === t.id &&
+                    kids(t.id).map((c) => <RailLink key={c.id} href={href({ category: c.id })} active={category === c.id} label={c.name} count={c.documentCount} nested />)}
+                </div>
+              ))}
+            </div>
+            <div className="flex flex-col gap-1">
+              <div className="label mb-1.5">Person</div>
+              <RailLink href={href({ person: "" })} active={!person} label="Anyone" />
+              {people.map((p) => (
+                <RailLink key={p.id} href={href({ person: p.id })} active={person === p.id} label={p.displayName} count={p.documentCount} />
+              ))}
+            </div>
+            <div className="flex flex-col gap-1">
+              <div className="label mb-1.5">Arrived by</div>
+              <RailLink href={href({ source: "" })} active={!source} label="Any" />
+              <RailLink href={href({ source: "upload" })} active={source === "upload"} label="Upload" count={bySource.upload} />
+              <RailLink href={href({ source: "email" })} active={source === "email"} label="Email" count={bySource.email} />
+            </div>
+            <Link href="/library/deleted" className="text-small font-medium text-muted hover:text-text">
+              Recently deleted
+            </Link>
+          </aside>
+
+          <div className="flex min-w-0 flex-1 flex-col gap-3">
+            <div className="flex items-baseline justify-between">
+              <h2 className="text-section font-semibold tracking-snug">
+                {activeCat ? activeCat.name : "Everything"} <span className="text-body font-normal text-muted">· {docs.length}</span>
+              </h2>
+              <div className="flex items-center gap-2 text-small text-muted">
+                Sort
+                <select defaultValue={sort} className="h-8 rounded-md border border-border bg-ground px-2 text-small text-text" name="sort" form="sortform">
+                  {SORTS.map((s) => (
+                    <option key={s.key} value={s.key}>
+                      {s.label}
+                    </option>
+                  ))}
+                </select>
+                <form id="sortform" action="/library" className="contents">
+                  {category && <input type="hidden" name="category" value={category} />}
+                  {person && <input type="hidden" name="person" value={person} />}
+                  {source && <input type="hidden" name="source" value={source} />}
+                  <button type="submit" className="h-8 rounded-md border border-border px-2.5 text-small font-medium text-text">
+                    Apply
+                  </button>
+                </form>
+              </div>
+            </div>
+            {docs.length === 0 && <p className="border-t border-border pt-4 text-body text-muted">Nothing matches these filters.</p>}
+            <ul className="flex flex-col">
+              {docs.map((d) => (
+                <li key={d.id} className="flex h-14 items-center gap-4 border-t border-border last:border-b">
+                  <div className="h-[38px] w-[30px] shrink-0 rounded-sm border border-border bg-surface" />
+                  <Link href={`/documents/${d.id}`} className="w-[340px] truncate text-row font-semibold hover:text-accent">
+                    {d.title}
+                  </Link>
+                  <span className="min-w-0 flex-1 truncate text-small text-muted">
+                    {d.category ? d.category.path : "Inbox"}
+                    {d.people.length ? ` · ${d.people.map((p) => p.displayName).join(", ")}` : ""}
+                  </span>
+                  <span className="w-24 shrink-0 text-small text-muted">{d.documentDate ? formatDate(d.documentDate) : ""}</span>
+                  <span className="w-32 shrink-0 text-small text-muted">{d.expiresAt ? `exp. ${formatDate(d.expiresAt)}` : ""}</span>
+                  <span className="w-20 shrink-0 text-small text-muted">{formatRelative(d.createdAt)}</span>
+                  <StatusPill status={d.file.processingStatus} />
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      </main>
+    </>
+  );
+}
+
+function RailLink({ href, active, label, count, nested = false, muted = false }: { href: string; active: boolean; label: string; count?: number; nested?: boolean; muted?: boolean }) {
+  return (
+    <Link href={href} className={`flex h-8 items-center gap-3 rounded-md px-2.5 text-row ${nested ? "ml-4" : ""} ${active ? "bg-accent-soft font-semibold text-accent" : muted ? "text-muted hover:bg-surface" : "text-text hover:bg-surface"}`}>
+      <span className="min-w-0 flex-1 truncate">{label}</span>
+      {count !== undefined && <span className={`text-small ${active ? "text-accent" : "text-muted"}`}>{count}</span>}
+    </Link>
+  );
+}
+
+async function SearchResults({ q }: { q: string }) {
+  const result = await apiFetch<SearchResponse>(`/search?q=${encodeURIComponent(q)}`);
+  return (
+    <>
+      <TopBar query={q} />
+      <main className="flex max-w-[1192px] flex-col gap-8 px-14 py-14">
+        <div>
+          <h1 className="text-title font-bold tracking-snug">Library</h1>
+          <p className="mt-1.5 text-body text-muted">Every document in the vault, including the words inside them.</p>
+        </div>
+        <div className="flex items-baseline justify-between">
+          <div className="flex items-baseline gap-2.5">
+            <h2 className="text-section font-semibold tracking-snug">
+              {result.total} result{result.total === 1 ? "" : "s"} for &ldquo;{q}&rdquo;
+            </h2>
+            <span className="text-small text-muted">{result.tookMs} ms</span>
+          </div>
+          <Link href="/library" className="text-row font-medium text-accent">
+            Clear search
+          </Link>
+        </div>
+        {result.hits.length === 0 && <p className="text-body text-muted">No document contains that. Search looks at titles, tags, people and the text read from every page; spelling must match.</p>}
         <ul className="flex flex-col">
-          {docs.map((d) => (
-            <li key={d.id} className="flex h-14 items-center gap-4 border-t border-border last:border-b">
-              <div className="h-[38px] w-[30px] shrink-0 rounded-sm border border-border bg-surface" />
-              <Link href={`/documents/${d.id}`} className="w-[420px] truncate text-row font-semibold hover:text-accent">
-                {d.title}
-              </Link>
-              <span className="flex-1 text-small text-muted">
-                {d.category ? `${d.category.path} · ` : "Inbox · "}
-                {d.source === "email" ? "Email" : "Upload"} · {formatRelative(d.createdAt)}
-                {d.file.pageCount ? ` · ${pages(d.file.pageCount)}` : ""}
-              </span>
-              <StatusPill status={d.file.processingStatus} />
+          {result.hits.map((h) => (
+            <li key={h.documentId} className="flex items-start gap-4 border-t border-border py-4 last:border-b">
+              <div className="h-14 w-11 shrink-0 rounded-sm border border-border bg-surface" />
+              <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+                <div className="flex items-baseline gap-2.5">
+                  <Link href={`/documents/${h.documentId}`} className="text-row font-semibold hover:text-accent">
+                    {h.title}
+                  </Link>
+                  <span className="text-small text-muted">
+                    {h.categoryPath ?? "Inbox"} · {h.documentDate ? formatDate(h.documentDate) : "no date yet"}
+                  </span>
+                </div>
+                <Snippet html={h.snippetHtml} />
+              </div>
+              <span className="w-24 shrink-0 text-right text-small text-muted">{h.source === "email" ? "Email" : "Upload"}</span>
             </li>
           ))}
         </ul>
@@ -105,3 +204,4 @@ export default async function LibraryPage(props: PageProps<"/library">) {
     </>
   );
 }
+

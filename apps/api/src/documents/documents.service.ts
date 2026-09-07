@@ -1,5 +1,5 @@
 import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
-import { and, desc, eq, inArray, isNull, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNull, sql, type SQL } from "drizzle-orm";
 import { Queue } from "bullmq";
 import { open, rm } from "node:fs/promises";
 import path from "node:path";
@@ -126,20 +126,34 @@ export class DocumentsService {
 
   // ---------- reads ----------
 
-  async list(opts: { inboxOnly?: boolean; personId?: string; limit?: number } = {}): Promise<DocumentSummary[]> {
+  async list(opts: { inboxOnly?: boolean; personId?: string; categoryId?: string; source?: "upload" | "email"; sort?: "newest" | "oldest" | "title" | "date" | "expires"; limit?: number } = {}): Promise<DocumentSummary[]> {
+    const conditions: SQL[] = [isNull(documents.deletedAt)];
+    if (opts.inboxOnly) conditions.push(isNull(documents.categoryId));
+    if (opts.personId) conditions.push(sql`exists (select 1 from ${documentPeople} dp where dp.document_id = ${documents.id} and dp.person_id = ${opts.personId})`);
+    if (opts.source) conditions.push(eq(documents.source, opts.source));
+    if (opts.categoryId) {
+      // A top-level category includes its children (spec §1: depth <= 2).
+      const cats = await this.categoriesService.index();
+      const ids = [...cats.values()].filter((c) => c.cat.id === opts.categoryId || c.cat.parentId === opts.categoryId).map((c) => c.cat.id);
+      conditions.push(ids.length ? inArray(documents.categoryId, ids) : sql`false`);
+    }
+    const order =
+      opts.sort === "oldest"
+        ? [asc(documents.createdAt)]
+        : opts.sort === "title"
+          ? [asc(documents.title)]
+          : opts.sort === "date"
+            ? [sql`${documents.documentDate} desc nulls last`, desc(documents.createdAt)]
+            : opts.sort === "expires"
+              ? [sql`${documents.expiresAt} asc nulls last`, desc(documents.createdAt)]
+              : [desc(documents.createdAt)];
     const rows = await this.db
       .select({ doc: documents, df: documentFiles })
       .from(documents)
       .innerJoin(documentFiles, and(eq(documentFiles.documentId, documents.id), eq(documentFiles.isCurrent, true)))
-      .where(
-        and(
-          isNull(documents.deletedAt),
-          opts.inboxOnly ? isNull(documents.categoryId) : sql`true`,
-          opts.personId ? sql`exists (select 1 from ${documentPeople} dp where dp.document_id = ${documents.id} and dp.person_id = ${opts.personId})` : sql`true`,
-        ),
-      )
-      .orderBy(desc(documents.createdAt))
-      .limit(opts.limit ?? 100);
+      .where(and(...conditions))
+      .orderBy(...order)
+      .limit(opts.limit ?? 200);
     return this.assemble(rows);
   }
 
