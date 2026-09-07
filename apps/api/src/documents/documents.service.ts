@@ -5,7 +5,7 @@ import { open, rm } from "node:fs/promises";
 import path from "node:path";
 import type { Readable } from "node:stream";
 import { auditLog, categories, documentFiles, documentPeople, documentText, documents, people, users, type Db } from "@trustworthier/db";
-import type { AcceptAllResult, ActivityEntry, DeletedDocument, DocumentSummary, DocumentText, DocumentVersion, SuggestionView, UpdateDocument, UploadFields, UploadResult } from "@trustworthier/shared";
+import type { AcceptAllResult, AcceptSuggestion, ActivityEntry, DeletedDocument, DocumentSummary, DocumentText, DocumentVersion, SuggestionView, UpdateDocument, UploadFields, UploadResult } from "@trustworthier/shared";
 import { AuditService } from "../audit/audit.service";
 import { MIME_BY_KIND, sniffKind } from "../common/sniff";
 import { CryptoService } from "../crypto/crypto.service";
@@ -297,15 +297,21 @@ export class DocumentsService {
     return this.get(documentId);
   }
 
-  /** Copy the suggestion's fields onto the document and stamp it accepted (spec §5). */
-  async acceptSuggestion(documentId: string, userId: string, ip: string | null): Promise<DocumentSummary> {
+  /**
+   * Copy the suggestion's fields onto the document and stamp it accepted (spec §5).
+   * `override` carries what the card actually shows, so accepting always files the document —
+   * a suggestion whose category could not be resolved must never leave it stuck in the Inbox.
+   */
+  async acceptSuggestion(documentId: string, userId: string, ip: string | null, override: AcceptSuggestion = {}): Promise<DocumentSummary> {
     const row = await this.loadRow(documentId);
     const s = (await this.suggest.latestForFiles([row.df.id])).get(row.df.id);
     if (!s) throw new NotFoundException("No suggestion to accept");
+    const categoryId = override.categoryId ?? s.resolved.categoryId ?? undefined;
+    if (!categoryId) throw new BadRequestException("Choose a category — this suggestion doesn't name one that exists in your vault.");
     const patch: UpdateDocument = {
       title: s.payload.title.trim() || undefined,
-      categoryId: s.resolved.categoryId ?? undefined,
-      personIds: s.resolved.personIds,
+      categoryId,
+      personIds: override.personIds ?? s.resolved.personIds,
       documentDate: isoDate(s.payload.documentDate),
       expiresAt: isoDate(s.payload.expiresAt),
     };
@@ -324,14 +330,18 @@ export class DocumentsService {
     return this.get(documentId);
   }
 
-  /** "Accept all suggestions": high-confidence, unresolved, with a category to file into. */
+  /**
+   * "Accept all suggestions": everything unresolved that names a category the vault has and is
+   * not low-confidence. Low-confidence cards and ones with no usable category stay for a human.
+   * Every filing is audited and reversible.
+   */
   async acceptAll(userId: string, ip: string | null): Promise<AcceptAllResult> {
     const inbox = await this.list({ inboxOnly: true, limit: 500 });
     let accepted = 0;
     let skipped = 0;
     for (const d of inbox) {
       const s = d.suggestion;
-      if (s && !s.acceptedAt && !s.rejectedAt && s.payload.confidence === "high" && s.resolved.categoryId) {
+      if (s && !s.acceptedAt && !s.rejectedAt && s.payload.confidence !== "low" && s.resolved.categoryId) {
         await this.acceptSuggestion(d.id, userId, ip);
         accepted++;
       } else skipped++;

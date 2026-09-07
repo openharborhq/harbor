@@ -22,7 +22,8 @@ export function InboxCard({ doc, categories, people }: { doc: DocumentSummary; c
 
   const [categoryId, setCategoryId] = useState<string | "">(doc.category?.id ?? s?.resolved.categoryId ?? "");
   const [personIds, setPersonIds] = useState<string[]>(doc.people.length ? doc.people.map((p) => p.id) : (s?.resolved.personIds ?? []));
-  const [busy, setBusy] = useState<"file" | "reject" | null>(null);
+  const [busy, setBusy] = useState<"file" | "delete" | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const grouped = useMemo(() => groupCategories(categories), [categories]);
@@ -33,8 +34,9 @@ export function InboxCard({ doc, categories, people }: { doc: DocumentSummary; c
     setBusy("file");
     setError(null);
     try {
-      if (s && unchanged && !s.acceptedAt) await api(`/documents/${doc.id}/suggestion/accept`, { method: "POST" });
-      else await api(`/documents/${doc.id}`, { method: "PATCH", body: JSON.stringify({ categoryId, personIds, ...(s && !doc.title ? { title: s.payload.title } : {}) }) });
+      // Accepting sends the card's own category/people so filing can never silently no-op.
+      if (s && !s.rejectedAt) await api(`/documents/${doc.id}/suggestion/accept`, { method: "POST", body: JSON.stringify({ categoryId, personIds }) });
+      else await api(`/documents/${doc.id}`, { method: "PATCH", body: JSON.stringify({ categoryId, personIds }) });
       router.refresh();
     } catch (err) {
       setError((err as Error).message);
@@ -42,14 +44,14 @@ export function InboxCard({ doc, categories, people }: { doc: DocumentSummary; c
     }
   }
 
-  async function notThis() {
-    setBusy("reject");
+  /** Soft delete: the card leaves the Inbox and waits in Recently deleted (spec §1 deleted_at). */
+  async function deleteItem() {
+    setBusy("delete");
     try {
-      await api(`/documents/${doc.id}/suggestion/reject`, { method: "POST" });
-      setCategoryId("");
-      setPersonIds([]);
+      await api(`/documents/${doc.id}`, { method: "DELETE" });
       router.refresh();
-    } finally {
+    } catch (err) {
+      setError((err as Error).message);
       setBusy(null);
     }
   }
@@ -183,11 +185,21 @@ export function InboxCard({ doc, categories, people }: { doc: DocumentSummary; c
               disabled={!categoryId || busy !== null || processing}
               className="h-9 rounded-md bg-accent px-4 text-row font-semibold text-white disabled:opacity-50"
             >
-              {busy === "file" ? "Filing…" : s && unchanged && !s.acceptedAt ? "Accept & file" : "File it"}
+              {busy === "file" ? "Filing…" : s && unchanged && !s.rejectedAt ? "Accept & file" : "File it"}
             </button>
-            {s && !s.rejectedAt && !s.acceptedAt && (
-              <button type="button" onClick={notThis} disabled={busy !== null} className="text-row font-medium text-muted hover:text-text">
-                {busy === "reject" ? "…" : "Not this"}
+            {confirmDelete ? (
+              <span className="flex items-center gap-3 text-row">
+                <span className="text-muted">Delete it?</span>
+                <button type="button" onClick={deleteItem} disabled={busy !== null} className="font-semibold text-danger">
+                  {busy === "delete" ? "Deleting…" : "Yes, delete"}
+                </button>
+                <button type="button" onClick={() => setConfirmDelete(false)} className="font-medium text-muted">
+                  Keep
+                </button>
+              </span>
+            ) : (
+              <button type="button" onClick={() => setConfirmDelete(true)} disabled={busy !== null} className="text-row font-medium text-muted hover:text-danger">
+                Delete item
               </button>
             )}
             {error && <span className="text-small text-danger">{error}</span>}

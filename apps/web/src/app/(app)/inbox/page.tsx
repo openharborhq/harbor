@@ -18,7 +18,7 @@ export default async function InboxPage() {
   ]);
   const processing = docs.filter((d) => isProcessing(d.file.processingStatus)).length;
   const suggested = docs.filter((d) => d.suggestion?.resolved.categoryId && !d.suggestion.rejectedAt).length;
-  const eligible = docs.filter((d) => d.suggestion && d.suggestion.payload.confidence === "high" && d.suggestion.resolved.categoryId && !d.suggestion.acceptedAt && !d.suggestion.rejectedAt).length;
+  const eligible = docs.filter((d) => d.suggestion && d.suggestion.payload.confidence !== "low" && d.suggestion.resolved.categoryId && !d.suggestion.acceptedAt && !d.suggestion.rejectedAt).length;
   const groups = groupByDay(docs);
 
   return (

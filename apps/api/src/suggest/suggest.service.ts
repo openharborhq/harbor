@@ -131,7 +131,7 @@ export class SuggestService {
     await this.db.update(suggestions).set({ acceptedAt: new Date(), rejectedAt: null }).where(eq(suggestions.id, id));
   }
   async markRejected(id: string): Promise<void> {
-    await this.db.update(suggestions).set({ rejectedAt: new Date() }).where(and(eq(suggestions.id, id)));
+    await this.db.update(suggestions).set({ rejectedAt: new Date(), acceptedAt: null }).where(eq(suggestions.id, id));
   }
 }
 

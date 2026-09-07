@@ -185,7 +185,9 @@ export class FileProcessor {
           .where(eq(documentFiles.id, df.id));
       });
       // Stage 4 runs in the suggester container (the only one with a route out). Best-effort: it flips to ready either way.
-      if (text) await this.suggestQueue.add("suggest", { documentFileId: df.id }, { jobId: `s-${df.id}` });
+      // No fixed jobId: BullMQ would dedupe against the previous completed job and silently skip
+      // re-suggesting on reprocess. Repeat runs are idempotent via the unique index on suggestions.
+      if (text) await this.suggestQueue.add("suggest", { documentFileId: df.id });
 
       this.log.log(`${df.id}: ${engine ?? "no-text"} · ${pageCount ?? "?"} pages · ${text.length} chars · ${ms} ms`);
       return { engine, pageCount, chars: text.length, ms };

@@ -47,14 +47,14 @@ export function DocumentDetail({
   }
 
   return (
-    <aside className="flex w-[560px] shrink-0 flex-col">
-      <div className="flex gap-6 border-b border-border">
+    <aside className="flex w-[420px] shrink-0 flex-col">
+      <div className="flex gap-5 border-b border-border">
         {(["details", "text", "versions", "activity"] as Tab[]).map((t) => (
           <button
             key={t}
             type="button"
             onClick={() => setTab(t)}
-            className={`-mb-px border-b-2 pb-3 text-row font-medium ${tab === t ? "border-accent text-accent" : "border-transparent text-muted hover:text-text"}`}
+            className={`-mb-px whitespace-nowrap border-b-2 pb-3 text-row font-medium ${tab === t ? "border-accent text-accent" : "border-transparent text-muted hover:text-text"}`}
           >
             {t === "details" ? "Details" : t === "text" ? "Extracted text" : t === "versions" ? "Versions" : "Activity"}
           </button>

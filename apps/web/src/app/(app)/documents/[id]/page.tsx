@@ -34,7 +34,8 @@ export default async function DocumentPage(props: PageProps<"/documents/[id]">) 
     <>
       <TopBar />
       <AutoRefresh active={isProcessing(f.processingStatus)} />
-      <main className="flex max-w-[1192px] flex-col gap-6 px-14 py-8">
+      {/* Wider than the other pages: this one is a viewer, and a squeezed PDF is unreadable. */}
+      <main className="flex max-w-[1400px] flex-col gap-6 px-14 py-8">
         <div className="flex items-start justify-between gap-6">
           <div className="min-w-0">
             <Link href={doc.category ? "/library" : "/inbox"} className="text-small font-medium text-accent">
@@ -55,15 +56,33 @@ export default async function DocumentPage(props: PageProps<"/documents/[id]">) 
         </div>
 
         <div className="flex gap-8">
-          <div className="flex h-[720px] flex-1 items-start justify-center overflow-hidden rounded-lg bg-surface p-6">
-            {isImage ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={fileUrl} alt={doc.title} className="max-h-full max-w-full rounded-sm border border-border bg-white object-contain" />
-            ) : f.mimeType === "application/pdf" ? (
-              <iframe src={fileUrl} title={doc.title} className="h-full w-full rounded-sm border border-border bg-white" />
-            ) : (
-              <p className="text-body text-muted">No preview for this file type. Download the original instead.</p>
-            )}
+          <div className="flex min-w-[560px] flex-1 flex-col gap-3">
+            <div className="flex h-[720px] items-start justify-center overflow-hidden rounded-lg bg-surface p-6">
+              {isImage ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={fileUrl} alt={doc.title} className="max-h-full max-w-full rounded-sm border border-border bg-white object-contain" />
+              ) : f.mimeType === "application/pdf" ? (
+                // The browser's own PDF toolbar sits inside the frame and clips on narrow screens,
+                // so it is turned off and replaced by the strip below.
+                <iframe src={`${fileUrl}#toolbar=0&navpanes=0&statusbar=0&view=FitH`} title={doc.title} className="h-full w-full rounded-sm border border-border bg-white" />
+              ) : (
+                <p className="text-body text-muted">No preview for this file type. Download the original instead.</p>
+              )}
+            </div>
+            <div className="flex items-center justify-between rounded-md border border-border px-4 py-2.5">
+              <span className="min-w-0 truncate text-small text-muted">
+                {f.originalFilename}
+                {f.pageCount ? ` · ${f.pageCount} page${f.pageCount === 1 ? "" : "s"}` : ""} · {Math.max(1, Math.round(f.byteSize / 1024))} KB
+              </span>
+              <span className="flex shrink-0 items-center gap-5">
+                <a href={fileUrl} target="_blank" rel="noreferrer" className="text-row font-medium text-accent">
+                  Open full size
+                </a>
+                <a href={fileUrl} download={f.originalFilename} className="text-row font-medium text-accent">
+                  Download
+                </a>
+              </span>
+            </div>
           </div>
           <DocumentDetail doc={doc} text={text} versions={versions} activity={activity} categories={categories} people={people} />
         </div>

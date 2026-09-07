@@ -5,6 +5,7 @@ import path from "node:path";
 import type { Env } from "../config/env";
 import { DocumentsController } from "./documents.controller";
 import { DocumentsService } from "./documents.service";
+import { PersonPageController } from "./person-page.controller";
 
 const MAX_UPLOAD_BYTES = 200 * 1024 * 1024; // matches the drop-zone copy in the design
 
@@ -19,7 +20,7 @@ const MAX_UPLOAD_BYTES = 200 * 1024 * 1024; // matches the drop-zone copy in the
       }),
     }),
   ],
-  controllers: [DocumentsController],
+  controllers: [DocumentsController, PersonPageController],
   providers: [DocumentsService],
   exports: [DocumentsService],
 })

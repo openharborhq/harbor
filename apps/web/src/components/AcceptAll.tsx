@@ -31,7 +31,7 @@ export function AcceptAll({ eligible }: { eligible: number }) {
         type="button"
         onClick={run}
         disabled={busy || eligible === 0}
-        title={eligible === 0 ? "Only high-confidence suggestions are filed in bulk" : undefined}
+        title={eligible === 0 ? "Nothing to file in bulk: the remaining cards have no confident category to file into." : "Files every card that names a category, except low-confidence ones. Reversible."}
         className="h-10 rounded-md border border-border bg-ground px-4 text-row font-medium disabled:opacity-50"
       >
         {busy ? "Filing…" : `Accept all suggestions${eligible ? ` (${eligible})` : ""}`}

@@ -70,6 +70,13 @@ export const UpdateDocument = z.object({
 });
 export type UpdateDocument = z.infer<typeof UpdateDocument>;
 
+/** "Accept & file" sends whatever is in the card's dropdowns; they win over the suggestion. */
+export const AcceptSuggestion = z.object({
+  categoryId: z.string().uuid().optional(),
+  personIds: z.array(z.string().uuid()).max(20).optional(),
+});
+export type AcceptSuggestion = z.infer<typeof AcceptSuggestion>;
+
 export const AcceptAllResult = z.object({ accepted: z.number().int().nonnegative(), skipped: z.number().int().nonnegative() });
 export type AcceptAllResult = z.infer<typeof AcceptAllResult>;
 

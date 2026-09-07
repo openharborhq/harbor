@@ -19,6 +19,9 @@ export const CreateCategory = z.object({
 });
 export type CreateCategory = z.infer<typeof CreateCategory>;
 
+export const RenameCategory = z.object({ name: z.string().trim().min(1).max(60) });
+export type RenameCategory = z.infer<typeof RenameCategory>;
+
 export const Person = z.object({
   id: z.string().uuid(),
   displayName: z.string(),

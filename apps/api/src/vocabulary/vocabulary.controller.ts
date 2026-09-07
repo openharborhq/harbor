@@ -1,18 +1,17 @@
 import { Body, Controller, Delete, Get, Param, ParseUUIDPipe, Patch, Post } from "@nestjs/common";
 import {
   CreateCategory,
+  RenameCategory,
   CreatePerson,
   UpdatePerson,
   UpsertKeyDocument,
   type Category,
-  type DocumentSummary,
   type KeyDocumentSlot,
   type Person,
   type SessionUser,
 } from "@trustworthier/shared";
 import { CurrentUser } from "../auth/current-user.decorator";
 import { ZodPipe } from "../common/zod.pipe";
-import { DocumentsService } from "../documents/documents.service";
 import { CategoriesService } from "./categories.service";
 import { PeopleService } from "./people.service";
 
@@ -21,7 +20,6 @@ export class VocabularyController {
   constructor(
     private readonly categories: CategoriesService,
     private readonly people: PeopleService,
-    private readonly documents: DocumentsService,
   ) {}
 
   @Get("categories")
@@ -34,6 +32,11 @@ export class VocabularyController {
     return this.categories.create(body, user.id);
   }
 
+  @Patch("categories/:id")
+  renameCategory(@Param("id", ParseUUIDPipe) id: string, @Body(new ZodPipe(RenameCategory)) body: RenameCategory, @CurrentUser() user: SessionUser): Promise<Category> {
+    return this.categories.rename(id, body.name, user.id);
+  }
+
   @Get("people")
   listPeople(): Promise<Person[]> {
     return this.people.list();
@@ -42,13 +45,6 @@ export class VocabularyController {
   @Post("people")
   createPerson(@Body(new ZodPipe(CreatePerson)) body: CreatePerson, @CurrentUser() user: SessionUser): Promise<Person> {
     return this.people.create(body, user.id);
-  }
-
-  /** Person page payload: the person, their key-document slots, and every document about them. */
-  @Get("people/:id")
-  async getPerson(@Param("id", ParseUUIDPipe) id: string): Promise<{ person: Person; keyDocuments: KeyDocumentSlot[]; documents: DocumentSummary[] }> {
-    const [person, keyDocuments, documents] = await Promise.all([this.people.get(id), this.people.keyDocuments(id), this.documents.list({ personId: id, limit: 500 })]);
-    return { person, keyDocuments, documents };
   }
 
   @Patch("people/:id")
