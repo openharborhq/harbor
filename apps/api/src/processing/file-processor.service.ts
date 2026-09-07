@@ -1,0 +1,200 @@
+import { Injectable, Logger } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
+import { UnrecoverableError } from "bullmq";
+import { eq, sql } from "drizzle-orm";
+import { open, readFile, rm, mkdir } from "node:fs/promises";
+import path from "node:path";
+import { documentFiles, documentText, documents, type Db } from "@trustworthier/db";
+import type { ProcessingStatus } from "@trustworthier/shared";
+import { sniffKind, type FileKind } from "../common/sniff";
+import type { Env } from "../config/env";
+import { InjectDb } from "../db/db.module";
+import { TS_CONFIG } from "../search/search.service";
+import { BlobStore } from "../storage/blob-store.service";
+import { ExecError, run } from "./exec";
+import { hasUsableTextLayer, MAX_INDEXED_CHARS, pageFromOcrLine, pagesFromPdfInfo } from "./text-quality";
+
+/** Hard ceiling per job; a 100-page scan on a fanless box fits comfortably (spec §2 stage 2). */
+export const JOB_TIMEOUT_MS = 20 * 60 * 1000;
+
+export interface ProcessContext {
+  signal: AbortSignal;
+  progress: (fraction: number) => Promise<void> | void;
+}
+
+export interface ProcessResult {
+  engine: "pdftotext" | "ocrmypdf" | null;
+  pageCount: number | null;
+  chars: number;
+  ms: number;
+}
+
+/**
+ * Stages 1-3 of the pipeline (spec §2): normalise -> OCR only if needed -> index.
+ * Runs inside the network-less worker container. The original blob is never modified;
+ * the searchable PDF is a second blob encrypted under the same DEK with its own IV.
+ */
+@Injectable()
+export class FileProcessor {
+  private readonly log = new Logger(FileProcessor.name);
+  private readonly ocrLanguages: string;
+
+  constructor(
+    @InjectDb() private readonly db: Db,
+    private readonly blobs: BlobStore,
+    config: ConfigService<Env, true>,
+  ) {
+    this.ocrLanguages = config.get("OCR_LANGUAGES", { infer: true });
+  }
+
+  async process(documentFileId: string, ctx: ProcessContext): Promise<ProcessResult> {
+    const started = Date.now();
+    const row = await this.db
+      .select({ df: documentFiles, title: documents.title })
+      .from(documentFiles)
+      .innerJoin(documents, eq(documents.id, documentFiles.documentId))
+      .where(eq(documentFiles.id, documentFileId))
+      .limit(1)
+      .then((r) => r[0]);
+    if (!row) throw new UnrecoverableError(`document_files ${documentFileId} does not exist`);
+    const { df, title } = row;
+
+    const work = path.join(this.blobs.tmpDir, `job-${df.id}`);
+    await mkdir(work, { recursive: true, mode: 0o700 });
+    try {
+      await this.setStatus(df.id, "extracting");
+      const dek = this.blobs.unwrapDek(df.dekWrapped, df.storageKey);
+      const original = path.join(work, "original");
+      await this.blobs.openToFile(df.storageKey, dek, df.iv, df.authTag, original);
+
+      const kind = await sniffFile(original);
+      let text = "";
+      let engine: ProcessResult["engine"] = null;
+      let pageCount: number | null = null;
+      let searchable: { key: string; iv: Buffer; tag: Buffer } | null = null;
+
+      if (kind === "unknown") {
+        // Stored as-is, not searchable (spec §2 stage 1: office files etc. are out of scope for v1).
+        this.log.log(`${df.id}: unsupported type, stored without text`);
+      } else {
+        let pdfIn = original;
+        if (kind === "heic") {
+          const jpg = path.join(work, "converted.jpg");
+          await run("heif-convert", [original, jpg], { signal: ctx.signal });
+          pdfIn = jpg;
+        }
+        if (kind === "pdf") {
+          pageCount = pagesFromPdfInfo((await run("pdfinfo", [pdfIn], { signal: ctx.signal })).stdout);
+          const layer = (await run("pdftotext", ["-layout", pdfIn, "-"], { signal: ctx.signal })).stdout;
+          if (hasUsableTextLayer(layer, pageCount ?? 1)) {
+            text = layer;
+            engine = "pdftotext";
+          }
+        }
+        if (engine === null) {
+          await this.setStatus(df.id, "ocr", 0);
+          const out = path.join(work, "searchable.pdf");
+          const total = pageCount ?? 1;
+          const args = ["--skip-text", "--rotate-pages", "--deskew", "--optimize", "1", "-l", this.ocrLanguages, "--jobs", "1", "-v", "1"];
+          if (kind !== "pdf") args.push("--image-dpi", "300");
+          args.push(pdfIn, out);
+          let lastPage = 0;
+          await run("ocrmypdf", args, {
+            signal: ctx.signal,
+            onStderrLine: (line) => {
+              const p = pageFromOcrLine(line);
+              if (p && p > lastPage) {
+                lastPage = p;
+                void this.setStatus(df.id, "ocr", Math.min(p / total, 0.99));
+                void ctx.progress(p / total);
+              }
+            },
+          });
+          pageCount = pagesFromPdfInfo((await run("pdfinfo", [out], { signal: ctx.signal })).stdout) ?? pageCount;
+          text = (await run("pdftotext", ["-layout", out, "-"], { signal: ctx.signal })).stdout;
+          engine = "ocrmypdf";
+          const sealed = await this.blobs.sealFile(out, dek);
+          searchable = { key: sealed.storageKey, iv: sealed.iv, tag: sealed.authTag };
+        }
+      }
+      dek.fill(0);
+
+      await this.setStatus(df.id, "indexing");
+      const ms = Date.now() - started;
+      await this.db.transaction(async (tx) => {
+        await tx
+          .insert(documentText)
+          .values({
+            documentFileId: df.id,
+            textContent: text,
+            ocrEngine: engine,
+            ocrMs: ms,
+            searchablePdfKey: searchable?.key ?? null,
+            searchablePdfIv: searchable?.iv ?? null,
+            searchablePdfTag: searchable?.tag ?? null,
+          })
+          .onConflictDoUpdate({
+            target: documentText.documentFileId,
+            set: {
+              textContent: text,
+              ocrEngine: engine,
+              ocrMs: ms,
+              searchablePdfKey: searchable?.key ?? null,
+              searchablePdfIv: searchable?.iv ?? null,
+              searchablePdfTag: searchable?.tag ?? null,
+              completedAt: new Date(),
+            },
+          });
+        const indexed = text.slice(0, MAX_INDEXED_CHARS);
+        await tx.execute(sql`
+          insert into document_search (document_id, tsv, updated_at)
+          values (${df.documentId},
+                  setweight(to_tsvector(${TS_CONFIG}, ${title}), 'A') || setweight(to_tsvector(${TS_CONFIG}, ${indexed}), 'C'),
+                  now())
+          on conflict (document_id) do update set tsv = excluded.tsv, updated_at = now()
+        `);
+        await tx
+          .update(documentFiles)
+          .set({ processingStatus: "ready", processingError: null, pageProgress: null, pageCount })
+          .where(eq(documentFiles.id, df.id));
+      });
+
+      this.log.log(`${df.id}: ${engine ?? "no-text"} · ${pageCount ?? "?"} pages · ${text.length} chars · ${ms} ms`);
+      return { engine, pageCount, chars: text.length, ms };
+    } catch (err) {
+      const message = describe(err);
+      await this.setStatus(df.id, "failed", null, message);
+      // Tool failures are deterministic: retrying the same bytes gives the same result.
+      if (err instanceof ExecError || ctx.signal.aborted) throw new UnrecoverableError(message);
+      throw err;
+    } finally {
+      await rm(work, { recursive: true, force: true });
+    }
+  }
+
+  private async setStatus(id: string, status: ProcessingStatus, progress: number | null = null, error: string | null = null) {
+    await this.db
+      .update(documentFiles)
+      .set({ processingStatus: status, pageProgress: progress, processingError: error })
+      .where(eq(documentFiles.id, id));
+  }
+}
+
+async function sniffFile(file: string): Promise<FileKind> {
+  const fh = await open(file, "r");
+  try {
+    const buf = Buffer.alloc(16);
+    const { bytesRead } = await fh.read(buf, 0, 16, 0);
+    return sniffKind(buf.subarray(0, bytesRead));
+  } finally {
+    await fh.close();
+  }
+}
+
+function describe(err: unknown): string {
+  if (err instanceof ExecError) return err.message.slice(0, 1000);
+  if (err instanceof Error) return (err.name === "AbortError" ? "Timed out" : err.message).slice(0, 1000);
+  return String(err).slice(0, 1000);
+}
+
+export { readFile };

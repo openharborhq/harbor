@@ -1,20 +1,60 @@
 import "reflect-metadata";
 import { Logger } from "@nestjs/common";
+import { NestFactory } from "@nestjs/core";
+import { Worker, type Job } from "bullmq";
+import type IORedis from "ioredis";
+import { runMigrations, type Db } from "@trustworthier/db";
 import { loadEnv } from "./config/env";
+import { DB } from "./db/db.module";
+import { FileProcessor, JOB_TIMEOUT_MS } from "./processing/file-processor.service";
+import { PROCESS_FILE_QUEUE, REDIS, type ProcessFileJob } from "./queue/queue.module";
+import { WorkerModule } from "./worker.module";
 
 /**
- * Second entrypoint for the same codebase (spec §3.7). Runs BullMQ processors only — no HTTP.
- * The container it ships in carries the OCR toolchain and has no internet egress (spec §3.6).
- * Processors are wired in milestone-1 step 7.
+ * Second entrypoint for the same codebase (spec §3.7). Runs BullMQ processors only; no HTTP.
+ * Ships in the container that carries the OCR toolchain and has no internet egress (spec §3.6).
  */
 async function bootstrap() {
   const env = loadEnv();
-  Logger.log(`worker starting · OCR concurrency ${env.OCR_CONCURRENCY}`, "worker");
-  const shutdown = (signal: string) => {
-    Logger.log(`received ${signal}, draining`, "worker");
+  const log = new Logger("worker");
+  const app = await NestFactory.createApplicationContext(WorkerModule);
+  await runMigrations(app.get<Db>(DB));
+
+  const processor = app.get(FileProcessor);
+  const worker = new Worker<ProcessFileJob>(
+    PROCESS_FILE_QUEUE,
+    async (job: Job<ProcessFileJob>) => {
+      const ac = new AbortController();
+      const timer = setTimeout(() => ac.abort(), JOB_TIMEOUT_MS);
+      try {
+        return await processor.process(job.data.documentFileId, {
+          signal: ac.signal,
+          progress: (fraction) => job.updateProgress(Math.round(fraction * 100)),
+        });
+      } finally {
+        clearTimeout(timer);
+      }
+    },
+    {
+      connection: app.get<IORedis>(REDIS),
+      concurrency: env.OCR_CONCURRENCY,
+      lockDuration: 60_000,
+      stalledInterval: 30_000,
+    },
+  );
+
+  worker.on("completed", (job, result) => log.log(`job ${job.id} done: ${JSON.stringify(result)}`));
+  worker.on("failed", (job, err) => log.warn(`job ${job?.id} failed (attempt ${job?.attemptsMade}): ${err.message}`));
+  worker.on("error", (err) => log.error(`worker error: ${err.message}`));
+  log.log(`worker ready · queue ${PROCESS_FILE_QUEUE} · concurrency ${env.OCR_CONCURRENCY} · languages ${env.OCR_LANGUAGES}`);
+
+  const shutdown = async (signal: string) => {
+    log.log(`${signal}: draining (in-flight jobs finish, no new ones)`);
+    await worker.close();
+    await app.close();
     process.exit(0);
   };
-  process.on("SIGTERM", () => shutdown("SIGTERM"));
-  process.on("SIGINT", () => shutdown("SIGINT"));
+  process.on("SIGTERM", () => void shutdown("SIGTERM"));
+  process.on("SIGINT", () => void shutdown("SIGINT"));
 }
 void bootstrap();

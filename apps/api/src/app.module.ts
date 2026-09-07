@@ -5,7 +5,11 @@ import { AuthModule } from "./auth/auth.module";
 import { loadEnv } from "./config/env";
 import { CryptoModule } from "./crypto/crypto.module";
 import { DbModule } from "./db/db.module";
+import { DocumentsModule } from "./documents/documents.module";
 import { HealthController } from "./health/health.controller";
+import { QueueModule } from "./queue/queue.module";
+import { SearchModule } from "./search/search.module";
+import { StorageModule } from "./storage/storage.module";
 
 @Module({
   imports: [
@@ -17,7 +21,11 @@ import { HealthController } from "./health/health.controller";
     DbModule,
     CryptoModule,
     AuditModule,
+    StorageModule,
+    QueueModule,
     AuthModule,
+    DocumentsModule,
+    SearchModule,
   ],
   controllers: [HealthController],
 })

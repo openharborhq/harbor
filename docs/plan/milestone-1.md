@@ -47,23 +47,23 @@ docs/
 
 ## Work order
 
-1. [ ] Workspace: pnpm + Turborepo, shared tsconfig, eslint, prettier, `.env.example`, `.gitignore`.
-2. [ ] `packages/db`: Drizzle schema for §1 tables needed in M1 — `users`, `sessions`, `documents`,
+1. [x] Workspace: pnpm + Turborepo, shared tsconfig, eslint, prettier, `.env.example`, `.gitignore`.
+2. [x] `packages/db`: Drizzle schema for §1 tables needed in M1 — `users`, `sessions`, `documents`,
        `document_files`, `document_text`, `document_search` (generated `tsvector`), `audit_log`.
        First migration. Local Postgres via compose.
-3. [ ] `packages/shared`: Zod for `UploadInit`, `DocumentSummary`, `SearchQuery`, `SearchHit`, auth DTOs.
-4. [ ] `apps/api` auth: `setup` CLI command creates the first owner (argon2 + TOTP secret, prints
+3. [x] `packages/shared`: Zod for `UploadInit`, `DocumentSummary`, `SearchQuery`, `SearchHit`, auth DTOs.
+4. [x] `apps/api` auth: `setup` CLI command creates the first owner (argon2 + TOTP secret, prints
        otpauth URI + recovery codes). `/auth/login` → password check → `/auth/totp` → session cookie.
        Guard on every other route. `audit_log` writes.
-5. [ ] `apps/api` crypto + storage: `CryptoService` (KEK from `TW_KEK_FILE`, wrap/unwrap DEK,
+5. [x] `apps/api` crypto + storage: `CryptoService` (KEK from `TW_KEK_FILE`, wrap/unwrap DEK,
        encrypt/decrypt streams), `BlobStore` (write ciphertext to `/data/blobs/<uuid>`, fsync).
-6. [ ] `apps/api` ingest: `POST /documents` multipart → temp file → sha256 → duplicate check →
+6. [x] `apps/api` ingest: `POST /documents` multipart → temp file → sha256 → duplicate check →
        encrypt → `documents` + `document_files(processing_status=queued)` → enqueue `process-file`.
        `GET /documents/:id/file` decrypts and streams the original.
-7. [ ] `apps/api` worker: `process-file` processor — sniff type → pdftotext-or-ocrmypdf →
+7. [x] `apps/api` worker: `process-file` processor — sniff type → pdftotext-or-ocrmypdf →
        `document_text` → status updates (`extracting`, `ocr`, `indexing`, `ready`/`failed`,
        `page_progress`). Concurrency `cores-1`, 20-minute timeout, 5 retries with backoff.
-8. [ ] `apps/api` search: `GET /search?q=` → ranked `tsvector` query, `ts_headline` snippet,
+8. [x] `apps/api` search: `GET /search?q=` → ranked `tsvector` query, `ts_headline` snippet,
        page number where possible. `GET /documents` list for the Inbox/Library.
 9. [ ] `apps/web`: tokens → Tailwind theme; sign-in + TOTP pages; Add documents page with the
        upload queue (poll `processing_status`); Library search with highlighted snippets; a
@@ -74,6 +74,14 @@ docs/
 11. [ ] Deploy to the Protectli: Debian + LUKS data volume + Docker. Run the definition of done
         with a real scanned German bill and a real born-digital PDF. Record OCR s/page.
 12. [ ] Write `docs/deploy.md` from what actually happened in step 11.
+
+## Verified 2026-09-07 (steps 1–8, on the dev Mac)
+
+Born-digital PDF: `pdftotext`, 31 ms, OCR skipped. Same bytes re-uploaded: reported as a
+duplicate, not merged. Image-only PDF (0 text chars): `ocrmypdf`, 1 613 ms for one page on an
+M3 under Docker, 499 chars recovered; searchable PDF stored as a second blob. Search for a
+control word that exists only inside the scan returns it with a `<mark>` snippet in 3 ms.
+Download hash equals the original; blobs on disk do not start with `%PDF`. No temp files left.
 
 ## Local dev on the M3
 

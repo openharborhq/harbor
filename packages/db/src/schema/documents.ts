@@ -81,6 +81,8 @@ export const documentText = pgTable("document_text", {
   ocrEngine: text("ocr_engine"), // 'pdftotext' | 'ocrmypdf'
   ocrMs: integer("ocr_ms"),
   searchablePdfKey: text("searchable_pdf_key"),
+  searchablePdfIv: bytea("searchable_pdf_iv"),
+  searchablePdfTag: bytea("searchable_pdf_tag"),
   completedAt: timestamp("completed_at", { withTimezone: true }).notNull().defaultNow(),
 });
 

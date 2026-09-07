@@ -11,7 +11,7 @@ COPY packages/db/package.json packages/db/
 RUN pnpm install --frozen-lockfile --filter @trustworthier/api...
 COPY packages ./packages
 COPY apps/api ./apps/api
-RUN pnpm --filter @trustworthier/api... build && pnpm --filter @trustworthier/api deploy --prod /out
+RUN pnpm --filter @trustworthier/api... build && pnpm --filter @trustworthier/api deploy --prod --legacy /out
 
 FROM base AS runtime
 ENV NODE_ENV=production

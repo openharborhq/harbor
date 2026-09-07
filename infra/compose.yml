@@ -16,12 +16,16 @@ services:
       interval: 5s
       timeout: 3s
       retries: 20
+    networks: [internal, edge]
+    restart: unless-stopped
 
   redis:
     image: redis:7-alpine
     command: ["redis-server", "--save", "60", "1", "--appendonly", "yes"]
     volumes: ["${TW_DATA_DIR:-../data}/redis:/data"]
     ports: ["127.0.0.1:${TW_REDIS_PORT:-6379}:6379"]
+    networks: [internal, edge]
+    restart: unless-stopped
 
   # Spec §3.6: the only container that opens documents. No internet egress (internal network).
   worker:
@@ -32,9 +36,11 @@ services:
       TW_DATA_DIR: /data
       TW_KEK_FILE: /run/secrets/kek
       OCR_CONCURRENCY: ${OCR_CONCURRENCY:-2}
+      OCR_LANGUAGES: ${OCR_LANGUAGES:-deu+eng}
     volumes: ["${TW_DATA_DIR:-../data}/blobs:/data/blobs", "${TW_DATA_DIR:-../data}/tmp:/data/tmp"]
     secrets: [kek]
     networks: [internal]
+    restart: unless-stopped
     read_only: true
     tmpfs: ["/tmp"]
     cap_drop: [ALL]
@@ -57,6 +63,7 @@ services:
     volumes: ["${TW_DATA_DIR:-../data}/blobs:/data/blobs", "${TW_DATA_DIR:-../data}/tmp:/data/tmp"]
     secrets: [kek]
     networks: [internal, edge]
+    restart: unless-stopped
     ports: ["127.0.0.1:4000:4000"]
     depends_on:
       postgres: { condition: service_healthy }

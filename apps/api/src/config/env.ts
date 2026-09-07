@@ -15,6 +15,8 @@ export const Env = z.object({
     .default("true")
     .transform((v) => v === "true"),
   OCR_CONCURRENCY: z.coerce.number().int().min(1).default(2),
+  /** tesseract language packs installed in the worker image, "+"-joined. */
+  OCR_LANGUAGES: z.string().regex(/^[a-z_]+(\+[a-z_]+)*$/).default("deu+eng"),
 });
 export type Env = z.infer<typeof Env>;
 
