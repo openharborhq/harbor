@@ -8,6 +8,9 @@
   },
   "scripts": {
     "dev": "turbo run dev",
+    "dev:all": "scripts/dev.sh",
+    "dev:worker": "pnpm --filter @harbor/api start:worker:dev",
+    "dev:suggester": "pnpm --filter @harbor/api start:suggester:dev",
     "dev:mailfetch": "pnpm --filter @harbor/api start:mailfetch:dev",
     "dev:backup": "pnpm --filter @harbor/api start:backup:dev",
     "suggest:rerun": "pnpm --filter @harbor/api start:suggester:rerun",

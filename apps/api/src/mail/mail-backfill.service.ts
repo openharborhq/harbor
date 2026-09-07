@@ -1,11 +1,12 @@
 import { ForbiddenException, Injectable, Logger, NotFoundException } from "@nestjs/common";
 import { and, eq, sql } from "drizzle-orm";
 import { emailIngestLog, mailConnections, mailSenders, type Db } from "@harbor/db";
-import { BACKFILL_MONTHS, type BackfillCandidateSender } from "@harbor/shared";
+import type { BackfillCandidateSender } from "@harbor/shared";
 import { InjectDb } from "../db/db.module";
 
-/** A hard stop, so a decade-old mailbox cannot turn one explicit action into an unbounded one. */
-const MAX_BACKFILL_MESSAGES = 20_000;
+// The hard stop on a backfill is MESSAGES_PER_BACKFILL in MailFetcherService, which is the
+// thing that actually reads the mailbox. A second copy of the number lived here and was never
+// consulted — the sort of duplicate that quietly disagrees after someone edits one of them.
 
 /**
  * The review screen behind the backfill (§7.6).

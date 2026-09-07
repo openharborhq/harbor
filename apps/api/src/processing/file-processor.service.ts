@@ -61,7 +61,7 @@ export class FileProcessor {
       .limit(1)
       .then((r) => r[0]);
     if (!row) throw new UnrecoverableError(`document_files ${documentFileId} does not exist`);
-    const { df, title, notes } = row;
+    const { df } = row;
 
     const work = path.join(this.blobs.tmpDir, `job-${df.id}`);
     await mkdir(work, { recursive: true, mode: 0o700 });

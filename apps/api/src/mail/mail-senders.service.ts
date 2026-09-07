@@ -1,5 +1,5 @@
 import { ForbiddenException, Injectable, Logger, NotFoundException } from "@nestjs/common";
-import { and, desc, eq, inArray, isNotNull, isNull, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, isNotNull, isNull } from "drizzle-orm";
 import { documents, emailIngestLog, mailConnections, mailSenders, type Db } from "@harbor/db";
 import type { ApproveSenders, HeldMessage, InboxSender, MailSenderView, MuteResult, MuteSenders } from "@harbor/shared";
 import { AuditService } from "../audit/audit.service";

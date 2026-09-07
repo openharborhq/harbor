@@ -2,7 +2,6 @@ import { BadRequestException, Injectable, Logger, NotFoundException } from "@nes
 import { and, asc, desc, eq, inArray, isNull, sql, type SQL } from "drizzle-orm";
 import { Queue } from "bullmq";
 import { open, rm } from "node:fs/promises";
-import path from "node:path";
 import type { Readable } from "node:stream";
 import { auditLog, categories, documentFiles, documentItems, documentText, documentViews, documents, items, users, type Db } from "@harbor/db";
 import { titleFromFilename } from "@harbor/shared";
@@ -420,7 +419,7 @@ export class DocumentsService {
       documentDate: isoDate(s.payload.documentDate),
       expiresAt: isoDate(s.payload.expiresAt),
     };
-    const updated = await this.update(documentId, patch, userId, ip);
+    await this.update(documentId, patch, userId, ip);
     await this.suggest.markAccepted(s.id);
     await this.audit.record({ action: "document.suggestion_accept", actorUserId: userId, entityType: "document", entityId: documentId, metadata: { suggestionId: s.id, confidence: s.payload.confidence }, ip });
     return this.get(documentId);

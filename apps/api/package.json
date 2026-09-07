@@ -5,7 +5,8 @@
   "license": "AGPL-3.0-only",
   "scripts": {
     "build": "nest build",
-    "dev": "nest start --watch",
+    "//dev": "Run the Nest CLI through node so --env-file applies: `nest start` spawns the app as a child, which inherits it. Without this, `pnpm dev` started the API with no DATABASE_URL and it died at boot.",
+    "dev": "node --env-file=../../.env node_modules/@nestjs/cli/bin/nest.js start --watch",
     "start": "node dist/main.js",
     "start:worker": "node dist/worker.js",
     "start:mailfetch": "node dist/mailfetch.js",
@@ -23,12 +24,12 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.80.0",
+    "@harbor/db": "workspace:*",
+    "@harbor/shared": "workspace:*",
     "@nestjs/common": "^11.0.0",
     "@nestjs/config": "^4.0.0",
     "@nestjs/core": "^11.0.0",
     "@nestjs/platform-express": "^11.0.0",
-    "@harbor/db": "workspace:*",
-    "@harbor/shared": "workspace:*",
     "argon2": "^0.41.1",
     "bullmq": "^5.34.0",
     "cookie": "^1.0.2",
@@ -41,13 +42,16 @@
     "zod": "^3.23.8"
   },
   "devDependencies": {
+    "@eslint/js": "^9.39.5",
     "@nestjs/cli": "^11.0.0",
     "@nestjs/schematics": "^11.0.0",
     "@types/cookie": "^0.6.0",
     "@types/express": "^5.0.0",
     "@types/multer": "^1.4.12",
     "@types/node": "^22.10.0",
+    "eslint": "^9.39.5",
     "tsx": "^4.19.0",
-    "typescript": "^5.6.0"
+    "typescript": "^5.6.0",
+    "typescript-eslint": "^8.69.0"
   }
 }

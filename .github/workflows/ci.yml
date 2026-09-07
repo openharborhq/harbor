@@ -1,4 +1,4 @@
-# Typecheck and tests on every push and pull request. The images workflow waits for this to pass
+# Lint, typecheck and tests on every push and pull request. The images workflow waits for this to pass
 # before it publishes anything, so a broken commit never becomes the `latest` image that a new
 # install pulls.
 name: ci
@@ -20,5 +20,6 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - run: pnpm lint
       - run: pnpm typecheck
       - run: pnpm test

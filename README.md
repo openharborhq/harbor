@@ -76,8 +76,8 @@ the whole data directory must sit on LUKS and the check script refuses otherwise
 pnpm install
 cp .env.example .env
 pnpm infra:up                 # postgres + redis in Docker
-pnpm dev                      # api + web; dev:mailfetch, dev:backup and the worker/suggester run separately
-pnpm test && pnpm typecheck
+pnpm dev:all                  # every process: api, web, worker, suggester, mailfetch, backup
+pnpm lint && pnpm typecheck && pnpm test
 ```
 
 `scripts/stack-test.sh up` runs the full production stack from images against a copy of your
