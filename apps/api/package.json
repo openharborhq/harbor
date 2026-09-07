@@ -10,7 +10,9 @@
     "start:worker": "node dist/worker.js",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "eslint \"src/**/*.ts\"",
-    "test": "node --test --import tsx --test-reporter spec 'src/**/*.spec.ts'"
+    "test": "node --test --import tsx --test-reporter spec 'src/**/*.spec.ts'",
+    "start:dev": "nest build && node --env-file=../../.env dist/main.js",
+    "setup:owner": "nest build && node --env-file=../../.env dist/setup.js"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.0",
@@ -21,7 +23,11 @@
     "@trustworthier/shared": "workspace:*",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1",
-    "zod": "^3.23.8"
+    "zod": "^3.23.8",
+    "argon2": "^0.41.1",
+    "otplib": "^12.0.1",
+    "cookie": "^1.0.2",
+    "drizzle-orm": "^0.36.0"
   },
   "devDependencies": {
     "@nestjs/cli": "^11.0.0",
@@ -29,6 +35,7 @@
     "@types/express": "^5.0.0",
     "@types/node": "^22.10.0",
     "tsx": "^4.19.0",
-    "typescript": "^5.6.0"
+    "typescript": "^5.6.0",
+    "@types/cookie": "^0.6.0"
   }
 }

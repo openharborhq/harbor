@@ -10,7 +10,7 @@ services:
       POSTGRES_DB: trustworthier
     # Spec §3.3: the data dir holds OCR plaintext and MUST live on the encrypted volume.
     volumes: ["${TW_DATA_DIR:-../data}/postgres:/var/lib/postgresql/data"]
-    ports: ["127.0.0.1:5432:5432"]
+    ports: ["127.0.0.1:${TW_PG_PORT:-5432}:5432"]
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U trustworthier"]
       interval: 5s
@@ -21,7 +21,7 @@ services:
     image: redis:7-alpine
     command: ["redis-server", "--save", "60", "1", "--appendonly", "yes"]
     volumes: ["${TW_DATA_DIR:-../data}/redis:/data"]
-    ports: ["127.0.0.1:6379:6379"]
+    ports: ["127.0.0.1:${TW_REDIS_PORT:-6379}:6379"]
 
   # Spec §3.6: the only container that opens documents. No internet egress (internal network).
   worker:

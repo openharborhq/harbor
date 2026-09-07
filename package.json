@@ -13,13 +13,17 @@
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",
     "db:generate": "pnpm --filter @trustworthier/db generate",
-    "db:migrate": "pnpm --filter @trustworthier/db migrate"
+    "db:migrate": "pnpm --filter @trustworthier/db migrate",
+    "infra:up": "docker compose --env-file .env -f infra/compose.yml up -d postgres redis",
+    "infra:down": "docker compose --env-file .env -f infra/compose.yml down",
+    "infra:logs": "docker compose --env-file .env -f infra/compose.yml logs -f"
   },
   "devDependencies": {
     "turbo": "^2"
   },
   "pnpm": {
     "onlyBuiltDependencies": [
+      "argon2",
       "esbuild",
       "unrs-resolver"
     ]
