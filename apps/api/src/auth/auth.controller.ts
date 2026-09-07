@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, HttpCode, Param, ParseUUIDPipe, Post, Query, Req, Res, UnauthorizedException } from "@nestjs/common";
+import { Body, Controller, Delete, Get, HttpCode, Param, ParseUUIDPipe, Patch, Post, Query, Req, Res, UnauthorizedException } from "@nestjs/common";
 import type { Request, Response } from "express";
 import {
   AcceptInvite,
@@ -7,6 +7,7 @@ import {
   LoginRequest,
   Reauth,
   TotpRequest,
+  UpdateProfile,
   type AcceptInviteResult,
   type InviteInfo,
   type OwnerInfo,
@@ -60,6 +61,11 @@ export class AuthController {
   }
 
   // ---- account ----
+
+  @Patch("profile")
+  updateProfile(@Body(new ZodPipe(UpdateProfile)) body: UpdateProfile, @CurrentUser() user: SessionUser, @Req() req: Request): Promise<SessionUser> {
+    return this.auth.updateProfile(user.id, body.displayName, meta(req));
+  }
 
   @Post("password")
   @HttpCode(204)

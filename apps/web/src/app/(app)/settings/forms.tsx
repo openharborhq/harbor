@@ -9,6 +9,47 @@ const input = "h-10 w-full rounded-md border border-border-strong px-3 text-row"
 const primary = "h-9 rounded-md bg-accent px-4 text-row font-semibold text-white disabled:opacity-60";
 const secondary = "h-9 rounded-md border border-border bg-ground px-4 text-row font-medium";
 
+export function NameForm({ current }: { current: string }) {
+  const router = useRouter();
+  const [name, setName] = useState(current);
+  const [state, setState] = useState<"idle" | "busy" | "done">("idle");
+  const [error, setError] = useState<string | null>(null);
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    setState("busy");
+    setError(null);
+    try {
+      await api("/auth/profile", { method: "PATCH", body: JSON.stringify({ displayName: name }) });
+      setState("done");
+      router.refresh();
+    } catch (err) {
+      setError((err as Error).message);
+      setState("idle");
+    }
+  }
+  return (
+    <form onSubmit={submit} className="flex max-w-[520px] items-center gap-3">
+      <input
+        required
+        maxLength={80}
+        autoComplete="name"
+        placeholder="Kai Pradel"
+        value={name}
+        onChange={(e) => {
+          setName(e.target.value);
+          setState("idle");
+        }}
+        className={`${input} max-w-[280px]`}
+      />
+      <button type="submit" disabled={state === "busy" || name.trim() === current} className={secondary}>
+        {state === "busy" ? "Saving…" : "Save"}
+      </button>
+      {state === "done" && <span className="text-small text-muted">Saved.</span>}
+      {error && <span className="text-small text-danger">{error}</span>}
+    </form>
+  );
+}
+
 export function PasswordForm() {
   const [current, setCurrent] = useState("");
   const [next, setNext] = useState("");

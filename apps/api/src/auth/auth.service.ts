@@ -1,4 +1,4 @@
-import { HttpException, HttpStatus, Injectable, Logger, UnauthorizedException } from "@nestjs/common";
+import { HttpException, HttpStatus, Injectable, Logger, NotFoundException, UnauthorizedException } from "@nestjs/common";
 
 class TooManyRequestsException extends HttpException {
   constructor(message: string) {
@@ -231,6 +231,19 @@ export class AuthService {
     const user = await this.db.query.users.findFirst({ where: eq(users.id, userId) });
     if (!user || !(await argon2.verify(user.passwordHash, password))) throw new UnauthorizedException("Wrong password.");
     return user;
+  }
+
+  /** Changing your own name needs no re-auth: it reveals nothing and grants nothing. */
+  async updateProfile(userId: string, displayName: string, meta: RequestMeta): Promise<SessionUser> {
+    const name = displayName.trim();
+    const [row] = await this.db.update(users).set({ displayName: name }).where(eq(users.id, userId)).returning({
+      id: users.id,
+      email: users.email,
+      displayName: users.displayName,
+    });
+    if (!row) throw new NotFoundException("User not found");
+    await this.audit.record({ action: "auth.profile_updated", actorUserId: userId, metadata: { displayName: name }, ip: meta.ip });
+    return row;
   }
 
   async changePassword(userId: string, currentPassword: string, newPassword: string, meta: RequestMeta): Promise<void> {

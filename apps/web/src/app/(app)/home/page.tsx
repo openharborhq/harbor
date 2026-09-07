@@ -22,7 +22,7 @@ export default async function HomePage() {
       <main className="flex max-w-[1192px] flex-col gap-16 px-14 py-14">
         {/* Family */}
         <section className="flex flex-col gap-5">
-          <SectionHeader title="Family" meta={`${h.family.length} ${h.family.length === 1 ? "person" : "people"} · ${totalRecords} records`} />
+          <SectionHeader title="Family" meta={`${plural(h.family.length, "person", "people")} · ${plural(totalRecords, "record")}`} />
           <div className="grid grid-cols-4 gap-6">
             {h.family.map((p) => (
               <ItemCard key={p.id} item={p} />
@@ -37,7 +37,7 @@ export default async function HomePage() {
 
         {/* Property & things */}
         <section className="flex flex-col gap-5">
-          <SectionHeader title="Property &amp; things" meta={`${h.things.length} ${h.things.length === 1 ? "item" : "items"} · ${thingRecords} records`} />
+          <SectionHeader title="Property &amp; things" meta={`${plural(h.things.length, "item")} · ${plural(thingRecords, "record")}`} />
           <div className="grid grid-cols-4 gap-6">
             {h.things.map((t) => (
               <ItemCard key={t.id} item={t} />
@@ -135,6 +135,11 @@ function ItemCard({ item }: { item: HomeData["family"][number] }) {
       </div>
     </Link>
   );
+}
+
+/** "1 record", "2 records" — the counts here are routinely 1. */
+function plural(n: number, one: string, many = `${one}s`): string {
+  return `${n} ${n === 1 ? one : many}`;
 }
 
 function SectionHeader({ title, meta, small = false }: { title: string; meta?: string; small?: boolean }) {

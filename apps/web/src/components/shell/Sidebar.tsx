@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import type { Category, SessionUser } from "@trustworthier/shared";
 import { api } from "@/lib/api-client";
+import { initials } from "@/lib/initials";
 import { Brand } from "./Brand";
 
 const NAV: { href: string; label: string; icon: string; soon?: boolean }[] = [
@@ -72,11 +73,12 @@ export function Sidebar({ user, categories = [] }: { user: SessionUser; categori
       <div className="mt-auto border-t border-border pt-4">
         <div className="flex items-center gap-3">
           <div className="flex size-7 items-center justify-center rounded-pill bg-surface text-label font-bold text-muted">
-            {user.displayName.slice(0, 2).toUpperCase()}
+            {initials(user.displayName)}
           </div>
           <div className="min-w-0 flex-1">
-            <div className="truncate text-row font-medium">{user.displayName}</div>
-            <div className="truncate text-label text-muted">{user.email}</div>
+            <div className="truncate text-row font-medium" title={user.displayName}>
+              {user.displayName}
+            </div>
           </div>
           <button type="button" onClick={signOut} className="text-small font-medium text-muted hover:text-text">
             Sign out

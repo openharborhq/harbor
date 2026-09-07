@@ -3,7 +3,8 @@ import type { InviteInfo, OwnerInfo, SessionInfo } from "@trustworthier/shared";
 import { TopBar } from "@/components/shell/TopBar";
 import { apiFetch, currentUser } from "@/lib/api-server";
 import { formatDate, formatRelative, isFuture } from "@/lib/format";
-import { InviteForm, PasswordForm, RecoveryCodesForm, RevokeSessionButton } from "./forms";
+import { initials } from "@/lib/initials";
+import { InviteForm, NameForm, PasswordForm, RecoveryCodesForm, RevokeSessionButton } from "./forms";
 
 export const metadata: Metadata = { title: "Settings" };
 
@@ -27,6 +28,9 @@ export default async function SettingsPage() {
         </div>
 
         <Panel title="Your account">
+          <Row k="Name" v="Shown on your card and beside your name in this household." hint="However you want to be called — it is not used to sign in.">
+            <NameForm current={me?.displayName ?? ""} />
+          </Row>
           <Row k="Email" v={me?.email ?? ""} />
           <Row k="Two-factor" v={<span className="flex items-center gap-2"><Badge>Required</Badge> Authenticator app</span>} />
           <Row k="Recovery codes" v={`${self?.recoveryCodesLeft ?? 0} of 10 unused`} hint="The only way back in if you lose your authenticator. There is deliberately no email password reset — keep these printed and offline.">
@@ -40,7 +44,7 @@ export default async function SettingsPage() {
         <Panel title="Who can sign in" sub="Every account is an owner and sees everything. There are no restricted roles.">
           {owners.map((o) => (
             <div key={o.id} className="flex items-center gap-3 border-t border-border py-3.5 first:border-t-0">
-              <div className="flex size-8 items-center justify-center rounded-pill bg-surface text-label font-bold text-muted">{o.displayName.slice(0, 2).toUpperCase()}</div>
+              <div className="flex size-8 items-center justify-center rounded-pill bg-surface text-label font-bold text-muted">{initials(o.displayName)}</div>
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2 text-row font-medium">
                   {o.displayName}

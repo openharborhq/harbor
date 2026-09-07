@@ -21,6 +21,11 @@ export type SessionUser = z.infer<typeof SessionUser>;
 
 // ---- Settings: account & household (spec §3.5) ----
 
+/** The name shown on the user card and beside each owner. One free-text field, not first/last:
+ * plenty of names don't split that way, and the card only ever shows the whole thing. */
+export const UpdateProfile = z.object({ displayName: z.string().trim().min(1).max(80) });
+export type UpdateProfile = z.infer<typeof UpdateProfile>;
+
 export const ChangePassword = z.object({
   currentPassword: z.string().min(1),
   newPassword: z.string().min(12).max(200),
