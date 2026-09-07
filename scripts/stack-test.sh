@@ -8,7 +8,7 @@
 # mailbox a second time. It is also spec §3.4's restore drill in miniature: dump, fresh database,
 # restore, and the API must come up on it without re-running migrations.
 #
-#   scripts/stack-test.sh up      # build nothing; needs harbor-{api,web,worker}:latest (compose build)
+#   scripts/stack-test.sh up      # needs harbor-{api,web,worker}:latest (docker compose … build)
 #   scripts/stack-test.sh down    # tear down and delete the copy
 #
 # The copy lives at data/stack-test (gitignored) and the app at http://127.0.0.1:3001.
@@ -20,10 +20,19 @@ LIVE_PG="${LIVE_PG_CONTAINER:-harbor-postgres-1}"
 PROJECT=harbor-stack
 
 dc() { docker compose -p "$PROJECT" --env-file "$TEST/stack.env" -f infra/compose.yml -f infra/compose.prod.yml -f "$TEST/ports.yml" "$@"; }
+
+# By project label, never by config file: the first version only tore down when its own env file
+# existed, so a stack started any other way survived, and the rm below then deleted the data
+# directory out from under its running Postgres. Teardown must be unconditional and come first.
+teardown() {
+  local ids; ids=$(docker ps -aq --filter "label=com.docker.compose.project=$PROJECT")
+  [ -n "$ids" ] && docker rm -f $ids >/dev/null
+  for n in $(docker network ls -q --filter "label=com.docker.compose.project=$PROJECT"); do docker network rm "$n" >/dev/null 2>&1 || true; done
+}
 wait_for() { local tries=$1; shift; for _ in $(seq 1 "$tries"); do "$@" && return 0; sleep 2; done; echo "timed out: $*" >&2; return 1; }
 
 case "${1:-up}" in
-  down) [ -f "$TEST/stack.env" ] && dc down >/dev/null 2>&1 || true; rm -rf "$TEST"; echo "$PROJECT removed"; exit 0 ;;
+  down) teardown; rm -rf "$TEST"; echo "$PROJECT removed"; exit 0 ;;
   up) ;;
   *) echo "usage: $0 up|down" >&2; exit 2 ;;
 esac
@@ -34,7 +43,7 @@ done
 [ -f data/secrets/kek ] || { echo "no data/secrets/kek — nothing to decrypt the blobs with" >&2; exit 1; }
 docker inspect "$LIVE_PG" >/dev/null 2>&1 || { echo "live postgres container $LIVE_PG is not running" >&2; exit 1; }
 
-[ -f "$TEST/stack.env" ] && dc down >/dev/null 2>&1 || true
+teardown
 rm -rf "$TEST"
 mkdir -p "$TEST/postgres" "$TEST/redis" "$TEST/tmp"
 cp -a data/blobs "$TEST/blobs"
@@ -56,7 +65,7 @@ EOF
 printf 'services:\n  web:\n    ports: !override ["127.0.0.1:3001:3000"]\n' > "$TEST/ports.yml"
 
 # Postgres first and alone: the restore has to land before the API boots and runs migrations.
-dc up -d postgres >/dev/null
+dc up -d --force-recreate postgres >/dev/null
 wait_for 30 sh -c "[ \"\$(docker inspect --format '{{.State.Health.Status}}' ${PROJECT}-postgres-1 2>/dev/null)\" = healthy ]"
 docker exec -i "${PROJECT}-postgres-1" pg_restore -U harbor -d harbor --no-owner < "$TEST/harbor.dump"
 docker exec "${PROJECT}-postgres-1" psql -U harbor -d harbor -q -c "update mail_connections set status = 'disabled'"
