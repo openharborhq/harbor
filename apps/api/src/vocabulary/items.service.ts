@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from "@nestjs/common";
+import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
 import { and, asc, eq, inArray, isNull, sql } from "drizzle-orm";
 import { documentItems, documents, itemKeyDocuments, items, type Db } from "@trustworthier/db";
 import {
@@ -52,6 +52,7 @@ export class ItemsService {
   }
 
   async create(input: CreateItem, actorUserId: string): Promise<Item> {
+    if (input.parentId) await this.assertValidParent(null, input.parentId, input.kind);
     const [max] = await this.db.select({ n: sql<number>`coalesce(max(sort_order), -1)::int` }).from(items).where(eq(items.kind, input.kind));
     const created = await this.db.transaction(async (tx) => {
       const [row] = await tx
@@ -74,7 +75,8 @@ export class ItemsService {
   }
 
   async update(itemId: string, patch: UpdateItem, actorUserId: string): Promise<Item> {
-    await this.get(itemId);
+    const current = await this.get(itemId);
+    if (patch.parentId) await this.assertValidParent(itemId, patch.parentId, patch.kind ?? current.kind);
     const set: Partial<typeof items.$inferInsert> = {};
     if (patch.label !== undefined) set.label = patch.label;
     if (patch.kind !== undefined) set.kind = patch.kind;
@@ -113,6 +115,29 @@ export class ItemsService {
       metadata: { kind: item.kind, label: item.label, documentsUnlinked: documentIds.length, childrenDetached: children.length },
     });
     return { documentsUnlinked: documentIds.length, childrenDetached: children.length };
+  }
+
+  /**
+   * Nesting means "is a part of" — a boiler in a house, an engine in a boat (spec §6). Three ways
+   * that can go wrong, all of them reachable from the API even though the forms avoid them:
+   * a person is never a component of anything, nothing contains itself, and a chain that loops
+   * back on itself would make both items unreachable from the top level.
+   */
+  private async assertValidParent(itemId: string | null, parentId: string, kind: ItemKind): Promise<void> {
+    if (kind === "person") throw new BadRequestException("People aren't kept inside anything — they stand on their own.");
+    if (itemId && parentId === itemId) throw new BadRequestException("An item can't be inside itself.");
+    const all = await this.list();
+    const parent = all.find((i) => i.id === parentId);
+    if (!parent) throw new NotFoundException("Unknown parent item");
+    if (!itemId) return;
+    // Walk up from the proposed parent: meeting itemId means we'd be closing a loop.
+    const byId = new Map(all.map((i) => [i.id, i]));
+    const seen = new Set<string>();
+    for (let node = parent; node && !seen.has(node.id); node = byId.get(node.parentId ?? "")!) {
+      if (node.id === itemId) throw new BadRequestException(`${parent.label} is already inside this one, so it can't also contain it.`);
+      seen.add(node.id);
+      if (!node.parentId) break;
+    }
   }
 
   /** Items whose parent is this one — the boiler inside the house (spec §6). */

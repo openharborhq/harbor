@@ -10,6 +10,7 @@ import { ageFrom, formatDate, formatRelative } from "@/lib/format";
 import { itemGlyph } from "@/lib/item-glyph";
 import { DeleteItem } from "./DeleteItem";
 import { ItemNotes } from "./ItemNotes";
+import { ItemParent } from "./ItemParent";
 import { KeyDocuments } from "./KeyDocuments";
 
 export const metadata: Metadata = { title: "Item" };
@@ -18,14 +19,17 @@ export default async function ItemPage(props: PageProps<"/items/[id]">) {
   const { id } = await props.params;
   const sp = await props.searchParams;
   const filter = typeof sp.category === "string" ? sp.category : "";
-  let data: { item: Item; children: Item[]; keyDocuments: KeyDocumentSlot[]; documents: DocumentSummary[] };
+  type ItemPage = { item: Item; children: Item[]; keyDocuments: KeyDocumentSlot[]; documents: DocumentSummary[] };
+  let data: ItemPage;
+  let allItems: Item[];
   try {
-    data = await apiFetch(`/items/${id}`);
+    [data, allItems] = await Promise.all([apiFetch<ItemPage>(`/items/${id}`), apiFetch<Item[]>("/items")]);
   } catch (err) {
     if (err instanceof ApiError && err.status === 404) notFound();
     throw err;
   }
   const { item, children, keyDocuments, documents } = data;
+  const parentOptions = allItems.filter((i) => i.kind !== "person" && !descendantsOf(item.id, allItems).has(i.id));
   const topOf = (d: DocumentSummary) => d.category?.path.split(" › ")[0] ?? "Inbox";
   const counts = new Map<string, number>();
   for (const d of documents) counts.set(topOf(d), (counts.get(topOf(d)) ?? 0) + 1);
@@ -53,6 +57,7 @@ export default async function ItemPage(props: PageProps<"/items/[id]">) {
             </div>
             <h1 className="mt-1 text-title font-bold tracking-snug">{item.label}</h1>
             <p className="mt-1 text-body text-muted">{headline(item)}</p>
+            <ItemParent item={item} candidates={parentOptions} />
           </div>
         </div>
 
@@ -121,11 +126,27 @@ export default async function ItemPage(props: PageProps<"/items/[id]">) {
         </section>
 
         <section className="border-t border-border pt-6">
-          <DeleteItem item={item} documentCount={documents.length} childCount={children.length} />
+          <DeleteItem item={item} documentCount={item.documentCount} childCount={children.length} />
         </section>
       </main>
     </>
   );
+}
+
+/** The item and everything under it — never offerable as its own parent. */
+function descendantsOf(rootId: string, all: Item[]): Set<string> {
+  const out = new Set([rootId]);
+  let grew = true;
+  while (grew) {
+    grew = false;
+    for (const i of all) {
+      if (i.parentId && out.has(i.parentId) && !out.has(i.id)) {
+        out.add(i.id);
+        grew = true;
+      }
+    }
+  }
+  return out;
 }
 
 function headline(item: Item): string {

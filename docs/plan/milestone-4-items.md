@@ -38,9 +38,13 @@ control drawn as **Inbox — For people and things**. Spec: [§6](../spec/06-ite
         Postgres alone. Wired into item delete and into document title/items/tags edits, which
         until now only refreshed the index when the file was reprocessed.
 
+11. [x] **Change or clear where an item sits** from its own page, with the API rejecting a
+        person parent, self-parenting, and cycles. Nesting used to be set once at creation with
+        no way back.
+
 ## Next
 
-11. [ ] Reorder and rename items from the UI.
-12. [ ] Kinds beyond the active four (`policy`, `pet`, `business`) in the add menus, once
+12. [ ] Reorder and rename items from the UI.
+13. [ ] Kinds beyond the active four (`policy`, `pet`, `business`) in the add menus, once
        there is a real reason to surface them.
-13. [ ] Update the Paper artboards whose sidebars and counts predate Purchases and items.
+14. [ ] Update the Paper artboards whose sidebars and counts predate Purchases and items.

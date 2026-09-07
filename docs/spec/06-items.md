@@ -29,6 +29,12 @@ Adding a kind is a row and a label, never a migration. `details` is free-form js
 `items.parent_id` is a self-reference, so a thing can live inside another thing: a boiler
 inside a house, an engine inside a boat. Nesting is one level in practice, not enforced.
 
+Where an item sits is **editable at any time**, from the item's own page — nesting is a guess
+you make early ("is the boat part of the holiday house?") and the answer changes. Three
+assignments are rejected: a person is never a component of anything, nothing contains itself,
+and a chain that loops back on itself would strand both items below the top level. The parent
+picker offers every non-person item except the item and its own descendants.
+
 Two rules follow, and both exist so a document is filed once and found everywhere:
 
 - **Naming a child names its parent.** Selecting the boiler in the FOR control also
