@@ -11,6 +11,7 @@
     "start:worker": "node dist/worker.js",
     "start:mailfetch": "node dist/mailfetch.js",
     "start:backup": "node dist/backup.js",
+    "seed": "node dist/seed.js",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "eslint \"src/**/*.ts\"",
     "test": "node --test --import tsx --test-reporter spec 'src/**/*.spec.ts'",
@@ -20,7 +21,8 @@
     "start:suggester:dev": "nest build && node --env-file=../../.env dist/suggester.js",
     "start:suggester:rerun": "nest build && node --env-file=../../.env dist/suggester.js rerun",
     "start:mailfetch:dev": "nest build && node --env-file=../../.env dist/mailfetch.js",
-    "start:backup:dev": "nest build && node --env-file=../../.env dist/backup.js"
+    "start:backup:dev": "nest build && node --env-file=../../.env dist/backup.js",
+    "seed:dev": "nest build && node --env-file=../../.env dist/seed.js"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.80.0",

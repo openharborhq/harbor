@@ -54,6 +54,16 @@ scripts/fresh-test.sh --keep            # empty vault at http://127.0.0.1:3002, 
 scripts/fresh-test.sh down
 ```
 
+To fill it with something to look at, once an owner exists:
+
+```sh
+docker compose -p harbor-fresh --env-file data/fresh-test/stack.env \
+  -f infra/compose.yml -f infra/compose.prod.yml exec api node dist/seed.js
+```
+
+That seeds an invented household — the Musters, their flat, car, dog and nine documents, some
+filed and some waiting in the Inbox. Nobody's real paperwork is in this repository.
+
 ## What runs
 
 | Container | Does | Network |
@@ -77,6 +87,7 @@ pnpm install
 cp .env.example .env
 pnpm infra:up                 # postgres + redis in Docker
 pnpm dev:all                  # every process: api, web, worker, suggester, mailfetch, backup
+pnpm seed:demo                # optional: an invented household to look at
 pnpm lint && pnpm typecheck && pnpm test
 ```
 

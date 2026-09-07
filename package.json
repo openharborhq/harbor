@@ -14,6 +14,7 @@
     "dev:mailfetch": "pnpm --filter @harbor/api start:mailfetch:dev",
     "dev:backup": "pnpm --filter @harbor/api start:backup:dev",
     "suggest:rerun": "pnpm --filter @harbor/api start:suggester:rerun",
+    "seed:demo": "pnpm --filter @harbor/api seed:dev",
     "build": "turbo run build",
     "lint": "turbo run lint",
     "typecheck": "turbo run typecheck",
