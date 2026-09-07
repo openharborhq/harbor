@@ -24,7 +24,7 @@ upload page can file documents directly (batch defaults) so the Inbox is optiona
 
 ## B. The rest of the app
 
-7. [ ] **Home**: family cards with record counts and next expiry, the category grid with counts,
+7. [x] **Home**: family cards with record counts and next expiry, the category grid with counts,
        Expiring soon (next 90 days, from `expires_at`), Recently added. Needs `GET /home`.
 8. [ ] **Person page**: header, key-document slots (`person_key_documents`, incl. "Not on file"),
        filter chips, document table. `GET/PATCH /people/:id`, key-document endpoints.
