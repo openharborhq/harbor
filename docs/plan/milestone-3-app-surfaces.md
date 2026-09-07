@@ -35,7 +35,7 @@ upload page can file documents directly (batch defaults) so the Inbox is optiona
 10. [x] **Library browse**: category tree + table view, sort, filters by person/source/date;
         search results get category paths and "page N of M".
 11. [ ] **Categories management**: create (already), rename, reorder, pin to sidebar (`user_pins`).
-12. [ ] **Settings** (account + household only for now): change password, regenerate recovery
+12. [x] **Settings** (account + household only for now): change password, regenerate recovery
         codes, invite the second owner, sessions list with revoke, reset another owner's access.
         Backups/forwarding/appliance panels wait for their milestones.
 13. [ ] Empty states and error states for every page.

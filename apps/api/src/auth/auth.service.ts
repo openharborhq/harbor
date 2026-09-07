@@ -9,8 +9,8 @@ import { ConfigService } from "@nestjs/config";
 import argon2 from "argon2";
 import { authenticator } from "otplib";
 import { and, eq, isNull, sql } from "drizzle-orm";
-import { sessions, users, type Db } from "@trustworthier/db";
-import type { SessionUser } from "@trustworthier/shared";
+import { invites, sessions, users, type Db } from "@trustworthier/db";
+import type { AcceptInviteResult, InviteInfo, OwnerInfo, SessionInfo, SessionUser } from "@trustworthier/shared";
 import { AuditService } from "../audit/audit.service";
 import type { Env } from "../config/env";
 import { CryptoService } from "../crypto/crypto.service";
@@ -23,6 +23,7 @@ const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 days, sliding
 const SESSION_RENEW_AFTER_MS = 24 * 60 * 60 * 1000; // extend at most once a day
 const PENDING_TTL_MS = 10 * 60 * 1000; // password accepted, TOTP not yet: 10 minutes
 const TOTP_WINDOW = 1; // accept the previous/next 30s step
+const INVITE_TTL_MS = 48 * 60 * 60 * 1000;
 const ARGON2_OPTS = { type: argon2.argon2id, memoryCost: 64 * 1024, timeCost: 3, parallelism: 1 } as const;
 
 export interface ResolvedSession {
@@ -53,8 +54,10 @@ export class AuthService {
     config: ConfigService<Env, true>,
   ) {
     this.cookieSecure = config.get("SESSION_COOKIE_SECURE", { infer: true });
+    this.webOrigin = config.get("WEB_ORIGIN", { infer: true });
     authenticator.options = { window: TOTP_WINDOW };
   }
+  private readonly webOrigin: string;
 
   cookieOptions() {
     return {
@@ -220,6 +223,97 @@ export class AuthService {
   async logout(session: ResolvedSession, meta: RequestMeta): Promise<void> {
     await this.revoke(session.id);
     await this.audit.record({ action: "auth.logout", actorUserId: session.user.id, ip: meta.ip });
+  }
+
+  // ---------- settings: account (spec §3.5, re-auth with the password) ----------
+
+  private async reauth(userId: string, password: string): Promise<typeof users.$inferSelect> {
+    const user = await this.db.query.users.findFirst({ where: eq(users.id, userId) });
+    if (!user || !(await argon2.verify(user.passwordHash, password))) throw new UnauthorizedException("Wrong password.");
+    return user;
+  }
+
+  async changePassword(userId: string, currentPassword: string, newPassword: string, meta: RequestMeta): Promise<void> {
+    await this.reauth(userId, currentPassword);
+    await this.db.update(users).set({ passwordHash: await argon2.hash(newPassword, ARGON2_OPTS) }).where(eq(users.id, userId));
+    await this.audit.record({ action: "auth.password_changed", actorUserId: userId, ip: meta.ip });
+  }
+
+  async regenerateRecoveryCodes(userId: string, password: string, meta: RequestMeta): Promise<string[]> {
+    await this.reauth(userId, password);
+    const { codes, hashes } = generateRecoveryCodes();
+    await this.db.update(users).set({ recoveryCodeHashes: hashes }).where(eq(users.id, userId));
+    await this.audit.record({ action: "auth.recovery_codes_regenerated", actorUserId: userId, ip: meta.ip });
+    return codes;
+  }
+
+  async listSessions(userId: string, currentSessionId: string): Promise<SessionInfo[]> {
+    const rows = await this.db
+      .select()
+      .from(sessions)
+      .where(and(eq(sessions.userId, userId), isNull(sessions.revokedAt), sql`${sessions.totpVerifiedAt} is not null`, sql`${sessions.expiresAt} > now()`))
+      .orderBy(sql`${sessions.createdAt} desc`);
+    return rows.map((s) => ({ id: s.id, ip: s.ip, userAgent: s.userAgent, createdAt: s.createdAt.toISOString(), expiresAt: s.expiresAt.toISOString(), current: s.id === currentSessionId }));
+  }
+
+  async revokeSession(userId: string, sessionId: string, meta: RequestMeta): Promise<void> {
+    await this.db.update(sessions).set({ revokedAt: new Date() }).where(and(eq(sessions.id, sessionId), eq(sessions.userId, userId)));
+    await this.audit.record({ action: "auth.session_revoked", actorUserId: userId, metadata: { sessionId }, ip: meta.ip });
+  }
+
+  // ---------- settings: household ----------
+
+  async listOwners(currentUserId: string): Promise<OwnerInfo[]> {
+    const rows = await this.db.select().from(users).orderBy(sql`${users.createdAt} asc`);
+    return rows.map((u) => ({
+      id: u.id,
+      email: u.email,
+      displayName: u.displayName,
+      totpEnabled: u.totpEnabled,
+      lastLoginAt: u.lastLoginAt?.toISOString() ?? null,
+      status: u.status,
+      isYou: u.id === currentUserId,
+      recoveryCodesLeft: u.recoveryCodeHashes.length,
+    }));
+  }
+
+  /** Single-use, 48 h (spec §3.5). The URL is returned once and never stored in clear. */
+  async createInvite(email: string, createdBy: string, password: string, meta: RequestMeta): Promise<InviteInfo> {
+    await this.reauth(createdBy, password);
+    const normalized = email.trim().toLowerCase();
+    if (await this.db.query.users.findFirst({ where: eq(users.email, normalized) })) throw new UnauthorizedException("That email already has an account.");
+    const token = this.crypto.randomToken(24);
+    const [row] = await this.db
+      .insert(invites)
+      .values({ email: normalized, tokenHash: this.crypto.hashToken(token), expiresAt: new Date(Date.now() + INVITE_TTL_MS), createdBy })
+      .returning();
+    await this.audit.record({ action: "auth.invite_created", actorUserId: createdBy, metadata: { email: normalized }, ip: meta.ip });
+    return { id: row!.id, email: normalized, createdBy, expiresAt: row!.expiresAt.toISOString(), acceptedAt: null, url: `${this.webOrigin}/join?token=${token}` };
+  }
+
+  async listInvites(): Promise<InviteInfo[]> {
+    const rows = await this.db
+      .select({ inv: invites, by: users.displayName })
+      .from(invites)
+      .leftJoin(users, eq(users.id, invites.createdBy))
+      .orderBy(sql`${invites.createdAt} desc`)
+      .limit(50);
+    return rows.map(({ inv, by }) => ({ id: inv.id, email: inv.email, createdBy: by, expiresAt: inv.expiresAt.toISOString(), acceptedAt: inv.acceptedAt?.toISOString() ?? null }));
+  }
+
+  async checkInvite(token: string): Promise<{ email: string } | null> {
+    const inv = await this.db.query.invites.findFirst({ where: eq(invites.tokenHash, this.crypto.hashToken(token)) });
+    if (!inv || inv.acceptedAt || inv.expiresAt.getTime() < Date.now()) return null;
+    return { email: inv.email };
+  }
+
+  async acceptInvite(token: string, displayName: string, password: string, meta: RequestMeta): Promise<AcceptInviteResult> {
+    const inv = await this.db.query.invites.findFirst({ where: eq(invites.tokenHash, this.crypto.hashToken(token)) });
+    if (!inv || inv.acceptedAt || inv.expiresAt.getTime() < Date.now()) throw new UnauthorizedException("This invitation is no longer valid.");
+    const result = await this.createOwner({ email: inv.email, displayName, password });
+    await this.db.update(invites).set({ acceptedAt: new Date() }).where(eq(invites.id, inv.id));
+    await this.audit.record({ action: "auth.invite_accepted", actorUserId: result.userId, metadata: { inviteId: inv.id }, ip: meta.ip });
+    return { email: inv.email, otpauthUri: result.otpauthUri, recoveryCodes: result.recoveryCodes };
   }
 
   private dummyHash(): Promise<string> {

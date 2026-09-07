@@ -30,3 +30,18 @@ export const sessions = pgTable(
   },
   (t) => [index("sessions_user_idx").on(t.userId)],
 );
+
+/** Single-use, 48 h owner invitations (spec §3.5). Only the token hash is stored. */
+export const invites = pgTable(
+  "invites",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    email: text("email").notNull(),
+    tokenHash: text("token_hash").notNull().unique(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    createdBy: uuid("created_by").references(() => users.id),
+    acceptedAt: timestamp("accepted_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("invites_email_idx").on(t.email)],
+);

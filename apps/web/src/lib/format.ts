@@ -35,3 +35,7 @@ export function daysUntil(iso: string): number {
 export function ageFrom(isoDob: string): number {
   return Math.floor((Date.now() - Date.parse(isoDob)) / (365.25 * 86_400_000));
 }
+
+export function isFuture(iso: string): boolean {
+  return Date.parse(iso) > Date.now();
+}

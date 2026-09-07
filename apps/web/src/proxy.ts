@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 
 const SESSION_COOKIE = "tw_session";
-const PUBLIC = ["/sign-in"];
+const PUBLIC = ["/sign-in", "/join"];
 
 /**
  * Cheap gate: no session cookie at all -> straight to sign-in. Whether the cookie is *valid*
