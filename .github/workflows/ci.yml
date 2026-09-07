@@ -1,0 +1,24 @@
+# Typecheck and tests on every push and pull request. The images workflow waits for this to pass
+# before it publishes anything, so a broken commit never becomes the `latest` image that a new
+# install pulls.
+name: ci
+
+# Pull requests run this directly. Pushes to main and v* tags reach it through images.yml, which
+# calls it as a gate — so a push runs the checks once, not twice.
+on:
+  pull_request:
+  workflow_call:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm typecheck
+      - run: pnpm test

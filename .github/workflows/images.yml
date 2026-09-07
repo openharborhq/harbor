@@ -1,6 +1,7 @@
 # Build the four images for amd64 (the appliance) and arm64 (Apple Silicon dev boxes, Pis) and
 # publish them to GHCR: ghcr.io/openharborhq/harbor-{api,web,worker,backup}. `latest` tracks main;
-# a v* tag gets its own tag. The packages must be set to public once in the org's package settings.
+# a v* tag gets its own tag. Runs only after ci.yml passes. The packages must be set to public
+# once in the org's package settings, or `docker compose pull` is refused for everyone else.
 name: images
 
 on:
@@ -14,7 +15,13 @@ permissions:
   packages: write
 
 jobs:
+  # Publishing is what makes a commit installable, so it waits for the checks. A red build stops
+  # here and `latest` keeps pointing at the last good commit.
+  check:
+    uses: ./.github/workflows/ci.yml
+
   build:
+    needs: check
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
