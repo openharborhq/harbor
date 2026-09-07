@@ -84,3 +84,14 @@ export type AcceptInvite = z.infer<typeof AcceptInvite>;
 
 export const AcceptInviteResult = z.object({ email: z.string(), otpauthUri: z.string(), recoveryCodes: z.array(z.string()) });
 export type AcceptInviteResult = z.infer<typeof AcceptInviteResult>;
+
+/** First run: the vault has no owner yet, so the sign-in page sends you to /setup instead. */
+export const SetupStatus = z.object({ needed: z.boolean() });
+export type SetupStatus = z.infer<typeof SetupStatus>;
+
+export const SetupOwner = z.object({
+  email: z.string().email().max(200),
+  displayName: z.string().trim().min(1).max(80),
+  password: z.string().min(12).max(200),
+});
+export type SetupOwner = z.infer<typeof SetupOwner>;

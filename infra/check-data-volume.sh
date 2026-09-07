@@ -39,8 +39,12 @@ chmod 700 "$DATA/blobs" "$DATA/tmp" "$DATA/dumps" "$DATA/secrets"
 # their own directories.
 chown 1000:1000 "$DATA/blobs" "$DATA/tmp" "$DATA/dumps" "$DATA/backup"
 
+# The master key (spec §3.3). Generated here so that `up` is the next step and the browser does
+# the rest; it must be printed for the break-glass envelope before the box holds anything.
 if [ ! -s "$DATA/secrets/kek" ]; then
-  echo "check-data-volume: no master key at $DATA/secrets/kek yet - the first api start will refuse to boot until \`setup:owner\` has run." >&2
+  umask 077
+  head -c 32 /dev/urandom | base64 > "$DATA/secrets/kek"
+  echo "check-data-volume: created the master key at $DATA/secrets/kek - print it for the break-glass envelope (docs/deploy.md, step 8). Without it the documents cannot be read." >&2
 fi
 
 # The backup container mounts this as a secret and will not start without it (spec §3.4).

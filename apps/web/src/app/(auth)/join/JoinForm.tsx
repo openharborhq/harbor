@@ -1,9 +1,9 @@
 "use client";
 
-import Link from "next/link";
 import { useState } from "react";
 import type { AcceptInviteResult } from "@harbor/shared";
 import { api } from "@/lib/api-client";
+import { EnrolmentCard } from "../EnrolmentCard";
 
 export function JoinForm({ token, email }: { token: string; email: string }) {
   const [displayName, setDisplayName] = useState("");
@@ -24,31 +24,7 @@ export function JoinForm({ token, email }: { token: string; email: string }) {
     }
   }
 
-  if (result) {
-    const secret = /secret=([A-Z2-7]+)/.exec(result.otpauthUri)?.[1] ?? "";
-    return (
-      <div className="mt-6 flex flex-col gap-5">
-        <div>
-          <div className="label">1 · Authenticator app</div>
-          <p className="mt-1 text-row">Add a time-based code to your authenticator app with this key, or paste the full link below.</p>
-          <code className="mt-2 block rounded-sm bg-surface px-3 py-2 text-[15px] tracking-[0.12em]">{secret}</code>
-          <code className="mt-1.5 block break-all rounded-sm bg-surface px-3 py-2 text-label text-muted">{result.otpauthUri}</code>
-        </div>
-        <div>
-          <div className="label">2 · Recovery codes</div>
-          <p className="mt-1 text-row">Print these and keep them offline. Each works once. There is no password reset by email.</p>
-          <ul className="mt-2 grid grid-cols-2 gap-x-8 gap-y-1 rounded-sm bg-surface px-3 py-2 font-mono text-row">
-            {result.recoveryCodes.map((c) => (
-              <li key={c}>{c}</li>
-            ))}
-          </ul>
-        </div>
-        <Link href="/sign-in" className="flex h-11 items-center justify-center rounded-md bg-accent text-body font-semibold text-white">
-          Done — sign in
-        </Link>
-      </div>
-    );
-  }
+  if (result) return <EnrolmentCard otpauthUri={result.otpauthUri} recoveryCodes={result.recoveryCodes} />;
 
   return (
     <form onSubmit={submit} className="mt-6 flex flex-col gap-4">

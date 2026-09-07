@@ -6,6 +6,7 @@ import {
   CreateInvite,
   LoginRequest,
   Reauth,
+  SetupOwner,
   TotpRequest,
   UpdateProfile,
   type AcceptInviteResult,
@@ -14,6 +15,7 @@ import {
   type RecoveryCodesResult,
   type SessionInfo,
   type SessionUser,
+  type SetupStatus,
 } from "@harbor/shared";
 import { ZodPipe } from "../common/zod.pipe";
 import { AuthService, SESSION_COOKIE, type RequestMeta } from "./auth.service";
@@ -27,6 +29,21 @@ function meta(req: Request): RequestMeta {
 @Controller("auth")
 export class AuthController {
   constructor(private readonly auth: AuthService) {}
+
+  /** First run (spec §3.7): true until the first owner exists; the sign-in page redirects to /setup meanwhile. */
+  @Public()
+  @Get("setup")
+  async setupStatus(): Promise<SetupStatus> {
+    return { needed: (await this.auth.ownerCount()) === 0 };
+  }
+
+  /** Creates the first owner; 409 once one exists. Enrolment (authenticator key, recovery codes) comes back exactly once. */
+  @Public()
+  @Post("setup")
+  @HttpCode(200)
+  setup(@Body(new ZodPipe(SetupOwner)) body: SetupOwner): Promise<AcceptInviteResult> {
+    return this.auth.setupFirstOwner(body);
+  }
 
   /** Step 1. On success sets a pending session cookie; the client must then POST /auth/totp. */
   @Public()

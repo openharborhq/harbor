@@ -93,16 +93,13 @@ OCR_LANGUAGES=deu+eng
 EOF
 chmod 600 /data/harbor.env
 
-mkdir -p /data/secrets && chmod 700 /data/secrets
-openssl rand -base64 32 > /data/secrets/kek && chmod 600 /data/secrets/kek                         # the master key
-openssl rand -base64 32 > /data/secrets/restic-password && chmod 600 /data/secrets/restic-password  # the backup password
-
-sh check-data-volume.sh   # must print "ok"; it refuses to continue if /data is not on LUKS
+HARBOR_DATA_DIR=/data sh check-data-volume.sh   # must print "ok"; it refuses to continue if /data is not on LUKS
 ```
 
-The master key file is the only copy of the key that decrypts every document. It goes on the
-printed break-glass page (step 8) and nowhere else. The backup password encrypts every snapshot
-before it leaves the box; same envelope.
+The check script also creates the directories and both secrets: `/data/secrets/kek`, the master
+key that decrypts every document, and `/data/secrets/restic-password`, which encrypts every
+backup before it leaves the box. Each is the only copy. They go on the printed break-glass page
+(step 8) and nowhere else.
 
 **Where backups go.** Add to `/data/harbor.env` one of:
 
@@ -145,15 +142,19 @@ Wait for `API listening on :4000` (migrations run first). The web app is now at
 
 ## 7. Create the first owner
 
+Open `http://<tailnet-ip>:3000`. A vault with no owner shows **Set up your vault** instead of
+the sign-in page: your name, email and a password of at least 12 characters. The next screen
+shows the authenticator key (add it to your app) and ten recovery codes, **once**. Print the
+codes now. There is no password reset by email — on purpose — and the page never appears again;
+everyone else joins through an invitation from Settings.
+
+The same thing from a console, if you prefer:
+
 ```sh
 docker compose --env-file /data/harbor.env -f compose.yml -f compose.prod.yml \
   run --rm -e HARBOR_SETUP_PASSWORD='choose-a-long-password' api node dist/setup.js \
   --email you@example.com --name "Your name"
 ```
-
-It prints an `otpauth://` URI (scan it in your authenticator app) and ten recovery codes.
-**Print the recovery codes now** and clear your terminal (`clear && history -c`). There is no
-password reset by email — on purpose.
 
 ## 8. The break-glass envelope
 

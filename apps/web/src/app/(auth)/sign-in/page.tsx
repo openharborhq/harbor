@@ -1,12 +1,16 @@
 import type { Metadata } from "next";
+import { redirect } from "next/navigation";
 import { Brand } from "@/components/shell/Brand";
 import { SignInForm } from "./SignInForm";
+import { setupNeeded } from "../setup/status";
 
 export const metadata: Metadata = { title: "Sign in" };
 
 export default async function SignInPage(props: PageProps<"/sign-in">) {
   const sp = await props.searchParams;
   const next = typeof sp.next === "string" ? sp.next : "/inbox";
+  // A vault with no owner has nobody who could sign in: first run goes to /setup instead.
+  if (await setupNeeded()) redirect("/setup");
   return (
     <main className="flex min-h-screen items-center justify-center bg-surface">
       <div className="flex w-[420px] flex-col items-center gap-7">

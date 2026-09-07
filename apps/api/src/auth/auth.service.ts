@@ -1,4 +1,4 @@
-import { HttpException, HttpStatus, Injectable, Logger, NotFoundException, UnauthorizedException } from "@nestjs/common";
+import { HttpException, HttpStatus, Injectable, Logger, NotFoundException, UnauthorizedException, ConflictException } from "@nestjs/common";
 
 class TooManyRequestsException extends HttpException {
   constructor(message: string) {
@@ -96,6 +96,24 @@ export class AuthService {
       recoveryCodes: codes,
     };
   }
+
+  /**
+   * The browser-side first run (spec §3.7): works exactly once, while the vault has no owner.
+   * Serialised in-process so two people opening the page on the same first minute cannot both
+   * become the first owner; after that, accounts only come from invitations.
+   */
+  async setupFirstOwner(input: { email: string; displayName: string; password: string }): Promise<AcceptInviteResult> {
+    const run = async () => {
+      if ((await this.ownerCount()) > 0) throw new ConflictException("This vault already has an owner. Sign in, or ask an owner to invite you.");
+      const result = await this.createOwner(input);
+      this.log.log("first owner created through the setup page");
+      return { email: input.email.trim().toLowerCase(), otpauthUri: result.otpauthUri, recoveryCodes: result.recoveryCodes };
+    };
+    const next = this.setupChain.then(run, run);
+    this.setupChain = next.catch(() => undefined);
+    return next;
+  }
+  private setupChain: Promise<unknown> = Promise.resolve();
 
   async ownerCount(): Promise<number> {
     const [row] = await this.db.select({ n: sql<number>`count(*)::int` }).from(users);

@@ -3,6 +3,7 @@
 # Apple Silicon; the images must run on both (spec §3.7).
 #
 #   scripts/build-images.sh                 # local single-arch build, loaded into the docker daemon
+# CI does the same on every push to main (.github/workflows/images.yml); this is for a laptop.
 #   scripts/build-images.sh --push v0.1.0   # linux/amd64 + linux/arm64, pushed to $HARBOR_IMAGE_PREFIX-*:v0.1.0
 #
 # Requires docker buildx. For --push, `docker login ghcr.io` first.
@@ -17,7 +18,7 @@ if [ "${1:-}" = "--push" ]; then
   TAG="${2:?tag required with --push, e.g. v0.1.0}"
 fi
 
-for svc in api worker web; do
+for svc in api worker web backup; do
   if [ "$PUSH" = 1 ]; then
     docker buildx build \
       --platform linux/amd64,linux/arm64 \
@@ -32,4 +33,4 @@ for svc in api worker web; do
   fi
 done
 
-echo "built: ${PREFIX}-{api,worker,web}:${TAG}$([ "$PUSH" = 1 ] && echo ' (pushed, multi-arch)')"
+echo "built: ${PREFIX}-{api,worker,web,backup}:${TAG}$([ "$PUSH" = 1 ] && echo ' (pushed, multi-arch)')"

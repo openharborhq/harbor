@@ -18,7 +18,7 @@ accent, Inter, 7-step type scale. All desktop artboards 1440 px; sidebar 248, co
 | Backfill review | Built, **not drawn** — `/settings/mail/[id]` | backfill dry-run grouped by sender | Bulk approve/ignore with a category, owner-only (§7.7). Held mail listed below it |
 | LLM provider settings | **Not drawn** — mock before build | provider config | Preset picker (Claude / OpenAI / Groq / Ollama / custom), base URL + key + model, live test call (§5) |
 | Login + TOTP | **Not drawn** — mock before build | | |
-| Setup wizard | **Not drawn** — mock before build | | |
+| Setup wizard | Built, **not drawn** — `/setup` | `users` (count = 0) | First owner in the browser: name, email, password, then the same enrolment card as an invitation. Provider choice (§5) and the break-glass print are still console/doc steps |
 | Invite acceptance, held-mail review, add/edit item, manage categories, recently deleted, empty states | Not drawn — build from the system | | |
 | Scan — Capture / Review (mobile) | Drawn, **parked** | | |
 
