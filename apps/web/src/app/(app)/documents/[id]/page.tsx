@@ -65,7 +65,14 @@ export default async function DocumentPage(props: PageProps<"/documents/[id]">) 
                 <StatusPill status={f.processingStatus} />
                 {f.processingError && <span className="text-small text-warn">{f.processingError}</span>}
               </div>
-              <p className="mt-3 text-small text-muted">Summary and filing suggestions arrive in the next milestone.</p>
+              {doc.suggestion?.payload.summary ? (
+                <>
+                  <div className="label mt-4">Summary</div>
+                  <p className="mt-1.5 text-row leading-5">{doc.suggestion.payload.summary}</p>
+                </>
+              ) : (
+                <p className="mt-3 text-small text-muted">No summary for this document.</p>
+              )}
             </div>
             <dl className="mt-4 divide-y divide-border text-row">
               <Row k="Category" v={doc.category ? doc.category.path : "Inbox — not filed yet"} />

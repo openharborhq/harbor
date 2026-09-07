@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import type { DocumentSummary, SearchResponse } from "@trustworthier/shared";
+import type { Category, DocumentSummary, SearchResponse } from "@trustworthier/shared";
 import { Snippet } from "@/components/Snippet";
 import { StatusPill } from "@/components/StatusPill";
 import { TopBar } from "@/components/shell/TopBar";
@@ -61,7 +61,11 @@ export default async function LibraryPage(props: PageProps<"/library">) {
     );
   }
 
-  const docs = await apiFetch<DocumentSummary[]>("/documents");
+  const categoryFilter = typeof sp.category === "string" ? sp.category : null;
+  const [all, categories] = await Promise.all([apiFetch<DocumentSummary[]>("/documents"), apiFetch<Category[]>("/categories")]);
+  const filterCat = categoryFilter ? categories.find((c) => c.id === categoryFilter) : undefined;
+  const inFilter = new Set(filterCat ? categories.filter((c) => c.id === filterCat.id || c.parentId === filterCat.id).map((c) => c.id) : []);
+  const docs = filterCat ? all.filter((d) => d.category && inFilter.has(d.category.id)) : all;
   return (
     <>
       <TopBar />
@@ -69,7 +73,16 @@ export default async function LibraryPage(props: PageProps<"/library">) {
         <div>
           <h1 className="text-title font-bold tracking-snug">Library</h1>
           <p className="mt-1.5 text-body text-muted">
+            {filterCat ? `${filterCat.name} · ` : ""}
             {docs.length} document{docs.length === 1 ? "" : "s"} · search above to look inside them.
+            {filterCat && (
+              <>
+                {" "}
+                <Link href="/library" className="font-medium text-accent">
+                  Show all
+                </Link>
+              </>
+            )}
           </p>
         </div>
         <ul className="flex flex-col">
@@ -80,6 +93,7 @@ export default async function LibraryPage(props: PageProps<"/library">) {
                 {d.title}
               </Link>
               <span className="flex-1 text-small text-muted">
+                {d.category ? `${d.category.path} · ` : "Inbox · "}
                 {d.source === "email" ? "Email" : "Upload"} · {formatRelative(d.createdAt)}
                 {d.file.pageCount ? ` · ${pages(d.file.pageCount)}` : ""}
               </span>
