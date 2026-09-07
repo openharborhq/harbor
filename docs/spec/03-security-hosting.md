@@ -10,6 +10,7 @@
 | Backup provider breach | Snapshots | restic client-side encryption; key only at home |
 | Internet attacker | Nothing to connect to | Zero inbound ports; tailnet only |
 | Malicious PDF via email | Code exec in the OCR worker | Worker is network-less, read-only, non-root |
+| DB dump or backup snapshot | Mail credentials among the rows | `mail_connections.secret_enc` is KEK-encrypted like a DEK; key only at home |
 | Stolen family laptop | A session | TOTP required, sessions revocable, re-auth for sensitive actions |
 | Lost authenticator | Lockout | Printed recovery codes; no email reset to phish |
 | Disaster | Dead box + backup | One printed page from bare Linux to restored vault |
@@ -17,6 +18,12 @@
 **Explicit non-goals:** a compromised *running* server (holds plaintext by design); a
 malicious owner account; the LLM provider (sees OCR text — accepted); a compromised
 Tailscale account. No E2EE.
+
+A **connected inbox (§7) widens the first of those**: a live compromise reaches not just the
+filed documents but the mailbox behind them, and Gmail's app password carries SMTP send as
+well as read. That is a real cost of the convenience, not a defended-against case. §7.8 states
+it in those words and offers the narrower options — folder-scoped access, or a forwarding
+mailbox the vault holds no credential to.
 
 ## 3.2 Network
 
@@ -80,7 +87,7 @@ Egress allow-list — one host each, nothing else:
 
 | Container | Egress |
 |---|---|
-| `mailfetch` | IMAP host |
+| `mailfetch` | IMAP host(s) of configured connections; `login.microsoftonline.com` for device-code refresh; `autoconfig.thunderbird.net` during setup only |
 | `suggester` | LLM API host |
 | `backup` | Backblaze B2 |
 | `tailscale` | Tailscale |

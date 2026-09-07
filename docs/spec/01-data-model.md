@@ -36,8 +36,16 @@ document_search      document_id, tsv (GIN)   -- A: title, B: tags+items+notes+c
 
 suggestions          id, document_id, model, payload jsonb, created_at,
                      accepted_at, rejected_at
-email_ingest_log     id, message_id, from_addr, subject, status (accepted|held|rejected),
-                     raw_blob_key, received_at, document_ids[]
+mail_connections     id, owner_user_id, label, email_address, auth_kind, provider_hint,
+                     imap_host, imap_port, imap_username,
+                     secret_enc, iv, auth_tag, key_version,
+                     scope_mode (folder|full_mailbox), folders[], write_back, retention_days,
+                     status, status_detail, last_ok_at, last_sync_at, uidvalidity jsonb
+mail_senders         id, connection_id, from_addr, decision (file|ignore|hold),
+                     default_category_id, default_item_ids[], default_tag_ids[], learned_from
+email_ingest_log     id, connection_id, message_id, imap_uid, tier, from_addr, subject,
+                     status (accepted|held|rejected), raw_blob_key, received_at,
+                     document_ids[]   -- unique (connection_id, message_id)
 backup_runs          id, kind (backup|restore_test), status, started_at, finished_at,
                      snapshot_id, bytes, document_count, detail
 audit_log            id, actor_user_id, action, entity_type, entity_id, metadata jsonb,
@@ -56,6 +64,12 @@ audit_log            id, actor_user_id, action, entity_type, entity_id, metadata
 - **No blob sharing.** `sha256` is kept for *duplicate detection* ("you uploaded this on
   4 Mar — add as new version, or skip?"), but every file gets its own blob and DEK. This
   removes the need for refcounting/GC. See §2.
+- **Mail credentials live in `mail_connections`, encrypted under the KEK** like a DEK —
+  `secret_enc`/`iv`/`auth_tag`/`key_version`, never returned by the API once written. An
+  app password and an OAuth refresh token are the same column; `auth_kind` distinguishes
+  them. See §7.
+- **`documents.source` stays `upload|email`.** Which mailbox a document arrived through is a
+  join through `email_ingest_log`, not a new enum value.
 - **`person_key_documents` models absence.** A row with `document_id NULL` renders as
   "Passport — Not on file" on the item page.
 - **Plaintext lives in Postgres.** `document_text` and `tsv` are unencrypted copies of every

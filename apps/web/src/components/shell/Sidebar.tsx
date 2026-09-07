@@ -6,6 +6,7 @@ import type { Category, RecentDocument, SessionUser } from "@trustworthier/share
 import { api } from "@/lib/api-client";
 import { initials } from "@/lib/initials";
 import { Brand } from "./Brand";
+import { RecentDocuments } from "./RecentDocuments";
 
 const NAV: { href: string; label: string; icon: string; soon?: boolean }[] = [
   { href: "/home", label: "Home", icon: "M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1v-9.5Z" },
@@ -28,6 +29,7 @@ export function Sidebar({ user, categories = [], recent = [] }: { user: SessionU
   return (
     <aside className="sticky top-0 flex h-screen w-sidebar shrink-0 flex-col border-r border-border bg-ground px-5 py-6">
       <Brand />
+      <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
       <nav className="mt-9 flex flex-col gap-1">
         {NAV.map((item) => {
           const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
@@ -52,26 +54,7 @@ export function Sidebar({ user, categories = [], recent = [] }: { user: SessionU
           );
         })}
       </nav>
-      {recent.length > 0 && (
-        <div className="mt-8">
-          <div className="label px-3">Recent</div>
-          <ul className="mt-2 flex flex-col">
-            {recent.slice(0, 5).map((r) => (
-              <li key={r.documentId}>
-                <Link
-                  href={`/documents/${r.documentId}`}
-                  title={`${r.title}${r.categoryPath ? ` · ${r.categoryPath}` : ""}`}
-                  className={`flex h-8 items-center gap-3 rounded-md px-3 text-row hover:bg-surface ${
-                    pathname === `/documents/${r.documentId}` ? "bg-accent-soft font-semibold text-accent" : "text-text"
-                  }`}
-                >
-                  <span className="flex-1 truncate">{r.title}</span>
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
+      <RecentDocuments initial={recent} />
       {categories.length > 0 && (
         <div className="mt-8">
           <div className="label px-3">Categories</div>
@@ -90,7 +73,8 @@ export function Sidebar({ user, categories = [], recent = [] }: { user: SessionU
           </ul>
         </div>
       )}
-      <div className="mt-auto border-t border-border pt-4">
+      </div>
+      <div className="mt-auto shrink-0 border-t border-border pt-4">
         <div className="flex items-center gap-3">
           <div className="flex size-7 items-center justify-center rounded-pill bg-surface text-label font-bold text-muted">
             {initials(user.displayName)}

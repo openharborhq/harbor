@@ -67,15 +67,24 @@ with `processing_error`, visible on the upload row and the Inbox card with a Ret
 
 ## Email-in
 
-**IMAP polling, never inbound SMTP.** No public MX, no port 25, no spam stack; works behind
-NAT; fails closed (mail queues at the provider if the poller is down).
+**IMAP, never inbound SMTP.** No public MX, no port 25, no spam stack; works behind NAT;
+fails closed (mail queues at the provider if the fetcher is down).
 
-- Poll the vault mailbox (`vault@…`) over IMAP/TLS with an app password every few minutes.
+Two models, both shipping — the **forwarding mailbox** described here, and the **connected
+inbox** of §7, which points the vault at a mailbox you already use. The rules below are the
+common floor; §7 says where a connected inbox differs and why.
+
+- Fetch from the vault mailbox (`vault@…`) over IMAP/TLS with an app password. **IDLE with a
+  periodic resync**, not a fixed poll interval (§7.4).
 - **Allowed senders** list. Mail from anyone else is **held for review** (`status = held`,
-  raw message kept in `raw_blob_key`) — never dropped silently, never auto-ingested.
-- Attachments only (PDF, images); HTML bodies ignored; size caps. Each attachment is
-  untrusted input and goes through the isolated worker.
-- Processed mail is deleted from the mailbox after 30 days.
+  raw message kept in `raw_blob_key`) — never dropped silently, never auto-ingested. On a
+  connected inbox this list is built by the backfill dry-run (§7.5).
+- Attachments only (PDF, images); size caps. Each attachment is untrusted input and goes
+  through the isolated worker. HTML bodies are ignored here; on a connected inbox they are a
+  first-class case, since many invoices have no attachment at all (§7.7).
+- Processed mail is deleted from the mailbox after 30 days. **This applies only to a
+  dedicated forwarding mailbox** — the vault never deletes from a mailbox it does not own
+  (§7.6).
 
 ## Phone capture — parked
 

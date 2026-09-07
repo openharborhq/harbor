@@ -73,8 +73,10 @@ export class DocumentsController {
   @Get(":id")
   async get(@Param("id", ParseUUIDPipe) id: string, @CurrentUser() user: SessionUser): Promise<DocumentSummary> {
     const doc = await this.documents.get(id);
-    // Opening a document is what makes it recent. Fire-and-forget: the read must not wait on it.
-    void this.documents.recordView(id, user.id);
+    // Opening a document is what makes it recent. Awaited on purpose: the sidebar refetches the
+    // moment this page commits, and a fire-and-forget write leaves it one navigation behind.
+    // recordView swallows its own failures, so this can slow the read but never break it.
+    await this.documents.recordView(id, user.id);
     return doc;
   }
 

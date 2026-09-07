@@ -27,6 +27,9 @@ export interface IncomingFile {
 type DocRow = typeof documents.$inferSelect;
 type FileRow = typeof documentFiles.$inferSelect;
 
+/** How far back "Recent" goes. Longer than the sidebar shows, so scrolling has somewhere to go. */
+export const RECENT_LIMIT = 20;
+
 @Injectable()
 export class DocumentsService {
   private readonly log = new Logger(DocumentsService.name);
@@ -180,7 +183,7 @@ export class DocumentsService {
   }
 
   /** Most recently opened first. Deleted documents drop out on their own via the join. */
-  async recent(userId: string, limit = 8): Promise<RecentDocument[]> {
+  async recent(userId: string, limit = RECENT_LIMIT): Promise<RecentDocument[]> {
     const rows = await this.db
       .select({
         documentId: documents.id,
