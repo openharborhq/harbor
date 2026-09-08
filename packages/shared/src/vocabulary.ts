@@ -60,8 +60,23 @@ export const Item = z.object({
   notes: z.string().nullable(),
   sortOrder: z.number().int(),
   documentCount: z.number().int().nonnegative(),
+  /** When the photo was last set — null when there is none. Doubles as the browser's cache key. */
+  avatarUpdatedAt: z.string().datetime().nullable(),
 });
 export type Item = z.infer<typeof Item>;
+
+/**
+ * Photos are cropped in the browser and uploaded already square, so the vault never holds the
+ * original: what you chose to show is all there is. 512px is enough for the largest place a photo
+ * appears (88px at 3× on a retina screen) and small enough that a household of them is nothing.
+ */
+export const AVATAR = {
+  /** Edge length of the square written by the cropper. */
+  size: 512,
+  maxBytes: 3 * 1024 * 1024,
+  /** What the API will accept, checked against the file's own leading bytes rather than its label. */
+  mimeTypes: ["image/jpeg", "image/png", "image/webp"] as const,
+} as const;
 
 export const CreateItem = z.object({
   kind: ItemKind,

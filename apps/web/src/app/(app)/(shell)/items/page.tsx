@@ -4,7 +4,7 @@ import { ACTIVE_ITEM_KINDS, ITEM_KIND_LABEL, itemSubtitle, type Item } from "@ha
 import { TopBar } from "@/components/shell/TopBar";
 import { EmptyState } from "@/components/EmptyState";
 import { apiFetch } from "@/lib/api-server";
-import { itemGlyph } from "@/lib/item-glyph";
+import { ItemAvatar } from "@/components/ItemAvatar";
 import { ItemForm } from "./ItemForm";
 
 export const metadata: Metadata = { title: "People & things" };
@@ -54,7 +54,7 @@ function ItemCard({ item, inside }: { item: Item; inside: Item[] }) {
   const subtitle = itemSubtitle(item);
   return (
     <Link href={`/items/${item.id}`} className="flex min-h-[220px] flex-col items-center gap-1 rounded-card border border-border px-4 py-7 text-center hover:bg-surface">
-      <div className="mb-3 flex size-[76px] items-center justify-center rounded-pill bg-surface text-[26px] font-semibold text-muted">{itemGlyph(item.kind, item.label)}</div>
+      <div className="mb-3"><ItemAvatar item={item} size={76} textSize="text-[26px]" /></div>
       <div className="text-section font-semibold tracking-snug">{item.label}</div>
       <div className="line-clamp-2 text-small text-muted">{subtitle ?? "—"}</div>
       <div className="mt-1 text-row text-muted">

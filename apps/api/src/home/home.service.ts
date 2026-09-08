@@ -77,6 +77,7 @@ export class HomeService {
         label: i.label,
         subtitle: itemSubtitle(i) ?? i.parentLabel,
         documentCount: i.documentCount,
+        avatarUpdatedAt: i.avatarUpdatedAt,
         next: n && n.expiresAt ? { documentId: n.documentId, title: n.title, expiresAt: n.expiresAt, daysLeft: daysBetween(today, n.expiresAt) } : null,
       };
     };

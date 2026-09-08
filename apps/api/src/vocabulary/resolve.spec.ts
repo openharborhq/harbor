@@ -16,6 +16,7 @@ const item = (over: Partial<Item> & { id: string; label: string }): Item => ({
   notes: null,
   sortOrder: 0,
   documentCount: 0,
+  avatarUpdatedAt: null,
   ...over,
 });
 const items: Item[] = [

@@ -7,6 +7,8 @@ const HomeItem = z.object({
   label: z.string(),
   subtitle: z.string().nullable(),
   documentCount: z.number().int().nonnegative(),
+  /** Null when the item has no photo; Home then draws the initial or the glyph instead. */
+  avatarUpdatedAt: z.string().datetime().nullable(),
   /** The soonest future expiry among this item's documents, if any. */
   next: z.object({ documentId: z.string().uuid(), title: z.string(), expiresAt: z.string().date(), daysLeft: z.number().int() }).nullable(),
 });

@@ -5,7 +5,7 @@ import { TopBar } from "@/components/shell/TopBar";
 import { apiFetch } from "@/lib/api-server";
 import { formatDate, formatRelative } from "@/lib/format";
 import { EmptyState } from "@/components/EmptyState";
-import { itemGlyph } from "@/lib/item-glyph";
+import { ItemAvatar } from "@/components/ItemAvatar";
 
 export const metadata: Metadata = { title: "Home" };
 
@@ -140,8 +140,8 @@ export default async function HomePage() {
 function ItemCard({ item }: { item: HomeData["family"][number] }) {
   return (
     <Link href={`/items/${item.id}`} className="flex flex-col items-center gap-1 rounded-card border border-border px-4 py-7 text-center hover:bg-surface">
-      <div className="mb-3 flex size-[76px] items-center justify-center rounded-pill bg-surface text-[26px] font-semibold text-muted">
-        {itemGlyph(item.kind, item.label)}
+      <div className="mb-3">
+        <ItemAvatar item={item} size={76} textSize="text-[26px]" />
       </div>
       <div className="text-section font-semibold tracking-snug">{item.label}</div>
       {item.subtitle && <div className="line-clamp-1 text-small text-muted">{item.subtitle}</div>}

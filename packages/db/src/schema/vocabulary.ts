@@ -1,4 +1,6 @@
-import { pgTable, uuid, text, integer, timestamp, index, jsonb, type AnyPgColumn } from "drizzle-orm/pg-core";
+import { pgTable, uuid, text, integer, timestamp, index, jsonb, customType, type AnyPgColumn } from "drizzle-orm/pg-core";
+
+const bytea = customType<{ data: Buffer; driverData: Buffer }>({ dataType: () => "bytea" });
 
 /** Two levels deep (spec §1). Depth is enforced in the service, not the database. */
 export const categories = pgTable(
@@ -38,6 +40,18 @@ export const items = pgTable(
     parentId: uuid("parent_id").references((): AnyPgColumn => items.id, { onDelete: "set null" }),
     notes: text("notes"),
     sortOrder: integer("sort_order").notNull().default(0),
+    /**
+     * A photo, encrypted at rest exactly like a document: its own DEK wrapped by the KEK, the
+     * ciphertext under /data/blobs. A picture of the family is not less sensitive than their
+     * paperwork, so it is not stored in the clear next to it.
+     */
+    avatarStorageKey: text("avatar_storage_key"),
+    avatarDekWrapped: bytea("avatar_dek_wrapped"),
+    avatarIv: bytea("avatar_iv"),
+    avatarTag: bytea("avatar_tag"),
+    avatarMime: text("avatar_mime"),
+    /** Doubles as the cache key the browser sees, so a new photo appears without a hard reload. */
+    avatarUpdatedAt: timestamp("avatar_updated_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [index("items_kind_idx").on(t.kind, t.sortOrder), index("items_parent_idx").on(t.parentId)],

@@ -134,6 +134,13 @@
       "when": 1788869125328,
       "tag": "0018_ordinary_glorian",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1788901635193,
+      "tag": "0019_outgoing_thanos",
+      "breakpoints": true
     }
   ]
 }

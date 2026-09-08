@@ -8,7 +8,7 @@ import { BackLink } from "@/components/BackLink";
 import { TopBar } from "@/components/shell/TopBar";
 import { ApiError, apiFetch } from "@/lib/api-server";
 import { ageFrom, formatDate, formatRelative } from "@/lib/format";
-import { itemGlyph } from "@/lib/item-glyph";
+import { AvatarPicker } from "./AvatarPicker";
 import { DeleteItem } from "./DeleteItem";
 import { ItemIdentity } from "./ItemIdentity";
 import { ItemParent } from "./ItemParent";
@@ -41,7 +41,7 @@ export default async function ItemPage(props: PageProps<"/items/[id]">) {
       <TopBar />
       <main className="flex max-w-[1192px] flex-col gap-12 px-14 py-14">
         <div className="flex items-center gap-6">
-          <div className="flex size-[88px] items-center justify-center rounded-pill bg-surface text-[32px] font-semibold text-muted">{itemGlyph(item.kind, item.label)}</div>
+          <AvatarPicker item={item} />
           <div>
             <div className="flex items-center gap-2 text-small font-medium">
               <BackLink href="/items" className="text-accent">
