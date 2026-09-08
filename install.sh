@@ -102,9 +102,20 @@ if [ "$OS" = "Linux" ]; then
       warn "$HARBOR_DATA_DIR is on $DEV, which is not an encrypted volume."
       warn "A stolen disk is then a readable copy of every document. See docs/deploy.md, step 2."
       if [ -z "${HARBOR_ALLOW_UNENCRYPTED_DATA:-}" ]; then
-        printf '  Continue anyway? [y/N] '
-        read -r reply </dev/tty || reply=n
-        case "$reply" in [yY]*) ;; *) die "Set up the encrypted volume first, then run this again." ;; esac
+        # There is not always a terminal to ask on — piped, in CI, from a provisioning tool. An
+        # unanswerable question must not become a crash, and the safe answer when nobody is there
+        # to say otherwise is no.
+        if [ -r /dev/tty ]; then
+          printf '  Continue anyway? [y/N] '
+          read -r reply </dev/tty || reply=n
+        else
+          reply=n
+          warn "No terminal to ask on, so taking that as a no."
+        fi
+        case "$reply" in
+          [yY]*) ;;
+          *) die "Put $HARBOR_DATA_DIR on an encrypted volume (docs/deploy.md, step 2), or re-run with HARBOR_ALLOW_UNENCRYPTED_DATA=yes to accept the risk." ;;
+        esac
       fi
     fi
   else
