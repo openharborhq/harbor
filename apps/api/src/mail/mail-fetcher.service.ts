@@ -36,6 +36,13 @@ export interface SyncSummary {
   held: number;
   documentIds: string[];
   problem: string | null;
+  /**
+   * The pass stopped because it hit its message limit, not because it ran out of mail. For the
+   * ordinary sync this is routine — the next pass continues from the cursor. For a backfill it
+   * means the window was never reached, and it matters: re-running reads from the same date and
+   * stops in the same place, so the only way through a very large mailbox is a shorter window.
+   */
+  truncated: boolean;
 }
 
 /**
@@ -73,7 +80,7 @@ export class MailFetcherService {
   }
 
   private async run(connectionId: string, make: SourceFactory, opts: PassOptions): Promise<SyncSummary> {
-    const summary: SyncSummary = { connectionId, scanned: 0, filed: 0, held: 0, documentIds: [], problem: null };
+    const summary: SyncSummary = { connectionId, scanned: 0, filed: 0, held: 0, documentIds: [], problem: null, truncated: false };
     const connection = await this.db.select().from(mailConnections).where(eq(mailConnections.id, connectionId)).limit(1).then((r) => r[0]);
     if (!connection || connection.status === "disabled") return summary;
 
@@ -89,7 +96,10 @@ export class MailFetcherService {
       if (opts.since) this.log.log(`scanning ${folders.length} folders back to ${opts.since.toISOString().slice(0, 10)}`);
 
       for (const folder of folders) {
-        if (summary.scanned >= (opts.limit ?? MESSAGES_PER_PASS)) break;
+        if (summary.scanned >= (opts.limit ?? MESSAGES_PER_PASS)) {
+          summary.truncated = true;
+          break;
+        }
         await this.syncFolder(connection, source, folder, rules, summary, opts);
       }
       await this.connections.recordStatus(connectionId, "ok", null);
@@ -111,7 +121,7 @@ export class MailFetcherService {
    * whose sender now says `file` are downloaded and filed here, in one pass over one connection.
    */
   async applyRules(connectionId: string, make: SourceFactory = (c) => new ImapSource(c)): Promise<SyncSummary> {
-    const summary: SyncSummary = { connectionId, scanned: 0, filed: 0, held: 0, documentIds: [], problem: null };
+    const summary: SyncSummary = { connectionId, scanned: 0, filed: 0, held: 0, documentIds: [], problem: null, truncated: false };
     const connection = await this.db.select().from(mailConnections).where(eq(mailConnections.id, connectionId)).limit(1).then((r) => r[0]);
     if (!connection) return summary;
 
@@ -177,8 +187,16 @@ export class MailFetcherService {
       .where(eq(mailConnections.id, connectionId));
 
     const summary = await this.run(connectionId, make, { allFolders: true, since, limit: MESSAGES_PER_BACKFILL });
-    await this.db.update(mailConnections).set({ backfillCompletedAt: new Date() }).where(eq(mailConnections.id, connectionId));
-    this.log.log(`backfill of ${connectionId}: scanned ${summary.scanned} · filed ${summary.filed} · held ${summary.held}`);
+    // Completed either way, so the settings page stops saying "scanning"; truncated records that
+    // it stopped at the cap rather than at the end of the window, which the owner has to be told.
+    await this.db
+      .update(mailConnections)
+      .set({ backfillCompletedAt: new Date(), backfillTruncated: summary.truncated })
+      .where(eq(mailConnections.id, connectionId));
+    this.log.log(
+      `backfill of ${connectionId}: scanned ${summary.scanned} · filed ${summary.filed} · held ${summary.held}` +
+        (summary.truncated ? ` · STOPPED at the ${MESSAGES_PER_BACKFILL}-message limit before reaching the end of the window` : ""),
+    );
     return summary;
   }
 
@@ -210,7 +228,11 @@ export class MailFetcherService {
     const decided: { envelope: MailEnvelope; detection: Detection }[] = [];
     let lastUid = cursor.lastUid;
     for await (const envelope of source.scan(folder, range)) {
-      if (summary.scanned >= (opts.limit ?? MESSAGES_PER_PASS)) break;
+      // An envelope arrived and is being left unread: there is more mail than this pass may take.
+      if (summary.scanned >= (opts.limit ?? MESSAGES_PER_PASS)) {
+        summary.truncated = true;
+        break;
+      }
       summary.scanned += 1;
       lastUid = Math.max(lastUid, envelope.uid);
 

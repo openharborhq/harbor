@@ -75,7 +75,9 @@ export default async function MailSettingsPage() {
                   <Field k="Writes">{c.writeBack === "none" ? "Nothing — never marks read, moves or deletes" : c.writeBack}</Field>
                   <Field k="Last checked">{c.lastSyncAt ? formatRelative(c.lastSyncAt) : "not yet"}</Field>
                   <Field k="History">
-                    {c.backfillCompletedAt
+                    {c.backfillCompletedAt && c.backfillTruncated
+                      ? `Stopped at the scan limit before reaching the end of ${c.backfillMonths ? backfillWindowLabel(c.backfillMonths) : "the window"} — older mail in that window was not read. Scanning again reads from the same date and stops in the same place; choose a shorter window instead.`
+                      : c.backfillCompletedAt
                       ? `Read back ${c.backfillMonths ? backfillWindowLabel(c.backfillMonths) : "a while"} · scanned ${formatRelative(c.backfillCompletedAt)}`
                       : c.backfillStartedAt
                         ? `Scanning the last ${backfillWindowLabel(c.backfillMonths ?? BACKFILL_MONTHS)}…`

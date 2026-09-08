@@ -259,6 +259,7 @@ function toView(row: typeof mailConnections.$inferSelect, ownerName: string | nu
     isForwardingMailbox: row.kind === "forwarding",
     backfillStartedAt: row.backfillStartedAt?.toISOString() ?? null,
     backfillCompletedAt: row.backfillCompletedAt?.toISOString() ?? null,
+    backfillTruncated: row.backfillTruncated,
     backfillMonths: row.backfillMonths,
     status: row.status,
     statusDetail: row.statusDetail,

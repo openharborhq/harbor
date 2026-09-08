@@ -120,6 +120,13 @@
       "when": 1788805160419,
       "tag": "0016_gorgeous_obadiah_stane",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1788849789597,
+      "tag": "0017_past_wendigo",
+      "breakpoints": true
     }
   ]
 }

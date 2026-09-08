@@ -1,4 +1,4 @@
-import { pgTable, uuid, text, integer, jsonb, timestamp, index, uniqueIndex } from "drizzle-orm/pg-core";
+import { pgTable, uuid, text, integer, boolean, jsonb, timestamp, index, uniqueIndex } from "drizzle-orm/pg-core";
 import { users } from "./auth";
 
 export interface FolderCursor {
@@ -44,6 +44,12 @@ export const mailConnections = pgTable(
     retentionDays: integer("retention_days"),
     backfillStartedAt: timestamp("backfill_started_at", { withTimezone: true }),
     backfillCompletedAt: timestamp("backfill_completed_at", { withTimezone: true }),
+    /**
+     * The last backfill stopped at the message cap instead of reaching the end of its window, so
+     * older mail in that window was never looked at. Re-running does not help — it reads from the
+     * same date and stops in the same place — so the settings page says to narrow the window.
+     */
+    backfillTruncated: boolean("backfill_truncated").notNull().default(false),
     /** Window of the last scan, in months — what makes "you have read 6 months; read 24?" possible. */
     backfillMonths: integer("backfill_months"),
     status: text("status", { enum: ["ok", "auth_failed", "unreachable", "disabled"] }).notNull().default("ok"),

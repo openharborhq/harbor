@@ -107,6 +107,8 @@ export const MailConnectionView = z.object({
   isForwardingMailbox: z.boolean(),
   backfillStartedAt: z.string().datetime().nullable(),
   backfillCompletedAt: z.string().datetime().nullable(),
+  /** The last backfill stopped at the message cap without reaching the end of its window (§7.4). */
+  backfillTruncated: z.boolean().default(false),
   /** How far back the last completed scan reached, so the next stage can offer to go further. */
   backfillMonths: z.number().int().nullable(),
   status: z.enum(["ok", "auth_failed", "unreachable", "disabled"]),
