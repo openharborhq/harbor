@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="1.5 1.75 23 23" width="32" height="32">
+  <!-- The app icon: the shield filled, the anchor reversed out of it. At 16px an outline mark
+       closes up into a blob, so the tab carries the solid version of the same drawing. -->
+  <path d="M13 2.5 L22.5 7 L22.5 14.5 C22.5 19.5 18.4 22.8 13 24 C7.6 22.8 3.5 19.5 3.5 14.5 L3.5 7 Z" fill="#123FA8"/>
+  <path d="M13 8.5 L13 17.6 M8.6 12.4 C8.6 12.4 10.2 14.8 13 14.8 C15.8 14.8 17.4 12.4 17.4 12.4"
+        fill="none" stroke="#FFFFFF" stroke-width="2.1" stroke-linecap="round"/>
+</svg>

@@ -51,7 +51,7 @@ export function RecentDocuments({ initial }: { initial: RecentDocument[] }) {
               <Link
                 href={`/documents/${r.documentId}`}
                 title={`${r.title}${r.categoryPath ? ` · ${r.categoryPath}` : ""}`}
-                className={`flex h-8 items-center gap-3 rounded-md px-3 text-row hover:bg-surface ${
+                className={`flex h-8 items-center gap-3 rounded-md px-3 text-row hover:bg-ground ${
                   active ? "bg-accent-soft font-semibold text-accent" : "text-text"
                 }`}
               >

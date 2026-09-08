@@ -27,7 +27,7 @@ export function Sidebar({ user, categories = [], recent = [] }: { user: SessionU
   }
 
   return (
-    <aside className="sticky top-0 flex h-screen w-sidebar shrink-0 flex-col border-r border-border bg-ground px-5 py-6">
+    <aside className="sticky top-0 flex h-screen w-sidebar shrink-0 flex-col border-r border-border bg-surface px-5 py-6">
       <Brand />
       <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
       <nav className="mt-9 flex flex-col gap-1">
@@ -37,7 +37,7 @@ export function Sidebar({ user, categories = [], recent = [] }: { user: SessionU
             ? "bg-accent-soft text-accent font-semibold"
             : item.soon
               ? "text-muted/70 cursor-default"
-              : "text-text font-medium hover:bg-surface";
+              : "text-text font-medium hover:bg-ground";
           const inner = (
             <>
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
@@ -64,7 +64,7 @@ export function Sidebar({ user, categories = [], recent = [] }: { user: SessionU
               .slice(0, 8)
               .map((c) => (
                 <li key={c.id}>
-                  <Link href={`/library?category=${c.id}`} className="flex h-8 items-center gap-3 rounded-md px-3 text-row text-text hover:bg-surface">
+                  <Link href={`/library?category=${c.id}`} className="flex h-8 items-center gap-3 rounded-md px-3 text-row text-text hover:bg-ground">
                     <span className="flex-1 truncate">{c.name}</span>
                     <span className="text-small text-muted">{countWithChildren(c, categories)}</span>
                   </Link>
@@ -76,7 +76,7 @@ export function Sidebar({ user, categories = [], recent = [] }: { user: SessionU
       </div>
       <div className="mt-auto shrink-0 border-t border-border pt-4">
         <div className="flex items-center gap-3">
-          <div className="flex size-7 items-center justify-center rounded-pill bg-surface text-label font-bold text-muted">
+          <div className="flex size-7 items-center justify-center rounded-pill bg-ground text-label font-bold text-muted">
             {initials(user.displayName)}
           </div>
           <div className="min-w-0 flex-1">
