@@ -95,3 +95,17 @@ export const SetupOwner = z.object({
   password: z.string().min(12).max(200),
 });
 export type SetupOwner = z.infer<typeof SetupOwner>;
+
+/** What Settings shows about this deployment, and whether a newer release exists (spec §3.7). */
+export const VersionInfo = z.object({
+  current: z.string(),
+  commit: z.string(),
+  /** null when the check is switched off, or when it has not managed to reach GitHub yet. */
+  latest: z.string().nullable(),
+  updateAvailable: z.boolean(),
+  checkEnabled: z.boolean(),
+  checkedAt: z.string().datetime().nullable(),
+  /** Present when the last check failed, so a stale answer is not mistaken for "up to date". */
+  problem: z.string().nullable(),
+});
+export type VersionInfo = z.infer<typeof VersionInfo>;

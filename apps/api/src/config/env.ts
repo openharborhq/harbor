@@ -38,6 +38,16 @@ export const Env = z.object({
   /** How often mailfetch sweeps every connection (spec §7.5). IDLE will make this the fallback, not the driver. */
   MAIL_SYNC_INTERVAL_SECONDS: z.coerce.number().int().min(60).default(300),
   /** Stamped into the image at build (see infra/docker/*.Dockerfile). "dev" for a hand-built one. */
+  /**
+   * Ask GitHub, once a day, whether a newer release exists, so Settings can say so. It is the one
+   * outbound call the vault makes that is not doing work you asked for: it sends nothing about you
+   * or your documents — just a GET for the repository's tags — but it does reveal that this
+   * address runs Harbor. Set to false and the check never happens (spec §3.7, no telemetry).
+   */
+  HARBOR_UPDATE_CHECK: z
+    .enum(["true", "false"])
+    .default("true")
+    .transform((v) => v === "true"),
   HARBOR_VERSION: z.string().default("dev"),
   HARBOR_COMMIT: z.string().default("unknown"),
   /**

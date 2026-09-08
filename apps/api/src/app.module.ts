@@ -14,6 +14,7 @@ import { QueueModule } from "./queue/queue.module";
 import { SearchModule } from "./search/search.module";
 import { StorageModule } from "./storage/storage.module";
 import { SuggestModule } from "./suggest/suggest.module";
+import { VersionModule } from "./version/version.module";
 import { VocabularyModule } from "./vocabulary/vocabulary.module";
 
 @Module({
@@ -36,6 +37,7 @@ import { VocabularyModule } from "./vocabulary/vocabulary.module";
     HomeModule,
     MailModule,
     BackupsModule,
+    VersionModule,
   ],
   controllers: [HealthController],
 })

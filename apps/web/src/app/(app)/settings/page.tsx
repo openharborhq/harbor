@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import type { BackupRun, BackupStatus, InviteInfo, OwnerInfo, SessionInfo } from "@harbor/shared";
+import type { BackupRun, BackupStatus, InviteInfo, OwnerInfo, SessionInfo, VersionInfo } from "@harbor/shared";
 import { TopBar } from "@/components/shell/TopBar";
 import { apiFetch, currentUser } from "@/lib/api-server";
 import { formatBytes, formatDate, formatRelative, isFuture } from "@/lib/format";
@@ -18,7 +18,9 @@ export default async function SettingsPage() {
     apiFetch<SessionInfo[]>("/auth/sessions"),
     apiFetch<BackupStatus>("/backups"),
     apiFetch<BackupRun[]>("/backups/runs"),
-    apiFetch<{ version: string; commit: string }>("/health").catch(() => ({ version: "unknown", commit: "unknown" })),
+    apiFetch<VersionInfo>("/version").catch(
+      () => ({ current: "unknown", commit: "unknown", latest: null, updateAvailable: false, checkEnabled: false, checkedAt: null, problem: null }) as VersionInfo,
+    ),
   ]);
   const self = owners.find((o) => o.isYou);
   const pending = invites.filter((i) => !i.acceptedAt && isFuture(i.expiresAt));
@@ -125,14 +127,44 @@ export default async function SettingsPage() {
           )}
         </Panel>
 
-        <Panel title="This vault" sub="What this box is running, for when an update needs talking about.">
+        <Panel title="This vault" sub="What this box is running, and whether anything newer exists.">
           <Row
             k="Version"
-            v={<code className="text-row">{health.version}</code>}
+            v={
+              <span className="flex items-center gap-2">
+                <code className="text-row">{health.current}</code>
+                {health.updateAvailable && <Badge>Update available</Badge>}
+              </span>
+            }
             hint={
-              health.version === "dev"
+              health.current === "dev"
                 ? "Built by hand rather than from a release. Fine for development; on an appliance it means nobody can tell what is deployed."
-                : `Commit ${health.commit.slice(0, 12)}. Upgrade with 'harbor upgrade' on the box — it backs up first and refuses if that fails.`
+                : `Commit ${health.commit.slice(0, 12)}.`
+            }
+          />
+          <Row
+            k="Updates"
+            v={
+              health.updateAvailable ? (
+                <span>
+                  <strong>{health.latest}</strong> is available
+                </span>
+              ) : !health.checkEnabled ? (
+                <span className="text-muted">The update check is switched off</span>
+              ) : health.problem ? (
+                <span className="text-muted">Could not reach GitHub to check</span>
+              ) : (
+                <span>Up to date</span>
+              )
+            }
+            hint={
+              health.updateAvailable
+                ? "Run 'harbor upgrade' on the box. It takes a backup first and refuses to continue if that fails, then moves to the newest release."
+                : health.problem
+                  ? `Last tried ${health.checkedAt ? formatRelative(health.checkedAt) : "never"}: ${health.problem}. A box with no route out is a perfectly ordinary deployment — this is not a fault.`
+                  : health.checkEnabled
+                    ? `Checked ${health.checkedAt ? formatRelative(health.checkedAt) : "never"} against the published releases. Nothing about you or your documents is sent; set HARBOR_UPDATE_CHECK=false to stop asking.`
+                    : "Set HARBOR_UPDATE_CHECK=true to have this box tell you when a release is out."
             }
           />
         </Panel>

@@ -63,7 +63,7 @@ Each container gets only the reach its job needs, which is what makes the OCR ro
 | `mailfetch` | no | IMAP hosts only; the only process that unseals a mail password |
 | `suggester` | no, reads extracted text | the LLM provider you configured |
 | `backup` | reads blob ciphertext | the backup repository |
-| `api` | serves them to you | outbound lookups only |
+| `api` | serves them to you | mail autodiscover, and a daily check for a newer release (`HARBOR_UPDATE_CHECK=false` stops it) |
 | `web` | no | no host port of its own with the tailnet overlay |
 | `tailscale` | no | the tailnet; the only way in |
 | `postgres`, `redis` | — | none |

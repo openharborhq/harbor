@@ -50,7 +50,7 @@ fi
 # A release, not `latest`. `latest` follows main, which is wherever development happens to be;
 # an appliance should move between versions deliberately, when you choose to. `harbor config` to
 # change it, then `harbor upgrade`.
-HARBOR_IMAGE_TAG="${HARBOR_IMAGE_TAG:-v0.2.0}"
+HARBOR_IMAGE_TAG="${HARBOR_IMAGE_TAG:-v0.3.0}"
 HARBOR_PROJECT="${HARBOR_PROJECT:-harbor}"
 TS_AUTHKEY="${TS_AUTHKEY:-}"
 # Tailscale on the host beats Tailscale in the stack: SSH over the tailnet then survives a Harbor
@@ -387,6 +387,28 @@ case "\${1:-help}" in
   seed)    shift; dc exec -T api node dist/seed.js "\$@" ;;
   invite)  echo "Invites are made in Settings -> Who can sign in." ;;
   upgrade)
+    # `harbor upgrade` goes to the newest release; `harbor upgrade v0.1.9` goes exactly there.
+    # Nobody should have to hand-edit a tag in a config file to take an update.
+    _want="\${2:-}"
+    if [ -z "\$_want" ]; then
+      printf 'Looking up the newest release... '
+      _want=\$(curl -fsS --max-time 10 -H 'accept: application/vnd.github+json' \
+        https://api.github.com/repos/openharborhq/harbor/tags 2>/dev/null \
+        | grep -o '"name": *"v[0-9]*\.[0-9]*\.[0-9]*"' | sed 's/.*"\(v[^"]*\)"/\1/' \
+        | sort -t. -k1.2,1n -k2,2n -k3,3n | tail -1)
+      if [ -z "\$_want" ]; then
+        echo "could not reach GitHub."
+        echo "Name the version instead: harbor upgrade v0.2.0"
+        exit 1
+      fi
+      echo "\$_want"
+    fi
+    _have=\$(grep '^HARBOR_IMAGE_TAG=' "$ENV_FILE" | cut -d= -f2-)
+    if [ "\$_want" = "\$_have" ]; then
+      echo "already on \$_have — nothing to do"
+      exit 0
+    fi
+    echo "\$_have -> \$_want"
     echo "Backing up first..."
     if grep -q '^RESTIC_REPOSITORY=.\+' "$ENV_FILE"; then
       dc exec -T backup node dist/backup.js run backup || { echo "backup failed — not upgrading"; exit 1; }
@@ -394,6 +416,9 @@ case "\${1:-help}" in
       echo "  no backup repository configured; upgrading without one"
     fi
     _before=\$(dc exec -T api sh -c 'echo \$HARBOR_VERSION' 2>/dev/null || echo unknown)
+    # Written only after the backup succeeded, so a failed backup cannot leave the configuration
+    # pointing at a release that was never pulled.
+    sudo sed -i "s|^HARBOR_IMAGE_TAG=.*|HARBOR_IMAGE_TAG=\$_want|" "$ENV_FILE"
     dc pull && dc up -d
     sleep 3
     _after=\$(dc exec -T api sh -c 'echo \$HARBOR_VERSION' 2>/dev/null || echo unknown)
@@ -450,7 +475,7 @@ harbor — this vault, on this machine
   harbor logs [service]  follow the logs
   harbor url             where the vault is
   harbor version         what is deployed
-  harbor upgrade         back up, pull the current images, restart
+  harbor upgrade [ver]   back up, move to the newest release (or the one named), restart
   harbor backup          back up now
   harbor restore-test    prove the backup can be read back
   harbor break-glass     print the keys for the envelope
@@ -502,6 +527,6 @@ cat <<NEXT
     harbor status          what is running
     harbor logs            follow everything, or 'harbor logs worker' for one
     harbor break-glass     print the keys for step 2
-    harbor upgrade         back up, pull the current images, restart
+    harbor upgrade [ver]   back up, move to the newest release (or the one named), restart
 
 NEXT

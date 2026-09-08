@@ -14,6 +14,24 @@ migrations, on purpose, because a half-reversed schema is worse than a restore. 
 wrong, follow [`docs/restore.md`](docs/restore.md) with the backup `harbor upgrade` took
 immediately before it. That is why the upgrade refuses to run without one.
 
+## v0.3.0 — 2026-09-08
+
+- **Settings tells you when a release is out.** The vault asks GitHub once a day whether anything
+  newer exists and says so under *This vault*. Nothing about you or your documents is sent — it is
+  a plain request for the repository's tags — and `HARBOR_UPDATE_CHECK=false` stops it entirely. A
+  check that fails says so rather than reading as "up to date", because those are not the same
+  thing.
+- **`harbor upgrade` goes to the newest release on its own.** It used to require editing
+  `HARBOR_IMAGE_TAG` by hand before it would move. Now it looks up the newest release, tells you
+  what it is moving from and to, and writes the tag itself — only after the backup has succeeded,
+  so a failed backup cannot leave the configuration pointing at a release that was never pulled.
+  `harbor upgrade v0.2.0` still goes exactly where you say.
+
+**Worth knowing**
+
+- Upgrading is still a command on the box. Doing it from the browser needs the settings work in
+  [#2](https://github.com/openharborhq/harbor/issues/2).
+
 ## v0.2.0 — 2026-09-08
 
 - **A QR code when enrolling an authenticator** ([#1](https://github.com/openharborhq/harbor/issues/1)).
