@@ -3,13 +3,12 @@ import Link from "next/link";
 import { BACKFILL_MONTHS, backfillWindowLabel, type MailConnectionView } from "@harbor/shared";
 import { AutoRefresh } from "@/components/AutoRefresh";
 import { EmptyState } from "@/components/EmptyState";
-import { BackLink } from "@/components/BackLink";
-import { TopBar } from "@/components/shell/TopBar";
 import { apiFetch, currentUser } from "@/lib/api-server";
 import { formatRelative } from "@/lib/format";
+import { PageHead } from "../ui";
 import { ConnectForm, ConnectionActions } from "./forms";
 
-export const metadata: Metadata = { title: "Email connections" };
+export const metadata: Metadata = { title: "Email Ingest · Settings" };
 
 export default async function MailSettingsPage() {
   const [me, connections] = await Promise.all([currentUser(), apiFetch<MailConnectionView[]>("/mail/connections")]);
@@ -19,35 +18,27 @@ export default async function MailSettingsPage() {
 
   return (
     <>
-      <TopBar />
       <AutoRefresh active={settling} everyMs={4000} />
-      <main className="flex max-w-[1192px] flex-col gap-10 px-14 py-14">
-        <div>
-          <BackLink href="/settings" className="text-small text-muted hover:text-text">
-            ← Settings
-          </BackLink>
-          <h1 className="mt-2 text-title font-bold tracking-snug">Email connections</h1>
-          <p className="mt-1.5 max-w-[720px] text-body text-muted">
-            The vault reads a mailbox the way a mail client does — over IMAP, with an app password you issue it. Nothing is
-            forwarded to it and nothing is exposed; it connects outward and files what it finds.
-          </p>
-        </div>
+      <PageHead title="Email Ingest">
+        The vault reads a mailbox the way a mail client does — over IMAP, with an app password you issue it. Nothing is
+        forwarded to it and nothing is exposed; it connects outward and files what it finds.
+      </PageHead>
 
         {connections.length === 0 ? (
-          <section className="max-w-[820px]">
+          <section className="max-w-[620px]">
             <EmptyState
               title="No mailbox connected"
               body="Connect the inbox your invoices already arrive in, and the vault will offer to file them. It never deletes, moves or marks anything as read."
             />
           </section>
         ) : (
-          <section className="flex max-w-[820px] flex-col gap-4">
+          <section className="flex max-w-[620px] flex-col gap-4">
             {connections.map((c) => (
               <article key={c.id} className="rounded-lg border border-border">
                 <div className="flex items-start gap-4 border-b border-border px-5 py-4">
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
-                      <h2 className="truncate text-section font-semibold tracking-snug">{c.label}</h2>
+                      <h3 className="truncate text-section font-semibold tracking-snug">{c.label}</h3>
                       <ConnectionStatus connection={c} />
                     </div>
                     <p className="mt-0.5 truncate text-small text-muted">
@@ -99,9 +90,9 @@ export default async function MailSettingsPage() {
           </section>
         )}
 
-        <section className="max-w-[820px] rounded-lg border border-border">
+        <section className="max-w-[620px] rounded-lg border border-border">
           <div className="border-b border-border px-5 py-4">
-            <h2 className="text-section font-semibold tracking-snug">Connect a mailbox</h2>
+            <h3 className="text-section font-semibold tracking-snug">Connect a mailbox</h3>
             <p className="mt-0.5 text-small text-muted">Type the address and the rest is filled in for you.</p>
           </div>
           <div className="px-5 py-5">
@@ -109,8 +100,8 @@ export default async function MailSettingsPage() {
           </div>
         </section>
 
-        <section className="max-w-[820px] rounded-lg border border-dashed border-border-strong px-5 py-4">
-          <h2 className="text-row font-semibold">What this costs you</h2>
+        <section className="max-w-[620px] rounded-lg border border-dashed border-border-strong px-5 py-4">
+          <h3 className="text-row font-semibold">What this costs you</h3>
           <p className="mt-1 max-w-[640px] text-small text-muted">
             An app password is a broader grant than it looks: on most providers it can read the whole mailbox, and on Gmail it
             can also send. The vault is choosing convenience over the narrowest possible access, and it is worth knowing that.
@@ -120,7 +111,6 @@ export default async function MailSettingsPage() {
             Download the Gmail filter file
           </a>
         </section>
-      </main>
     </>
   );
 }

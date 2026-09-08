@@ -109,3 +109,26 @@ export const VersionInfo = z.object({
   problem: z.string().nullable(),
 });
 export type VersionInfo = z.infer<typeof VersionInfo>;
+
+/**
+ * One release, as Settings lists it. The body is the changelog entry in Markdown — written by
+ * hand for each release, so it says what changed rather than listing commits.
+ */
+export const ReleaseNote = z.object({
+  version: z.string(),
+  /** ISO date from the changelog heading, or the day GitHub published it. */
+  date: z.string().nullable(),
+  body: z.string(),
+  /** The release this vault is running. */
+  isCurrent: z.boolean(),
+  /** Newer than what is running: this is what an upgrade would bring. */
+  isNewer: z.boolean(),
+});
+export type ReleaseNote = z.infer<typeof ReleaseNote>;
+
+export const ReleaseNotes = z.object({
+  releases: z.array(ReleaseNote),
+  /** Set when the list is only what shipped in this image, because GitHub could not be reached. */
+  offline: z.boolean(),
+});
+export type ReleaseNotes = z.infer<typeof ReleaseNotes>;

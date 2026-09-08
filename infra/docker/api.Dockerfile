@@ -23,6 +23,8 @@ LABEL org.opencontainers.image.version=$HARBOR_VERSION \
       org.opencontainers.image.revision=$HARBOR_COMMIT \
       org.opencontainers.image.source=https://github.com/openharborhq/harbor
 COPY --from=build /out /app
+# The release notes travel with the image, so a vault with no route out can still say what changed.
+COPY CHANGELOG.md /app/CHANGELOG.md
 USER node
 EXPOSE 4000
 CMD ["node", "dist/main.js"]

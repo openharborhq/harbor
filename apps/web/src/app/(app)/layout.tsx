@@ -1,21 +1,15 @@
 import { redirect } from "next/navigation";
-import { Sidebar } from "@/components/shell/Sidebar";
-import type { Category, RecentDocument } from "@harbor/shared";
-import { apiFetch, currentUser } from "@/lib/api-server";
+import { currentUser } from "@/lib/api-server";
 
-/** Everything under (app) requires a fully verified session; the API is the source of truth. */
+/**
+ * Everything under (app) requires a fully verified session; the API is the source of truth.
+ *
+ * Only the session check lives here. The chrome belongs to the groups below — (shell) draws the
+ * sidebar the vault is normally used through, and (settings) replaces the window entirely — so
+ * Settings can take the whole screen without unmounting and remounting the shell around it.
+ */
 export default async function AppLayout({ children }: LayoutProps<"/">) {
   const user = await currentUser();
   if (!user) redirect("/sign-in");
-  // Neither is worth failing the whole shell over.
-  const [categories, recent] = await Promise.all([
-    apiFetch<Category[]>("/categories").catch(() => [] as Category[]),
-    apiFetch<RecentDocument[]>("/documents/recent").catch(() => [] as RecentDocument[]),
-  ]);
-  return (
-    <div className="flex min-h-screen">
-      <Sidebar user={user} categories={categories} recent={recent} />
-      <div className="flex min-w-0 flex-1 flex-col">{children}</div>
-    </div>
-  );
+  return <>{children}</>;
 }

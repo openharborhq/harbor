@@ -4,12 +4,11 @@ import { backfillWindowLabel, type BackfillCandidateSender, type Category, type 
 import { AutoRefresh } from "@/components/AutoRefresh";
 import { EmptyState } from "@/components/EmptyState";
 import { BackLink } from "@/components/BackLink";
-import { TopBar } from "@/components/shell/TopBar";
 import { ApiError, apiFetch } from "@/lib/api-server";
 import { formatRelative } from "@/lib/format";
 import { SenderReview } from "./review";
 
-export const metadata: Metadata = { title: "Review senders" };
+export const metadata: Metadata = { title: "Review senders · Settings" };
 
 export default async function MailReviewPage(props: PageProps<"/settings/mail/[id]">) {
   const { id } = await props.params;
@@ -39,15 +38,13 @@ export default async function MailReviewPage(props: PageProps<"/settings/mail/[i
 
   return (
     <>
-      <TopBar />
       <AutoRefresh active={scanning} everyMs={4000} />
-      <main className="flex max-w-[1192px] flex-col gap-8 px-14 py-14">
-        <div>
-          <BackLink href="/settings/mail" className="text-small text-muted hover:text-text">
-            ← Email connections
-          </BackLink>
-          <h1 className="mt-2 text-title font-bold tracking-snug">{connection.label}</h1>
-          <p className="mt-1.5 max-w-[720px] text-body text-muted">
+      <header className="flex max-w-[620px] flex-col gap-2.5">
+        <BackLink href="/settings/mail" className="text-small text-muted hover:text-text">
+          ← Email Ingest
+        </BackLink>
+        <h1 className="text-[26px] font-bold leading-8 tracking-snug">{connection.label}</h1>
+        <p className="text-body text-muted">
             {forbidden
               ? "This mailbox belongs to someone else in the household. Mail that has not been filed yet is theirs to review — once a document is filed, everyone sees it."
               : scanning
@@ -55,8 +52,8 @@ export default async function MailReviewPage(props: PageProps<"/settings/mail/[i
                 : candidates.length > 0
                   ? `${messages} ${messages === 1 ? "message" : "messages"} from ${candidates.length} ${candidates.length === 1 ? "sender" : "senders"}. Approve a sender and everything they have sent is filed — and everything they send next.`
                   : "Nothing is waiting on you."}
-          </p>
-        </div>
+        </p>
+      </header>
 
         {forbidden ? null : candidates.length === 0 && held.length === 0 ? (
           <section className="max-w-[880px]">
@@ -78,7 +75,7 @@ export default async function MailReviewPage(props: PageProps<"/settings/mail/[i
         {!forbidden && held.length > 0 && (
           <section className="max-w-[880px] rounded-lg border border-border">
             <div className="border-b border-border px-5 py-4">
-              <h2 className="text-section font-semibold tracking-snug">Waiting</h2>
+              <h3 className="text-section font-semibold tracking-snug">Waiting</h3>
               <p className="mt-0.5 text-small text-muted">
                 Only you can see this — it is mail, not a document yet. It stays in your mailbox either way.
               </p>
@@ -106,7 +103,6 @@ export default async function MailReviewPage(props: PageProps<"/settings/mail/[i
             ignoring one clears their mail from this list without touching the mailbox.
           </p>
         )}
-      </main>
     </>
   );
 }

@@ -1,4 +1,5 @@
 import { cookies } from "next/headers";
+import { cache } from "react";
 import type { SessionUser } from "@harbor/shared";
 
 const API = process.env.API_INTERNAL_URL ?? "http://localhost:4000";
@@ -34,8 +35,13 @@ export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise
   return (await res.json()) as T;
 }
 
-/** The signed-in user, or null when the session is missing/expired/pending. */
-export async function currentUser(): Promise<SessionUser | null> {
+/**
+ * The signed-in user, or null when the session is missing/expired/pending.
+ *
+ * Cached for the render, because both the layout that guards the route and the page inside it
+ * want the user, and that should not be two calls to the API on every navigation.
+ */
+export const currentUser = cache(async (): Promise<SessionUser | null> => {
   try {
     const { user } = await apiFetch<{ user: SessionUser }>("/auth/me");
     return user;
@@ -43,4 +49,4 @@ export async function currentUser(): Promise<SessionUser | null> {
     if (err instanceof ApiError && err.status === 401) return null;
     throw err;
   }
-}
+});
