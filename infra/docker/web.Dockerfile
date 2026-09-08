@@ -20,6 +20,12 @@ ENV API_INTERNAL_URL=$API_INTERNAL_URL
 RUN pnpm --filter @harbor/web... build
 
 FROM base AS runtime
+ARG HARBOR_VERSION=dev
+ARG HARBOR_COMMIT=unknown
+ENV HARBOR_VERSION=$HARBOR_VERSION HARBOR_COMMIT=$HARBOR_COMMIT
+LABEL org.opencontainers.image.version=$HARBOR_VERSION \
+      org.opencontainers.image.revision=$HARBOR_COMMIT \
+      org.opencontainers.image.source=https://github.com/openharborhq/harbor
 ENV NODE_ENV=production NEXT_TELEMETRY_DISABLED=1
 COPY --from=build /app/apps/web/.next/standalone ./
 COPY --from=build /app/apps/web/.next/static ./apps/web/.next/static

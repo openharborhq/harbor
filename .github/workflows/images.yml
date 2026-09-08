@@ -50,6 +50,9 @@ jobs:
           file: infra/docker/${{ matrix.image }}.Dockerfile
           platforms: linux/amd64,linux/arm64
           push: true
+          build-args: |
+            HARBOR_VERSION=${{ github.ref_type == 'tag' && github.ref_name || format('main-{0}', github.sha) }}
+            HARBOR_COMMIT=${{ github.sha }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha,scope=${{ matrix.image }}

@@ -16,6 +16,13 @@ RUN pnpm --filter @harbor/api... build && pnpm --filter @harbor/api deploy --pro
 
 FROM base AS runtime
 ENV NODE_ENV=production
+# Stamped at build so a running vault can say what it is. "dev" when built by hand.
+ARG HARBOR_VERSION=dev
+ARG HARBOR_COMMIT=unknown
+ENV HARBOR_VERSION=$HARBOR_VERSION HARBOR_COMMIT=$HARBOR_COMMIT
+LABEL org.opencontainers.image.version=$HARBOR_VERSION \
+      org.opencontainers.image.revision=$HARBOR_COMMIT \
+      org.opencontainers.image.source=https://github.com/openharborhq/harbor
 # pg_dump/pg_restore must match the server's major version (postgres:16); Debian ships 15, so PGDG.
 # restic comes from upstream, pinned and checksummed: Debian's 0.14 opens files with O_NOATIME,
 # which Docker Desktop's virtiofs answers with EIO, so every file "could not be read" on a Mac.

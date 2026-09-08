@@ -37,6 +37,9 @@ export const Env = z.object({
   SUGGEST_API_KEY_FILE: z.string().optional(),
   /** How often mailfetch sweeps every connection (spec §7.5). IDLE will make this the fallback, not the driver. */
   MAIL_SYNC_INTERVAL_SECONDS: z.coerce.number().int().min(60).default(300),
+  /** Stamped into the image at build (see infra/docker/*.Dockerfile). "dev" for a hand-built one. */
+  HARBOR_VERSION: z.string().default("dev"),
+  HARBOR_COMMIT: z.string().default("unknown"),
   /**
    * Backups (spec §3.4). Unset RESTIC_REPOSITORY means "not configured": the backup container
    * still runs, so that Settings can say so, and every scheduled run is recorded as failed.

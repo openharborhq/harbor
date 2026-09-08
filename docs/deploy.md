@@ -57,13 +57,21 @@ hands-off reboots and is deliberately not the default.)
 curl -fsSL https://get.docker.com | sh
 ```
 
-Tailscale runs as one of the containers, so there is nothing to install on the host. In the
-Tailscale admin console, create an auth key (Settings → Keys → Generate auth key) and turn on
-**HTTPS Certificates** under DNS — `serve` needs it to have a certificate to present.
+```sh
+curl -fsSL https://tailscale.com/install.sh | sh
+tailscale up
+```
 
-If you would rather run Tailscale on the host and skip the overlay, `curl -fsSL
-https://tailscale.com/install.sh | sh && tailscale up` still works; note the address from
-`tailscale ip -4` and set `HARBOR_BIND` to it in step 5.
+**Install it on the host, not only in the stack.** Either works, but on the host your way in
+survives a Harbor that will not start — which is exactly when you need to reach the box, possibly
+from somewhere else entirely. It also means Tailscale updates on its own schedule instead of
+riding along with app releases. The installer detects it and offers to use it.
+
+In the Tailscale admin console, turn on **HTTPS Certificates** under DNS, or `serve` has no
+certificate to present.
+
+The container overlay (`compose.tailscale.yml`) remains for machines where you would rather not
+install anything on the host; it needs an auth key instead (Settings → Keys → Generate auth key).
 
 ## 4. The short way from here
 

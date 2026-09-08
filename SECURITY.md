@@ -85,7 +85,11 @@ Harbor cannot enforce these, and without them the table above is optimistic:
    keep it somewhere physical. There is no other copy, and no way for anyone to reset it for you.
 5. **Configure backups and check that the monthly restore test passes.** Settings → Backups shows
    every run. An untested backup is a hope.
-6. **Keep the box updated.** Images are rebuilt on every change to `main`.
+6. **Keep the box updated,** with `harbor upgrade`. It backs up first and refuses to continue if
+   the backup fails. Installs pin to a release tag, so nothing changes underneath you;
+   [`CHANGELOG.md`](CHANGELOG.md) says what each one contains.
+7. **Run Tailscale on the host, not only inside the stack.** Otherwise a broken upgrade takes your
+   remote access with it, and the fix needs someone standing at the machine.
 
 ## Cryptography, briefly
 

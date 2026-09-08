@@ -67,9 +67,23 @@ Three things decide whether this is actually safe, and all three are yours:
 The long form, from a blank Debian machine through the encrypted volume to the printed envelope,
 is [`docs/deploy.md`](docs/deploy.md).
 
-Images are published for amd64 and arm64 at `ghcr.io/openharborhq/harbor-{api,web,worker,backup}`
-on every push to `main`, after the tests pass. To build them yourself instead: clone this
-repository and `docker compose -f infra/compose.yml build`.
+### Releases and upgrading
+
+Installs pin to a release tag, not to `latest`, so the box only moves when you decide it should.
+[`CHANGELOG.md`](CHANGELOG.md) says what changed; Settings and `harbor version` say what you are
+running.
+
+```sh
+harbor config     # change HARBOR_IMAGE_TAG to the release you want
+harbor upgrade    # backs up, pulls, restarts — and refuses if the backup fails
+```
+
+Rolling back means restoring the backup that `harbor upgrade` took immediately before, because
+migrations only run forward. [`docs/restore.md`](docs/restore.md) is that procedure.
+
+Images are published for amd64 and arm64 at `ghcr.io/openharborhq/harbor-{api,web,worker,backup}`,
+tagged on release and following `main` as `latest`, built after the tests pass. To build them
+yourself: clone this repository and `docker compose -f infra/compose.yml build`.
 
 ## Try it on a laptop
 

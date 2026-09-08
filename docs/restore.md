@@ -90,6 +90,21 @@ them in Settings → Email first so two vaults do not read the same mailbox.
   database. You lose at most the day since the last dump.
 - **`/data/tmp`.** Scratch.
 
+## An upgrade went wrong
+
+Rolling back is restoring, because migrations only run forward — there are no down migrations, on
+purpose, since a half-reversed schema is worse than a restore from ten minutes ago. `harbor
+upgrade` takes a backup immediately before it pulls, which is the one you want.
+
+```sh
+harbor config                  # set HARBOR_IMAGE_TAG back to the release you were on
+harbor start                   # bring that version up
+```
+
+If the older code cannot read the newer schema — it will say so in `harbor logs api` — restore the
+pre-upgrade snapshot as below, choosing it by timestamp from `docker compose … run --rm backup
+restic snapshots`.
+
 ## Only the database is gone
 
 Disk is fine, Postgres is not (a bad upgrade, a wrong `rm`):

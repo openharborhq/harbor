@@ -17,7 +17,7 @@
 #   TS_AUTHKEY        a Tailscale auth key — with it, the vault is reachable only on your tailnet
 #   HARBOR_BIND       without Tailscale, the address to publish on (default 127.0.0.1)
 #   HARBOR_WEB_PORT   without Tailscale, the port to publish on    (default 3000)
-#   HARBOR_IMAGE_TAG  which images to run                          (default latest)
+#   HARBOR_IMAGE_TAG  which release to run                        (default the current one)
 #   HARBOR_PROJECT    the compose project name                     (default harbor)
 #
 # Read docs/deploy.md for the parts a script cannot do for you: the encrypted volume, the tailnet,
@@ -47,9 +47,18 @@ else
   HARBOR_DATA_DIR="${HARBOR_DATA_DIR:-$PWD/harbor-data}"
   warn "$OS is not a deployment target — no encrypted volume, no tailnet. Good for trying it out."
 fi
-HARBOR_IMAGE_TAG="${HARBOR_IMAGE_TAG:-latest}"
+# A release, not `latest`. `latest` follows main, which is wherever development happens to be;
+# an appliance should move between versions deliberately, when you choose to. `harbor config` to
+# change it, then `harbor upgrade`.
+HARBOR_IMAGE_TAG="${HARBOR_IMAGE_TAG:-v0.1.0}"
 HARBOR_PROJECT="${HARBOR_PROJECT:-harbor}"
 TS_AUTHKEY="${TS_AUTHKEY:-}"
+# Tailscale on the host beats Tailscale in the stack: SSH over the tailnet then survives a Harbor
+# that will not start, which is the moment you most need to reach the box. Detected, never installed
+# — putting a VPN client on someone machine is not an installer decision.
+HOST_TAILSCALE=0
+USE_HOST_TS="${USE_HOST_TS:-0}"
+if command -v tailscale >/dev/null 2>&1 && tailscale status >/dev/null 2>&1; then HOST_TAILSCALE=1; fi
 HARBOR_BIND="${HARBOR_BIND:-127.0.0.1}"
 HARBOR_WEB_PORT="${HARBOR_WEB_PORT:-3000}"
 
@@ -83,10 +92,24 @@ if [ "$INTERACTIVE" = 1 ]; then
     HARBOR_DATA_DIR=$(ask "Where should that live?" "$HARBOR_DATA_DIR")
   fi
 
-  if [ -z "$TS_AUTHKEY" ]; then
+  if [ -z "$TS_AUTHKEY" ] && [ "$HOST_TAILSCALE" = 1 ]; then
+    printf '\n  Tailscale is already running on this machine, which is the better place for it:\n'
+    printf '  if an upgrade ever breaks Harbor, your way in is still up. I can point it at the\n'
+    printf '  vault with `tailscale serve`, so it is reachable on your tailnet over HTTPS and\n'
+    printf '  nothing is published on this machine.\n'
+    case "$(ask "Use the tailscale already on this host? [y/n]" "y")" in
+      [yY]*) USE_HOST_TS=1; HARBOR_BIND=127.0.0.1 ;;
+      *) ;;
+    esac
+  fi
+
+  if [ -z "$TS_AUTHKEY" ] && [ "$USE_HOST_TS" = 0 ]; then
     printf '\n  How will you reach it?\n'
-    printf '    1) Over my tailnet, with HTTPS — nothing listens on this machine (recommended)\n'
+    printf '    1) Over my tailnet, with HTTPS — nothing listens on this machine\n'
     printf '    2) A port on this machine\n'
+    printf '\n  Note: option 1 runs Tailscale as one of the containers. It works, but if an\n'
+    printf '  upgrade breaks the stack you lose your way in with it. Installing Tailscale on the\n'
+    printf '  host instead (apt install tailscale) and re-running this is the sturdier answer.\n'
     case "$(ask "Which?" "1")" in
       1*)
         printf '\n  Paste a Tailscale auth key (admin console -> Settings -> Keys). Enable HTTPS\n'
@@ -116,7 +139,9 @@ info "compose files   $HARBOR_DIR"
 info "data + secrets  $HARBOR_DATA_DIR"
 info "images          ghcr.io/openharborhq/harbor-*:$HARBOR_IMAGE_TAG"
 [ -n "${RESTIC_REPOSITORY:-}" ] && info "backups to      $RESTIC_REPOSITORY" || info "backups         not configured yet"
-if [ -n "$TS_AUTHKEY" ]; then
+if [ "$USE_HOST_TS" = 1 ]; then
+  info "reachable on    your tailnet, served by the Tailscale already on this host"
+elif [ -n "$TS_AUTHKEY" ]; then
   info "reachable on    your tailnet, over HTTPS — nothing listens on this machine's interfaces"
 else
   info "reachable on    http://$HARBOR_BIND:$HARBOR_WEB_PORT"
@@ -241,7 +266,12 @@ else
     echo "# Backups (spec §3.4). Unset means no backups, and Settings will say so."
     echo "RESTIC_REPOSITORY=${RESTIC_REPOSITORY:-}"
     echo
-    if [ -n "$TS_AUTHKEY" ]; then
+    if [ "$USE_HOST_TS" = 1 ]; then
+      echo "HARBOR_BIND=127.0.0.1"
+      echo "HARBOR_WEB_PORT=$HARBOR_WEB_PORT"
+      echo "WEB_ORIGIN=${WEB_ORIGIN:-https://$(tailscale status --json 2>/dev/null | sed -n 's/.*"DNSName":"\([^".]*\.[^"]*\)\.".*/\1/p' | head -1)}"
+      echo "SESSION_COOKIE_SECURE=true"
+    elif [ -n "$TS_AUTHKEY" ]; then
       echo "TS_AUTHKEY=$TS_AUTHKEY"
       echo "TAILSCALE_HOSTNAME=${TAILSCALE_HOSTNAME:-harbor}"
       echo "WEB_ORIGIN=${WEB_ORIGIN:-https://${TAILSCALE_HOSTNAME:-harbor}.your-tailnet.ts.net}"
@@ -276,6 +306,20 @@ while [ $i -lt 60 ]; do
 done
 [ $i -lt 60 ] || { printf '\n'; die "the api did not come up. Check 'docker compose -p $HARBOR_PROJECT --env-file $ENV_FILE $FILES logs api'."; }
 
+# ---- 6a. host tailscale, pointed at the vault ---------------------------------------------------
+
+if [ "$USE_HOST_TS" = 1 ]; then
+  say "Serving it on your tailnet"
+  if tailscale serve --bg --https=443 "http://127.0.0.1:$HARBOR_WEB_PORT" >/dev/null 2>&1; then
+    info "tailscale serve → 127.0.0.1:$HARBOR_WEB_PORT"
+    info "$(tailscale serve status 2>/dev/null | head -3 | tr '\n' ' ')"
+  else
+    warn "Could not configure 'tailscale serve'. Enable HTTPS Certificates in the Tailscale admin"
+    warn "console (DNS -> HTTPS Certificates), then run:"
+    warn "  sudo tailscale serve --bg --https=443 http://127.0.0.1:$HARBOR_WEB_PORT"
+  fi
+fi
+
 # ---- 6b. the harbor command ---------------------------------------------------------------------
 
 # Everything after the install used to be a three-flag compose line nobody wants to remember or
@@ -296,6 +340,10 @@ case "\${1:-help}" in
   stop)    dc stop ;;
   restart) dc restart "\${2:-}" ;;
   url)     grep '^WEB_ORIGIN=' "$ENV_FILE" | cut -d= -f2- ;;
+  version)
+    echo "configured tag: \$(grep '^HARBOR_IMAGE_TAG=' "$ENV_FILE" | cut -d= -f2-)"
+    echo "running:        \$(dc exec -T api sh -c 'echo \$HARBOR_VERSION' 2>/dev/null || echo 'not running')"
+    ;;
   config)  \${EDITOR:-nano} "$ENV_FILE"; echo "run 'harbor upgrade' to apply"; ;;
   backup)      dc exec -T backup node dist/backup.js run backup ;;
   restore-test) dc exec -T backup node dist/backup.js run restore_test ;;
@@ -308,8 +356,13 @@ case "\${1:-help}" in
     else
       echo "  no backup repository configured; upgrading without one"
     fi
+    _before=\$(dc exec -T api sh -c 'echo \$HARBOR_VERSION' 2>/dev/null || echo unknown)
     dc pull && dc up -d
-    echo "upgraded. 'harbor status' to see it, 'harbor logs api' if anything looks wrong."
+    sleep 3
+    _after=\$(dc exec -T api sh -c 'echo \$HARBOR_VERSION' 2>/dev/null || echo unknown)
+    echo "upgraded: \$_before -> \$_after"
+    echo "'harbor status' to see it, 'harbor logs api' if anything looks wrong."
+    echo "To go back: restore the backup this took first (docs/restore.md). Migrations do not reverse."
     ;;
   break-glass)
     echo "Print this and keep it somewhere physical. There is no other copy."
@@ -328,6 +381,7 @@ harbor — this vault, on this machine
   harbor status          what is running
   harbor logs [service]  follow the logs
   harbor url             where the vault is
+  harbor version         what is deployed
   harbor upgrade         back up, pull the current images, restart
   harbor backup          back up now
   harbor restore-test    prove the backup can be read back

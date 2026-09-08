@@ -11,13 +11,14 @@ import { InviteForm, NameForm, PasswordForm, RecoveryCodesForm, RevokeSessionBut
 export const metadata: Metadata = { title: "Settings" };
 
 export default async function SettingsPage() {
-  const [me, owners, invites, sessions, backup, backupRuns] = await Promise.all([
+  const [me, owners, invites, sessions, backup, backupRuns, health] = await Promise.all([
     currentUser(),
     apiFetch<OwnerInfo[]>("/auth/owners"),
     apiFetch<InviteInfo[]>("/auth/invites"),
     apiFetch<SessionInfo[]>("/auth/sessions"),
     apiFetch<BackupStatus>("/backups"),
     apiFetch<BackupRun[]>("/backups/runs"),
+    apiFetch<{ version: string; commit: string }>("/health").catch(() => ({ version: "unknown", commit: "unknown" })),
   ]);
   const self = owners.find((o) => o.isYou);
   const pending = invites.filter((i) => !i.acceptedAt && isFuture(i.expiresAt));
@@ -122,6 +123,18 @@ export default async function SettingsPage() {
               </ul>
             </div>
           )}
+        </Panel>
+
+        <Panel title="This vault" sub="What this box is running, for when an update needs talking about.">
+          <Row
+            k="Version"
+            v={<code className="text-row">{health.version}</code>}
+            hint={
+              health.version === "dev"
+                ? "Built by hand rather than from a release. Fine for development; on an appliance it means nobody can tell what is deployed."
+                : `Commit ${health.commit.slice(0, 12)}. Upgrade with 'harbor upgrade' on the box — it backs up first and refuses if that fails.`
+            }
+          />
         </Panel>
 
         <Panel title="Signed-in devices" sub="Sessions last 30 days and renew while in use. Revoke anything you don't recognise.">
