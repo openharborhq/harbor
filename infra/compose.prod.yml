@@ -42,4 +42,4 @@ services:
     # unreachable from elsewhere, never accidentally reachable from the LAN. A default is also
     # what lets compose.tailscale.yml drop the port entirely — interpolation happens before
     # overrides, so a `?required` here would fail even when nothing publishes a port.
-    ports: !override ["${HARBOR_BIND:-127.0.0.1}:3000:3000"]
+    ports: !override ["${HARBOR_BIND:-127.0.0.1}:${HARBOR_WEB_PORT:-3000}:3000"]

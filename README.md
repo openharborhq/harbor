@@ -9,45 +9,58 @@ reachable only over your tailnet.
 sender triage, nightly encrypted backups with a monthly automated restore test, a browser-based
 first run, and tailnet-only networking. The design is in [`docs/spec`](docs/spec/00-overview.md).
 
-## Install on your own box
+## Install
 
-The full runbook is [`docs/deploy.md`](docs/deploy.md): Debian, an encrypted data volume,
-Docker, Tailscale, then the stack. The short version, on a fresh Debian 12 machine as root:
+On a Linux machine with Docker, one script does the whole thing:
 
 ```sh
-mkdir -p /opt/harbor && cd /opt/harbor
-for f in compose.yml compose.prod.yml check-data-volume.sh; do
-  curl -fsSLO "https://raw.githubusercontent.com/openharborhq/harbor/main/infra/$f"
-done
-curl -fsSLO https://raw.githubusercontent.com/openharborhq/harbor/main/infra/compose.tailscale.yml
-curl -fsSLO https://raw.githubusercontent.com/openharborhq/harbor/main/infra/tailscale-serve.json
-cat > /data/harbor.env <<'ENV'
-HARBOR_DATA_DIR=/data                    # the LUKS-backed mount (deploy.md, step 2)
-TS_AUTHKEY=tskey-auth-…                  # Tailscale admin console → Settings → Keys
-TAILSCALE_HOSTNAME=harbor
-WEB_ORIGIN=https://harbor.your-tailnet.ts.net
-SESSION_COOKIE_SECURE=true
-ENV
-HARBOR_DATA_DIR=/data sh check-data-volume.sh      # refuses an unencrypted /data; creates the secrets
-docker compose --env-file /data/harbor.env \
-  -f compose.yml -f compose.prod.yml -f compose.tailscale.yml up -d
+curl -fsSLO https://raw.githubusercontent.com/openharborhq/harbor/main/install.sh
+less install.sh          # please read it before running it as root
+sudo sh install.sh
 ```
 
-Then open `https://harbor.your-tailnet.ts.net`. Nothing listens on the machine's own interfaces:
-Tailscale runs as one of the containers and serves the app on your tailnet over HTTPS, so there
-is no LAN address and no bind setting to get wrong. Drop the third compose file to publish a
-local port instead (`HARBOR_BIND`, default loopback). **The vault starts empty and asks you to create the first
-owner** — name, email, password — and shows the authenticator key and recovery codes once. There
-are no default credentials. Everyone else joins by invitation from Settings.
+It fetches the compose files, generates the master key and backup password, writes the
+configuration, pulls the published images and starts the eight containers. Then open the address
+it prints. **The vault is empty and asks you to create the first owner** — name, email, password —
+and shows an authenticator key and ten recovery codes once. There are no default credentials.
+Everyone else joins by invitation from Settings.
 
-Before the box holds anything you care about, do step 8 of the runbook: print the break-glass
-envelope (master key, backup password, where the backups are) and set `RESTIC_REPOSITORY` so the
-nightly backup has somewhere to go. Settings → Backups shows every run and the monthly restore
-test; [`docs/restore.md`](docs/restore.md) is the way back from a dead disk.
+Re-run the same command to upgrade: it never overwrites a secret or a configuration file.
+
+Settings, all optional, as environment variables:
+
+| | |
+|---|---|
+| `HARBOR_DATA_DIR` | where documents, database and secrets live. Default `/data` |
+| `TS_AUTHKEY` | a Tailscale auth key. With it, the vault is reachable **only** on your tailnet, over HTTPS, and nothing listens on the machine's own interfaces |
+| `HARBOR_BIND`, `HARBOR_WEB_PORT` | without Tailscale, where to publish. Default `127.0.0.1:3000` |
+| `RESTIC_REPOSITORY` | where nightly backups go — a Backblaze B2 bucket, an SFTP host, or a second disk |
+
+So a real appliance is usually:
+
+```sh
+sudo env HARBOR_DATA_DIR=/data TS_AUTHKEY=tskey-auth-… sh install.sh
+```
+
+### What the installer cannot do for you
+
+Three things decide whether this is actually safe, and all three are yours:
+
+1. **Put `HARBOR_DATA_DIR` on an encrypted volume** before you run it. Postgres holds the text of
+   every document in the clear, so a stolen disk is otherwise a readable copy of your paperwork.
+   [`docs/deploy.md`](docs/deploy.md) step 2 is the LUKS recipe; the installer warns but cannot
+   do it afterwards.
+2. **Print the break-glass page** — the master key and backup password it generates, and where
+   your backups are. Without it a dead disk means the documents are gone. That is the design.
+3. **Give backups somewhere to go** and check the monthly restore test passes. Settings → Backups
+   shows every run; [`docs/restore.md`](docs/restore.md) is the way back.
+
+The long form, from a blank Debian machine through the encrypted volume to the printed envelope,
+is [`docs/deploy.md`](docs/deploy.md).
 
 Images are published for amd64 and arm64 at `ghcr.io/openharborhq/harbor-{api,web,worker,backup}`
-on every push to `main`; the compose files pull them. To build them yourself instead:
-`git clone` this repository and `docker compose -f infra/compose.yml build`.
+on every push to `main`, after the tests pass. To build them yourself instead: clone this
+repository and `docker compose -f infra/compose.yml build`.
 
 ## Try it on a laptop
 

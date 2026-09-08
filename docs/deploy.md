@@ -65,7 +65,19 @@ If you would rather run Tailscale on the host and skip the overlay, `curl -fsSL
 https://tailscale.com/install.sh | sh && tailscale up` still works; note the address from
 `tailscale ip -4` and set `HARBOR_BIND` to it in step 5.
 
-## 4. Get the images
+## 4. The short way from here
+
+Steps 5 and 6 are what `install.sh` does. If you want it to:
+
+```sh
+curl -fsSLO https://raw.githubusercontent.com/openharborhq/harbor/main/install.sh
+less install.sh
+sudo env HARBOR_DATA_DIR=/data TS_AUTHKEY=tskey-auth-… sh install.sh
+```
+
+Then skip to step 7. What follows is the same thing by hand, for when you want to see every part.
+
+## 4b. Get the images
 
 Either pull the published multi-arch images (once a release exists):
 
