@@ -14,6 +14,38 @@ migrations, on purpose, because a half-reversed schema is worse than a restore. 
 wrong, follow [`docs/restore.md`](docs/restore.md) with the backup `harbor upgrade` took
 immediately before it. That is why the upgrade refuses to run without one.
 
+## v0.5.0 — 2026-09-08
+
+- **Settings is its own page.** Seven sections behind their own navigation — Account, Users,
+  Devices, Email Ingest, Integrations, Backup, Version — instead of one long scroll of stacked
+  panels. It takes the window over rather than nesting inside it, with a way back at the top.
+  Every address is unchanged, so anything you had bookmarked still works.
+- **Choosing where document text goes reads like the decision it is.** The three providers are
+  now rows that each state their consequence, and only the one you pick opens to show its own
+  fields. The *Send first names* toggle is wired up: the panel described it before but never
+  saved it, so it was always on.
+- **Every release says what changed, in Settings → Version.** Each version is a row you can
+  open. The notes that shipped in your image are always there, so a vault with no route out can
+  still say what it is running; when the box can reach GitHub the list also covers releases
+  newer than yours, which is the half that answers "should I upgrade".
+- **A photograph for every person and thing.** Add one from the item page and crop it in the
+  browser — drag, zoom, and only the circle is kept. Photos appear on the item page, the
+  People & things grid and Home. They are encrypted at rest exactly like a document, under
+  their own key wrapped by the vault's master key.
+- **The app wears the same mark as the website**, and both left-hand columns sit on a light
+  grey rather than white.
+
+**Worth knowing**
+
+- One migration adds the photo columns. `harbor upgrade` applies it on the way up; there is
+  nothing to do by hand.
+- The crop is all that is stored — the vault never receives the original photograph. Framing it
+  differently means uploading it again, which is the trade for not keeping a picture you did not
+  choose to show.
+- Photos are refused unless the file's own leading bytes say JPEG, PNG or WebP.
+- Backups are still configured in the environment file on the box; that half of
+  [#2](https://github.com/openharborhq/harbor/issues/2) is still not done.
+
 ## v0.4.1 — 2026-09-08
 
 - **Fixes email-in, which v0.4.0 broke.** The suggestion settings work gave `SuggestService` a new
