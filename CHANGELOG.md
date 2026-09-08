@@ -14,6 +14,23 @@ migrations, on purpose, because a half-reversed schema is worse than a restore. 
 wrong, follow [`docs/restore.md`](docs/restore.md) with the backup `harbor upgrade` took
 immediately before it. That is why the upgrade refuses to run without one.
 
+## v0.5.1 — 2026-09-08
+
+- **Fixes suggestions, which v0.5.0 broke.** Photographs gave the items service a dependency on
+  encrypted-blob storage, and the `suggester` process — which shares that service — was not given
+  the module it lives in, so it restarted in a loop. On v0.5.0 documents still arrive, are OCR'd
+  and are searchable; what stops is the title, summary, category and dates a model proposes.
+  Every other service was unaffected.
+- **The module now names what it needs** rather than relying on a global one having been imported
+  somewhere else. Six processes share these services, and "global" only reaches the ones that
+  already pull the module in — which is why this is the second release to be broken by exactly
+  this shape of mistake.
+
+**Worth knowing**
+
+- The smoke job added in v0.4.1 caught this before anyone ran it: the images built, and starting
+  them is what failed. That is the difference between compiling and running.
+
 ## v0.5.0 — 2026-09-08
 
 - **Settings is its own page.** Seven sections behind their own navigation — Account, Users,
