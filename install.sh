@@ -395,10 +395,14 @@ case "\${1:-help}" in
       sudo mount "$HARBOR_DATA_DIR"
       echo "unlocked $HARBOR_DATA_DIR"
     fi
-    dc up -d
+    # --force-recreate, not plain `up -d`: a container that Docker restarted at boot resolved its
+    # bind mounts while the volume was still closed, and keeps pointing at the empty directory
+    # underneath the mount. Starting it does not fix that; only replacing it does. Without this the
+    # vault comes up looking empty after every reboot while the real data sits on the volume.
+    dc up -d --force-recreate
     ;;
   lock)
-    dc stop
+    dc down --remove-orphans 2>/dev/null || dc stop
     sudo umount "$HARBOR_DATA_DIR" 2>/dev/null || true
     sudo cryptsetup close harbordata 2>/dev/null || true
     # Write-protect the bare mountpoint so nothing can populate it while the real volume is away.

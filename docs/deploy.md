@@ -236,6 +236,11 @@ everything in the next milestones.
   which refuses to continue if the backup fails.
 - **Reboot:** type the LUKS passphrase at the console or via SSH-in-initramfs; containers
   restart on their own.
+- **After a power cut** the box comes back on its own with ssh working, but the vault stays
+  closed: `harbor unlock`, type the passphrase, and it mounts and starts. Nothing waits at boot
+  and no monitor is ever needed. While it is closed the mountpoint is write-protected, so a
+  container that starts early fails loudly instead of quietly building a second, empty database
+  on the system disk.
 - **Everything day to day** goes through the `harbor` command the installer leaves behind:
   `harbor status`, `harbor logs [service]`, `harbor backup`, `harbor restore-test`,
   `harbor break-glass`, `harbor config`, `harbor upgrade`. The long `docker compose …` forms

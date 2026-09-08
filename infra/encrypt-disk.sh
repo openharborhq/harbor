@@ -172,6 +172,31 @@ else
 fi
 info "/etc/crypttab and /etc/fstab updated for '$HARBOR_UNLOCK' unlocking"
 
+# Docker starts the stack at boot with its own restart policies, before anyone has unlocked
+# anything. With the volume closed, it creates the bind-mount sources itself and Postgres
+# initialises a second, empty database on the system disk while the real one sits sealed — the
+# vault comes up looking empty. Making the bare mountpoint immutable turns that silent wrong
+# answer into a container that refuses to start, which is what you want to see.
+if [ "$HARBOR_UNLOCK" = manual ] && command -v chattr >/dev/null 2>&1; then
+  cat > /etc/systemd/system/harbor-mountpoint-guard.service <<UNIT
+[Unit]
+Description=Write-protect the Harbor mountpoint while the encrypted volume is closed
+Before=docker.service
+After=local-fs.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/bin/sh -c "mountpoint -q $HARBOR_DATA_DIR || chattr +i $HARBOR_DATA_DIR"
+
+[Install]
+WantedBy=multi-user.target
+UNIT
+  systemctl daemon-reload 2>/dev/null || true
+  systemctl enable harbor-mountpoint-guard.service >/dev/null 2>&1 || true
+  info "installed the boot-time guard on $HARBOR_DATA_DIR"
+fi
+
 say "Done"
 info "$TARGET is now an encrypted volume mounted at $HARBOR_DATA_DIR"
 cat <<NEXT
