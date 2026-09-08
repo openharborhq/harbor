@@ -10,6 +10,7 @@ import { loadEnv } from "./config/env";
 import { CryptoModule } from "./crypto/crypto.module";
 import { DbModule } from "./db/db.module";
 import { REDIS, SUGGEST, QueueModule, SUGGEST_QUEUE, type SuggestJob } from "./queue/queue.module";
+import { SettingsModule } from "./settings/settings.module";
 import { SuggestModule } from "./suggest/suggest.module";
 import { PROMPT_VERSION } from "./suggest/provider";
 import { SuggestService } from "./suggest/suggest.service";
@@ -34,6 +35,7 @@ import { VocabularyModule } from "./vocabulary/vocabulary.module";
     CryptoModule,
     AuditModule,
     QueueModule,
+    SettingsModule,
     VocabularyModule,
     SuggestModule.register({ withProvider: true }),
   ],

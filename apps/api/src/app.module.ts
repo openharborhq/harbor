@@ -12,6 +12,7 @@ import { HomeModule } from "./home/home.module";
 import { MailModule } from "./mail/mail.module";
 import { QueueModule } from "./queue/queue.module";
 import { SearchModule } from "./search/search.module";
+import { SettingsModule } from "./settings/settings.module";
 import { StorageModule } from "./storage/storage.module";
 import { SuggestModule } from "./suggest/suggest.module";
 import { VersionModule } from "./version/version.module";
@@ -38,6 +39,7 @@ import { VocabularyModule } from "./vocabulary/vocabulary.module";
     MailModule,
     BackupsModule,
     VersionModule,
+    SettingsModule,
   ],
   controllers: [HealthController],
 })

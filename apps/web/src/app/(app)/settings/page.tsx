@@ -1,23 +1,27 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import type { BackupRun, BackupStatus, InviteInfo, OwnerInfo, SessionInfo, VersionInfo } from "@harbor/shared";
+import type { BackupRun, BackupStatus, InviteInfo, OwnerInfo, SessionInfo, SuggestionSettings, VersionInfo } from "@harbor/shared";
 import { TopBar } from "@/components/shell/TopBar";
 import { apiFetch, currentUser } from "@/lib/api-server";
 import { formatBytes, formatDate, formatRelative, isFuture } from "@/lib/format";
 import { initials } from "@/lib/initials";
 import { BackupActions } from "./backup-forms";
+import { SuggestionsForm } from "./SuggestionsForm";
 import { InviteForm, NameForm, PasswordForm, RecoveryCodesForm, RevokeSessionButton } from "./forms";
 
 export const metadata: Metadata = { title: "Settings" };
 
 export default async function SettingsPage() {
-  const [me, owners, invites, sessions, backup, backupRuns, health] = await Promise.all([
+  const [me, owners, invites, sessions, backup, backupRuns, suggestions, health] = await Promise.all([
     currentUser(),
     apiFetch<OwnerInfo[]>("/auth/owners"),
     apiFetch<InviteInfo[]>("/auth/invites"),
     apiFetch<SessionInfo[]>("/auth/sessions"),
     apiFetch<BackupStatus>("/backups"),
     apiFetch<BackupRun[]>("/backups/runs"),
+    apiFetch<SuggestionSettings>("/settings/suggestions").catch(
+      () => ({ provider: "none", model: "", baseUrl: null, apiKeySet: false, sendPeople: true, readerLanguage: "en", fromEnvironment: true }) as SuggestionSettings,
+    ),
     apiFetch<VersionInfo>("/version").catch(
       () => ({ current: "unknown", commit: "unknown", latest: null, updateAvailable: false, checkEnabled: false, checkedAt: null, problem: null }) as VersionInfo,
     ),
@@ -165,6 +169,21 @@ export default async function SettingsPage() {
                   : health.checkEnabled
                     ? `Checked ${health.checkedAt ? formatRelative(health.checkedAt) : "never"} against the published releases. Nothing about you or your documents is sent; set HARBOR_UPDATE_CHECK=false to stop asking.`
                     : "Set HARBOR_UPDATE_CHECK=true to have this box tell you when a release is out."
+            }
+          />
+        </Panel>
+
+        <Panel
+          title="Suggestions"
+          sub="A model reads each document and proposes a title, a summary, a category and dates. You accept or ignore what it proposes."
+        >
+          <Row
+            k="Where text goes"
+            v={<SuggestionsForm current={suggestions} />}
+            hint={
+              suggestions.fromEnvironment
+                ? "Currently taken from the configuration file on the box. Saving here takes over."
+                : undefined
             }
           />
         </Panel>

@@ -127,6 +127,13 @@
       "when": 1788849789597,
       "tag": "0017_past_wendigo",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1788869125328,
+      "tag": "0018_ordinary_glorian",
+      "breakpoints": true
     }
   ]
 }

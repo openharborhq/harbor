@@ -56,6 +56,13 @@ rejected is skipped, because their judgement is the answer. The unique index on
 
 ## Choosing a provider
 
+Since v0.4.0 this is done in **Settings → Suggestions**, not in the environment: provider, model,
+endpoint and key, with a *Test* button that makes a real call first. The key is sealed under the
+KEK in `settings`, never returned to the browser, and the provider is resolved per document so a
+change needs no restart. The environment remains the fallback for anything not saved there, which
+is what keeps scripted provisioning and existing installs working.
+
+
 **The operator picks the model, not the project.** Three implementations, and only three, no
 matter how many services are on the list:
 

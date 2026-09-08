@@ -7,6 +7,7 @@ import { SuggestionPayload, type SuggestionView } from "@harbor/shared";
 import type { Env } from "../config/env";
 import { InjectDb } from "../db/db.module";
 import { resolveVocabulary } from "../vocabulary/resolve";
+import { SuggestionSettingsService } from "../settings/suggestion-settings.service";
 import { SearchIndexService } from "../search/search-index.service";
 import { CategoriesService } from "../vocabulary/categories.service";
 import { ItemsService } from "../vocabulary/items.service";
@@ -49,7 +50,8 @@ export class SuggestService {
 
   constructor(
     @InjectDb() private readonly db: Db,
-    @Inject(SUGGESTION_PROVIDER) private readonly provider: SuggestionProvider,
+    @Inject(SUGGESTION_PROVIDER) private readonly bootProvider: SuggestionProvider,
+    private readonly suggestionSettings: SuggestionSettingsService,
     private readonly categoriesService: CategoriesService,
     private readonly itemsService: ItemsService,
     private readonly searchIndex: SearchIndexService,
@@ -57,6 +59,20 @@ export class SuggestService {
   ) {
     this.sendPeople = config.get("SUGGEST_SEND_PEOPLE", { infer: true });
     this.readerLanguage = config.get("SUGGEST_READER_LANGUAGE", { infer: true });
+  }
+
+  /**
+   * The provider as configured *now*, not as it was when this process started. Someone changing it
+   * in Settings must not have to restart a container over ssh for the next document to use it.
+   * Falls back to the one built at boot if the settings cannot be read for any reason.
+   */
+  private async currentProvider(): Promise<SuggestionProvider> {
+    try {
+      return await this.suggestionSettings.build();
+    } catch (err) {
+      this.log.warn(`could not build the configured provider (${(err as Error).message}); using the one from startup`);
+      return this.bootProvider;
+    }
   }
 
   /**
@@ -72,7 +88,7 @@ export class SuggestService {
    * judgement is the answer, and asking the model again would not change it.
    */
   async staleFiles(limit: number): Promise<string[]> {
-    const provider = this.provider.name;
+    const provider = (await this.currentProvider()).name;
     const rows = await this.db
       .select({ id: documentFiles.id })
       .from(documentFiles)
@@ -133,9 +149,10 @@ export class SuggestService {
       readerLanguage: this.readerLanguage,
     };
 
-    const out = await this.provider.suggest(input);
+    const provider = await this.currentProvider();
+    const out = await provider.suggest(input);
     if (!out) {
-      this.log.log(`${documentFileId}: no suggestion (${this.provider.name})`);
+      this.log.log(`${documentFileId}: no suggestion (${provider.name})`);
       await this.markReady(documentFileId);
       return null;
     }
@@ -148,7 +165,7 @@ export class SuggestService {
         .values({
           documentId: row.doc.id,
           documentFileId,
-          provider: this.provider.name,
+          provider: provider.name,
           model: out.model,
           promptVersion: PROMPT_VERSION,
           payload,
@@ -167,7 +184,7 @@ export class SuggestService {
       await this.searchIndex.reindex([row.doc.id], tx);
       return inserted!.id;
     });
-    this.log.log(`${documentFileId}: ${this.provider.name}/${out.model} · ${payload.confidence} · ${out.inputTokens ?? "?"} in / ${out.outputTokens ?? "?"} out`);
+    this.log.log(`${documentFileId}: ${provider.name}/${out.model} · ${payload.confidence} · ${out.inputTokens ?? "?"} in / ${out.outputTokens ?? "?"} out`);
     return stored;
   }
 

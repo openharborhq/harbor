@@ -14,6 +14,28 @@ migrations, on purpose, because a half-reversed schema is worse than a restore. 
 wrong, follow [`docs/restore.md`](docs/restore.md) with the backup `harbor upgrade` took
 immediately before it. That is why the upgrade refuses to run without one.
 
+## v0.4.0 — 2026-09-08
+
+- **Choose the suggestion provider in Settings** ([#2](https://github.com/openharborhq/harbor/issues/2), in part).
+  Provider, model, endpoint and API key are set in the browser instead of in a file over ssh.
+  Anthropic, or any OpenAI-compatible endpoint with ready-made settings for OpenRouter, OpenAI,
+  Groq and Ollama, or off entirely. A **Test** button makes a real call before you commit to
+  anything, and says plainly whether the key was rejected or the endpoint unreachable.
+- **Keys are stored encrypted** under the vault's master key, the same way mail passwords are, and
+  are never sent back to the browser — Settings only reports whether one is held. An API key in
+  the database sealed under the KEK is safer than one in a file on disk.
+- **Changes take effect immediately.** The provider is resolved for each document rather than when
+  the container started, so nothing needs restarting.
+- **Your existing configuration keeps working.** Anything not saved here falls back to the
+  environment, so installs configured through `harbor config` are unchanged until you choose
+  otherwise.
+
+**Worth knowing**
+
+- Backups are still configured in the env file; that half of
+  [#2](https://github.com/openharborhq/harbor/issues/2) is not done.
+- Whatever you pick other than *Off* receives the text of every document. The panel says so.
+
 ## v0.3.0 — 2026-09-08
 
 - **Settings tells you when a release is out.** The vault asks GitHub once a day whether anything

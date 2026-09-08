@@ -5,3 +5,4 @@ export * from "./links";
 export * from "./mail";
 export * from "./audit";
 export * from "./backups";
+export * from "./settings";
