@@ -186,7 +186,21 @@ if [ "$OS" = "Linux" ]; then
     if [ -n "$DEV" ] && ! lsblk -n -s -o TYPE "$DEV" 2>/dev/null | grep -q "^crypt$"; then
       warn "$HARBOR_DATA_DIR is on $DEV, which is not an encrypted volume."
       warn "A stolen disk is then a readable copy of every document. See docs/deploy.md, step 2."
-      if [ -z "${HARBOR_ALLOW_UNENCRYPTED_DATA:-}" ]; then
+      if [ "$INTERACTIVE" = 1 ] && [ "$(id -u)" = 0 ]; then
+        printf '  I can set one up: one disk becomes an encrypted volume mounted at %s.\n' "$HARBOR_DATA_DIR"
+        printf '  It erases that disk, asks which one, and asks how it should unlock afterwards.\n'
+        case "$(ask "Set up an encrypted volume now?" "y")" in
+          [yY]*)
+            fetch encrypt-disk.sh
+            HARBOR_DATA_DIR="$HARBOR_DATA_DIR" sh "$HARBOR_DIR/encrypt-disk.sh" || die "the encrypted volume was not created."
+            # It is mounted now; the check below should pass on the second look.
+            DEV=$(findmnt -n -o SOURCE --target "$HARBOR_DATA_DIR" 2>/dev/null || echo "")
+            ;;
+        esac
+      fi
+      if lsblk -n -s -o TYPE "$DEV" 2>/dev/null | grep -q "^crypt$"; then
+        info "$HARBOR_DATA_DIR is on an encrypted volume"
+      elif [ -z "${HARBOR_ALLOW_UNENCRYPTED_DATA:-}" ]; then
         # There is not always a terminal to ask on — piped, in CI, from a provisioning tool. An
         # unanswerable question must not become a crash, and the safe answer when nobody is there
         # to say otherwise is no.
@@ -364,6 +378,23 @@ case "\${1:-help}" in
     echo "'harbor status' to see it, 'harbor logs api' if anything looks wrong."
     echo "To go back: restore the backup this took first (docs/restore.md). Migrations do not reverse."
     ;;
+  unlock)
+    if mountpoint -q "$HARBOR_DATA_DIR"; then echo "already unlocked"; else
+      sudo cryptsetup status harbordata >/dev/null 2>&1 || sudo cryptsetup open "\$(sudo blkid -t TYPE=crypto_LUKS -o device | head -1)" harbordata
+      sudo chattr -i "$HARBOR_DATA_DIR" 2>/dev/null || true
+      sudo mount "$HARBOR_DATA_DIR"
+      echo "unlocked $HARBOR_DATA_DIR"
+    fi
+    dc up -d
+    ;;
+  lock)
+    dc stop
+    sudo umount "$HARBOR_DATA_DIR" 2>/dev/null || true
+    sudo cryptsetup close harbordata 2>/dev/null || true
+    # Write-protect the bare mountpoint so nothing can populate it while the real volume is away.
+    sudo chattr +i "$HARBOR_DATA_DIR" 2>/dev/null || true
+    echo "locked — $HARBOR_DATA_DIR is closed and write-protected"
+    ;;
   break-glass)
     echo "Print this and keep it somewhere physical. There is no other copy."
     echo
@@ -387,6 +418,8 @@ harbor — this vault, on this machine
   harbor restore-test    prove the backup can be read back
   harbor break-glass     print the keys for the envelope
   harbor config          edit the configuration
+  harbor unlock          unlock the encrypted volume and start the vault
+  harbor lock            stop it and close the volume
   harbor start | stop | restart [service]
   harbor seed            fill an empty vault with demo records
 HELP
