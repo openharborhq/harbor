@@ -223,12 +223,18 @@ everything in the next milestones.
 - **Update:** back up first, then `docker compose … pull && docker compose … up -d` (migrations
   apply on start):
   ```sh
-  docker compose … exec backup node dist/backup.js run backup && docker compose … pull && docker compose … up -d
+  harbor upgrade
   ```
+  which refuses to continue if the backup fails.
 - **Reboot:** type the LUKS passphrase at the console or via SSH-in-initramfs; containers
   restart on their own.
-- **The tailnet node:** `docker compose … exec tailscale tailscale status`. The auth key is
-  needed only on first start; the identity lives in `/data/tailscale` and is in the backups.
+- **Everything day to day** goes through the `harbor` command the installer leaves behind:
+  `harbor status`, `harbor logs [service]`, `harbor backup`, `harbor restore-test`,
+  `harbor break-glass`, `harbor config`, `harbor upgrade`. The long `docker compose …` forms
+  still work if you prefer them.
+- **The tailnet node:** `harbor logs tailscale`, or
+  `docker compose … exec tailscale tailscale status`. The auth key is needed only on first start;
+  the identity lives in `/data/tailscale` and is in the backups.
 
 ## Restore
 

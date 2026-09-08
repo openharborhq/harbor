@@ -2,14 +2,15 @@
 # Harbor installer — from a machine with Docker to a running vault.
 #
 #   curl -fsSLO https://raw.githubusercontent.com/openharborhq/harbor/main/install.sh
-#   less install.sh          # it is 200 lines; read them before running anything as root
-#   sh install.sh
+#   less install.sh          # read it before running anything as root
+#   sudo sh install.sh
 #
-# It fetches the compose files, generates the two secrets, writes the configuration, pulls the
-# published images and starts the stack. Safe to re-run: it never overwrites a secret or a config
-# file that already exists, so it doubles as the upgrade command.
+# Run on a terminal it asks three questions and does the rest: fetches the compose files, generates
+# the secrets, writes the configuration, pulls the images, starts the stack and installs a `harbor`
+# command for everything afterwards. Safe to re-run — it never overwrites a secret or a config file
+# — so it is also the upgrade.
 #
-# Settings, all optional — it asks or picks a sane default for anything you leave unset:
+# Every answer can be given up front instead, which is what makes it scriptable:
 #
 #   HARBOR_DATA_DIR   where documents, database and secrets live   (default /data, or ./harbor-data)
 #   HARBOR_DIR        where the compose files live                 (default /opt/harbor, or ./harbor)
@@ -52,10 +53,69 @@ TS_AUTHKEY="${TS_AUTHKEY:-}"
 HARBOR_BIND="${HARBOR_BIND:-127.0.0.1}"
 HARBOR_WEB_PORT="${HARBOR_WEB_PORT:-3000}"
 
+# ---- 1b. ask, when there is somebody to ask -----------------------------------------------------
+
+# n8n's DigitalOcean guide is the bar here: nothing should require you to have read the docs first.
+# Anything already set in the environment is taken as the answer and not asked about, so a
+# scripted install stays silent and a person gets a conversation.
+# /dev/tty alone is not the test: it is readable inside a container with no terminal attached, so
+# the interview announced itself and then answered its own questions from the defaults. A terminal
+# on stdin or stdout is the real signal, and it still catches `curl … | sh`, where stdin is the
+# script but stdout is the person.
+INTERACTIVE=0
+if { [ -t 0 ] || [ -t 1 ]; } && [ -r /dev/tty ] && [ -z "${HARBOR_NONINTERACTIVE:-}" ] && [ ! -f "$HARBOR_DATA_DIR/harbor.env" ]; then
+  INTERACTIVE=1
+fi
+
+ask() { # ask <prompt> <default>; answer on stdout
+  _d=$2
+  printf '  %s [%s] ' "$1" "$_d" >&2
+  read -r _a </dev/tty || _a=""
+  [ -n "$_a" ] && printf '%s' "$_a" || printf '%s' "$_d"
+}
+
+if [ "$INTERACTIVE" = 1 ]; then
+  say "A few questions. Press enter to take the default."
+
+  if [ -z "${HARBOR_DATA_DIR_SET:-}" ]; then
+    printf '\n  Documents, database and secrets are written to one directory. On this box it should be\n'
+    printf '  an encrypted volume — everything else is replaceable, this is not.\n'
+    HARBOR_DATA_DIR=$(ask "Where should that live?" "$HARBOR_DATA_DIR")
+  fi
+
+  if [ -z "$TS_AUTHKEY" ]; then
+    printf '\n  How will you reach it?\n'
+    printf '    1) Over my tailnet, with HTTPS — nothing listens on this machine (recommended)\n'
+    printf '    2) A port on this machine\n'
+    case "$(ask "Which?" "1")" in
+      1*)
+        printf '\n  Paste a Tailscale auth key (admin console -> Settings -> Keys). Enable HTTPS\n'
+        printf '  Certificates under DNS there first, or it has no certificate to serve.\n'
+        TS_AUTHKEY=$(ask "Auth key" "")
+        [ -n "$TS_AUTHKEY" ] && TAILSCALE_HOSTNAME=$(ask "Name it should take on your tailnet" "${TAILSCALE_HOSTNAME:-harbor}")
+        [ -z "$TS_AUTHKEY" ] && warn "No key given — falling back to a local port."
+        ;;
+      *) ;;
+    esac
+    if [ -z "$TS_AUTHKEY" ]; then
+      HARBOR_BIND=$(ask "Address to publish on (0.0.0.0 for the whole LAN)" "$HARBOR_BIND")
+      HARBOR_WEB_PORT=$(ask "Port" "$HARBOR_WEB_PORT")
+    fi
+  fi
+
+  if [ -z "${RESTIC_REPOSITORY:-}" ]; then
+    printf '\n  Backups run nightly, encrypted, with a restore test once a month. Somewhere off this\n'
+    printf '  box: b2:bucket:/path, sftp:user@host:/path, s3:..., or a path on a second disk.\n'
+    printf '  Leave it empty to decide later — Settings will keep saying it is not configured.\n'
+    RESTIC_REPOSITORY=$(ask "Backup repository" "")
+  fi
+fi
+
 say "Harbor will be installed with:"
 info "compose files   $HARBOR_DIR"
 info "data + secrets  $HARBOR_DATA_DIR"
 info "images          ghcr.io/openharborhq/harbor-*:$HARBOR_IMAGE_TAG"
+[ -n "${RESTIC_REPOSITORY:-}" ] && info "backups to      $RESTIC_REPOSITORY" || info "backups         not configured yet"
 if [ -n "$TS_AUTHKEY" ]; then
   info "reachable on    your tailnet, over HTTPS — nothing listens on this machine's interfaces"
 else
@@ -216,6 +276,77 @@ while [ $i -lt 60 ]; do
 done
 [ $i -lt 60 ] || { printf '\n'; die "the api did not come up. Check 'docker compose -p $HARBOR_PROJECT --env-file $ENV_FILE $FILES logs api'."; }
 
+# ---- 6b. the harbor command ---------------------------------------------------------------------
+
+# Everything after the install used to be a three-flag compose line nobody wants to remember or
+# type twice. The wrapper holds the paths so the operator holds none of them.
+CLI_DIR=/usr/local/bin
+[ -w "$CLI_DIR" ] 2>/dev/null || CLI_DIR="$HARBOR_DIR"
+cat > "$CLI_DIR/harbor" <<CLI
+#!/usr/bin/env sh
+# Harbor, on this machine. Written by install.sh — the paths below are this install's.
+set -eu
+cd "$HARBOR_DIR"
+dc() { docker compose -p "$HARBOR_PROJECT" --env-file "$ENV_FILE" $FILES "\$@"; }
+
+case "\${1:-help}" in
+  status)  dc ps ;;
+  logs)    shift; dc logs -f --tail=100 "\$@" ;;
+  start)   dc up -d ;;
+  stop)    dc stop ;;
+  restart) dc restart "\${2:-}" ;;
+  url)     grep '^WEB_ORIGIN=' "$ENV_FILE" | cut -d= -f2- ;;
+  config)  \${EDITOR:-nano} "$ENV_FILE"; echo "run 'harbor upgrade' to apply"; ;;
+  backup)      dc exec -T backup node dist/backup.js run backup ;;
+  restore-test) dc exec -T backup node dist/backup.js run restore_test ;;
+  seed)    dc exec -T api node dist/seed.js "\${2:-}" ;;
+  invite)  echo "Invites are made in Settings -> Who can sign in." ;;
+  upgrade)
+    echo "Backing up first..."
+    if grep -q '^RESTIC_REPOSITORY=.\+' "$ENV_FILE"; then
+      dc exec -T backup node dist/backup.js run backup || { echo "backup failed — not upgrading"; exit 1; }
+    else
+      echo "  no backup repository configured; upgrading without one"
+    fi
+    dc pull && dc up -d
+    echo "upgraded. 'harbor status' to see it, 'harbor logs api' if anything looks wrong."
+    ;;
+  break-glass)
+    echo "Print this and keep it somewhere physical. There is no other copy."
+    echo
+    echo "  master key       \$(cat $HARBOR_DATA_DIR/secrets/kek)"
+    echo "  backup password  \$(cat $HARBOR_DATA_DIR/secrets/restic-password)"
+    _repo=\$(grep '^RESTIC_REPOSITORY=' "$ENV_FILE" | cut -d= -f2-)
+    echo "  backups at       \${_repo:-NOT CONFIGURED — nothing is being backed up}"
+    echo "  vault at         \$(grep '^WEB_ORIGIN=' "$ENV_FILE" | cut -d= -f2-)"
+    echo "  restore guide    https://github.com/openharborhq/harbor/blob/main/docs/restore.md"
+    ;;
+  *)
+    cat <<HELP
+harbor — this vault, on this machine
+
+  harbor status          what is running
+  harbor logs [service]  follow the logs
+  harbor url             where the vault is
+  harbor upgrade         back up, pull the current images, restart
+  harbor backup          back up now
+  harbor restore-test    prove the backup can be read back
+  harbor break-glass     print the keys for the envelope
+  harbor config          edit the configuration
+  harbor start | stop | restart [service]
+  harbor seed            fill an empty vault with demo records
+HELP
+    ;;
+esac
+CLI
+chmod 755 "$CLI_DIR/harbor"
+say "Installed the 'harbor' command"
+if [ "$CLI_DIR" = /usr/local/bin ]; then
+  info "harbor status · harbor logs · harbor upgrade · harbor break-glass"
+else
+  info "$CLI_DIR/harbor (not on your PATH — /usr/local/bin was not writable)"
+fi
+
 # ---- 7. what to do next -----------------------------------------------------------------------
 
 if [ -n "$TS_AUTHKEY" ]; then
@@ -234,19 +365,19 @@ cat <<NEXT
   1. Open it. The vault has no owner, so it asks you to create the first account, and
      shows an authenticator key and ten recovery codes once. Print the codes.
 
-  2. Print the break-glass page and put it somewhere physical. Without it, a dead disk
-     means the documents are gone — that is the design, not an oversight:
+  2. Run 'harbor break-glass', print what it shows, and put it somewhere physical.
+     Without it a dead disk means the documents are gone — that is the design, not
+     an oversight.
 
-       master key       $HARBOR_DATA_DIR/secrets/kek
-       backup password  $HARBOR_DATA_DIR/secrets/restic-password
-
-  3. Give backups somewhere to go. Set RESTIC_REPOSITORY in
-     $ENV_FILE and run this script again. Then Settings -> Backups -> Back up now, and
-     Test a restore. Both must say OK before you trust this box with anything.
+  3. Prove the backups. 'harbor backup' then 'harbor restore-test' — both must say ok
+     before you trust this box with anything. If you skipped the repository question,
+     'harbor config' is where to add one.
 
   Day to day:
 
-    cd $HARBOR_DIR && docker compose -p $HARBOR_PROJECT --env-file $ENV_FILE $FILES logs -f
-    sh install.sh          # upgrade: pulls the current images and restarts
+    harbor status          what is running
+    harbor logs            follow everything, or 'harbor logs worker' for one
+    harbor break-glass     print the keys for step 2
+    harbor upgrade         back up, pull the current images, restart
 
 NEXT

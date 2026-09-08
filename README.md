@@ -11,7 +11,7 @@ first run, and tailnet-only networking. The design is in [`docs/spec`](docs/spec
 
 ## Install
 
-On a Linux machine with Docker, one script does the whole thing:
+On a Linux machine with Docker:
 
 ```sh
 curl -fsSLO https://raw.githubusercontent.com/openharborhq/harbor/main/install.sh
@@ -19,15 +19,24 @@ less install.sh          # please read it before running it as root
 sudo sh install.sh
 ```
 
-It fetches the compose files, generates the master key and backup password, writes the
-configuration, pulls the published images and starts the eight containers. Then open the address
-it prints. **The vault is empty and asks you to create the first owner** — name, email, password —
-and shows an authenticator key and ten recovery codes once. There are no default credentials.
-Everyone else joins by invitation from Settings.
+It asks three questions — where the documents should live, how you want to reach it, and where
+backups should go — and does everything else: compose files, secrets, configuration, images, and
+starting the eight containers. Then open the address it prints. **The vault is empty and asks you
+to create the first owner**, and shows an authenticator key and ten recovery codes once. There are
+no default credentials. Everyone else joins by invitation from Settings.
 
-Re-run the same command to upgrade: it never overwrites a secret or a configuration file.
+Afterwards there is a `harbor` command for the things you actually do:
 
-Settings, all optional, as environment variables:
+```sh
+harbor status          # what is running
+harbor logs worker     # follow one service
+harbor break-glass     # the keys to print and keep
+harbor backup          # back up now
+harbor restore-test    # prove the backup can be read back
+harbor upgrade         # back up, pull the current images, restart
+```
+
+Answer any of the questions up front and it stays silent, which is what makes it scriptable:
 
 | | |
 |---|---|
@@ -36,10 +45,10 @@ Settings, all optional, as environment variables:
 | `HARBOR_BIND`, `HARBOR_WEB_PORT` | without Tailscale, where to publish. Default `127.0.0.1:3000` |
 | `RESTIC_REPOSITORY` | where nightly backups go — a Backblaze B2 bucket, an SFTP host, or a second disk |
 
-So a real appliance is usually:
+So an unattended appliance install is:
 
 ```sh
-sudo env HARBOR_DATA_DIR=/data TS_AUTHKEY=tskey-auth-… sh install.sh
+sudo env HARBOR_DATA_DIR=/data TS_AUTHKEY=tskey-auth-… RESTIC_REPOSITORY=b2:my-bucket:/harbor sh install.sh
 ```
 
 ### What the installer cannot do for you
