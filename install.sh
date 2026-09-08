@@ -258,6 +258,14 @@ new_secret() {
 }
 new_secret kek
 new_secret restic-password
+# Compose bind-mounts these into /run/secrets with the host's ownership, and the containers run as
+# uid 1000 — so root-owned 0600 secrets mean the api cannot read the master key and every service
+# crash-loops on "Cannot read the master key file". Docker Desktop maps ownership away and hides
+# this; the first install on real Linux found it immediately. Readable by that uid and nobody else.
+if [ "$(id -u)" = 0 ]; then
+  chown 1000:1000 "$HARBOR_DATA_DIR/secrets/kek" "$HARBOR_DATA_DIR/secrets/restic-password"
+  chmod 400 "$HARBOR_DATA_DIR/secrets/kek" "$HARBOR_DATA_DIR/secrets/restic-password"
+fi
 
 # ---- 5. configuration -------------------------------------------------------------------------
 

@@ -44,6 +44,8 @@ chown 1000:1000 "$DATA/blobs" "$DATA/tmp" "$DATA/dumps" "$DATA/backup"
 if [ ! -s "$DATA/secrets/kek" ]; then
   umask 077
   head -c 32 /dev/urandom | base64 > "$DATA/secrets/kek"
+  # The containers read these as uid 1000; root-owned means they cannot start (see install.sh).
+  chown 1000:1000 "$DATA/secrets/kek" 2>/dev/null || true
   echo "check-data-volume: created the master key at $DATA/secrets/kek - print it for the break-glass envelope (docs/deploy.md, step 8). Without it the documents cannot be read." >&2
 fi
 
@@ -51,6 +53,7 @@ fi
 if [ ! -s "$DATA/secrets/restic-password" ]; then
   umask 077
   head -c 32 /dev/urandom | base64 > "$DATA/secrets/restic-password"
+  chown 1000:1000 "$DATA/secrets/restic-password" 2>/dev/null || true
   echo "check-data-volume: created the backup repository password at $DATA/secrets/restic-password - it goes in the break-glass envelope with the master key." >&2
 fi
 
