@@ -13,6 +13,7 @@ import { DocumentsModule } from "./documents/documents.module";
 import { MailConnectionsService } from "./mail/mail-connections.service";
 import { MailFetcherService } from "./mail/mail-fetcher.service";
 import { MailModule } from "./mail/mail.module";
+import { SettingsModule } from "./settings/settings.module";
 import { MAIL_OPS_QUEUE, REDIS, QueueModule, type MailOpsJob } from "./queue/queue.module";
 import { StorageModule } from "./storage/storage.module";
 import { SuggestModule } from "./suggest/suggest.module";
@@ -34,6 +35,7 @@ import { VocabularyModule } from "./vocabulary/vocabulary.module";
     AuditModule,
     StorageModule,
     QueueModule,
+    SettingsModule,
     VocabularyModule,
     SuggestModule.register({ withProvider: false }),
     DocumentsModule,

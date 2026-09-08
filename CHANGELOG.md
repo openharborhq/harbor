@@ -14,6 +14,17 @@ migrations, on purpose, because a half-reversed schema is worse than a restore. 
 wrong, follow [`docs/restore.md`](docs/restore.md) with the backup `harbor upgrade` took
 immediately before it. That is why the upgrade refuses to run without one.
 
+## v0.4.1 — 2026-09-08
+
+- **Fixes email-in, which v0.4.0 broke.** The suggestion settings work gave `SuggestService` a new
+  dependency, and `mailfetch` — which shares that service — was not given the module it lives in,
+  so it could not start. Any vault on v0.4.0 with a connected mailbox stopped fetching mail. Every
+  other service was unaffected.
+- **CI now starts every service from the images it just built** and fails if any of them exits.
+  Building an image proves it compiles, not that it runs, and this is precisely the fault that
+  slips through: one entrypoint out of six unable to resolve a dependency, showing only as a
+  container that dies seconds after boot.
+
 ## v0.4.0 — 2026-09-08
 
 - **Choose the suggestion provider in Settings** ([#2](https://github.com/openharborhq/harbor/issues/2), in part).

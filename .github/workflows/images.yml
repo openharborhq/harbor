@@ -57,3 +57,57 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha,scope=${{ matrix.image }}
           cache-to: type=gha,mode=max,scope=${{ matrix.image }}
+
+  # Building an image proves it compiles, not that it runs. A dependency added to a service used by
+  # several entrypoints can leave one of them unable to start, and the only symptom is a container
+  # that exits seconds after boot — which is exactly how v0.4.0 shipped with a broken mailfetch.
+  smoke:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Start every service from the images just built
+        run: |
+          set -euo pipefail
+          DATA="$RUNNER_TEMP/harbor-data"
+          mkdir -p "$DATA"/{blobs,tmp,dumps,backup,postgres,redis,secrets}
+          umask 077
+          head -c 32 /dev/urandom | base64 > "$DATA/secrets/kek"
+          head -c 32 /dev/urandom | base64 > "$DATA/secrets/restic-password"
+          sudo chown -R 1000:1000 "$DATA"/{blobs,tmp,dumps,backup,secrets}
+          cat > "$RUNNER_TEMP/smoke.env" <<EOF
+          HARBOR_DATA_DIR=$DATA
+          HARBOR_IMAGE_PREFIX=ghcr.io/${{ github.repository_owner }}/harbor
+          HARBOR_IMAGE_TAG=${{ github.sha }}
+          HARBOR_BIND=127.0.0.1
+          WEB_ORIGIN=http://127.0.0.1:3000
+          SESSION_COOKIE_SECURE=false
+          SUGGEST_PROVIDER=none
+          EOF
+          docker compose -p smoke --env-file "$RUNNER_TEMP/smoke.env" \
+            -f infra/compose.yml -f infra/compose.prod.yml up -d
+      - name: Every container must still be running after a minute
+        run: |
+          set -euo pipefail
+          sleep 60
+          docker compose -p smoke ps -a --format '{{.Name}} {{.State}}'
+          down=$(docker compose -p smoke ps -a --format '{{.Name}} {{.State}}' | grep -v ' running' || true)
+          if [ -n "$down" ]; then
+            echo "::error::these services are not running:"
+            echo "$down"
+            for c in $(echo "$down" | awk '{print $1}'); do
+              echo "--- $c ---"
+              docker logs "$c" 2>&1 | tail -25
+            done
+            exit 1
+          fi
+          curl -fsS --retry 10 --retry-delay 3 http://127.0.0.1:3000/api/health
+          echo
+          echo "all services up, api answering"
+      - if: always()
+        run: docker compose -p smoke down -v || true
