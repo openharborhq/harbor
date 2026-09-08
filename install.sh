@@ -360,7 +360,9 @@ case "\${1:-help}" in
   logs)    shift; dc logs -f --tail=100 "\$@" ;;
   start)   dc up -d ;;
   stop)    dc stop ;;
-  restart) dc restart "\${2:-}" ;;
+  # "\${2:-}" expands to an empty argument when no service is named, and compose answers
+  # "no such service: ". No argument at all is what means "all of them".
+  restart) shift; if [ $# -gt 0 ]; then dc restart "\$@"; else dc restart; fi ;;
   url)     grep '^WEB_ORIGIN=' "$ENV_FILE" | cut -d= -f2- ;;
   version)
     echo "configured tag: \$(grep '^HARBOR_IMAGE_TAG=' "$ENV_FILE" | cut -d= -f2-)"
@@ -369,7 +371,7 @@ case "\${1:-help}" in
   config)  \${EDITOR:-nano} "$ENV_FILE"; echo "run 'harbor upgrade' to apply"; ;;
   backup)      dc exec -T backup node dist/backup.js run backup ;;
   restore-test) dc exec -T backup node dist/backup.js run restore_test ;;
-  seed)    dc exec -T api node dist/seed.js "\${2:-}" ;;
+  seed)    shift; dc exec -T api node dist/seed.js "\$@" ;;
   invite)  echo "Invites are made in Settings -> Who can sign in." ;;
   upgrade)
     echo "Backing up first..."
