@@ -16,6 +16,7 @@ import { SettingsModule } from "./settings/settings.module";
 import { StorageModule } from "./storage/storage.module";
 import { SuggestModule } from "./suggest/suggest.module";
 import { VersionModule } from "./version/version.module";
+import { ItemAvatarModule } from "./vocabulary/item-avatar.module";
 import { VocabularyModule } from "./vocabulary/vocabulary.module";
 
 @Module({
@@ -31,6 +32,7 @@ import { VocabularyModule } from "./vocabulary/vocabulary.module";
     StorageModule,
     QueueModule,
     VocabularyModule,
+    ItemAvatarModule,
     SuggestModule.register({ withProvider: false }),
     AuthModule,
     DocumentsModule,

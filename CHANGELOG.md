@@ -14,6 +14,25 @@ migrations, on purpose, because a half-reversed schema is worse than a restore. 
 wrong, follow [`docs/restore.md`](docs/restore.md) with the backup `harbor upgrade` took
 immediately before it. That is why the upgrade refuses to run without one.
 
+## v0.5.2 — 2026-09-09
+
+- **Fixes suggestions properly.** v0.5.1 aimed at the wrong cause. Photographs need two things the
+  suggester has never had — a data volume and an upload parser — and giving the shared items
+  module both meant the suggester died on startup trying to create `/data/tmp`, a directory that
+  does not exist in a container with no disk mounted. Photos now live in their own module that
+  only the API loads. On v0.5.0 and v0.5.1 documents still arrive, are OCR'd and are searchable;
+  what stops is the title, summary, category and dates a model proposes.
+- **The split is the fix, not the patch.** What all six processes need stays in the items service;
+  what only a web request needs — storage, encryption, uploads — sits beside the controller that
+  uses it. Multer builds its disk storage the moment its module initialises, so merely being in
+  the graph was enough to kill a process that had no use for it.
+
+**Worth knowing**
+
+- If you are on v0.5.0 or v0.5.1, upgrade. Nothing was lost while suggestions were down: the
+  documents are filed, and `harbor suggest rerun` on the box re-reads the ones that never got a
+  suggestion.
+
 ## v0.5.1 — 2026-09-08
 
 - **Fixes suggestions, which v0.5.0 broke.** Photographs gave the items service a dependency on

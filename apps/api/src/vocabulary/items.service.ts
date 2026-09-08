@@ -1,6 +1,4 @@
 import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
-import { open, rm } from "node:fs/promises";
-import type { Readable } from "node:stream";
 import { and, asc, eq, inArray, isNull, sql } from "drizzle-orm";
 import { documentItems, documents, itemKeyDocuments, items, type Db } from "@harbor/db";
 import {
@@ -14,11 +12,8 @@ import {
   type UpsertKeyDocument,
 } from "@harbor/shared";
 import { AuditService } from "../audit/audit.service";
-import { CryptoService } from "../crypto/crypto.service";
 import { InjectDb } from "../db/db.module";
 import { SearchIndexService } from "../search/search-index.service";
-import { BlobStore } from "../storage/blob-store.service";
-import { sniffImage } from "./image-type";
 
 type Row = typeof items.$inferSelect;
 
@@ -32,8 +27,6 @@ export class ItemsService {
     @InjectDb() private readonly db: Db,
     private readonly audit: AuditService,
     private readonly searchIndex: SearchIndexService,
-    private readonly blobs: BlobStore,
-    private readonly crypto: CryptoService,
   ) {}
 
   async list(kinds?: ItemKind[]): Promise<Item[]> {
@@ -132,99 +125,6 @@ export class ItemsService {
       metadata: { kind: item.kind, label: item.label, documentsUnlinked: documentIds.length, childrenDetached: children.length },
     });
     return { documentsUnlinked: documentIds.length, childrenDetached: children.length };
-  }
-
-  // ---------- photographs (spec §6) ----------
-
-  /**
-   * Attach a photo. It arrives already cropped to a square by the browser, which is the point:
-   * the vault never holds the picture you did not choose to show, only the face you framed.
-   *
-   * The temp file is removed either way — on the way in when it is refused, and after sealing
-   * when it is kept — so a rejected upload leaves nothing on the disk.
-   */
-  async setAvatar(itemId: string, upload: { path: string; byteSize: number }, actorUserId: string): Promise<Item> {
-    const item = await this.get(itemId);
-    try {
-      const mime = await this.sniff(upload.path);
-      if (!mime) throw new BadRequestException("That is not a JPEG, PNG or WebP image.");
-
-      const previous = await this.db.select({ key: items.avatarStorageKey }).from(items).where(eq(items.id, itemId));
-      const dek = this.crypto.generateDek();
-      const sealed = await this.blobs.sealFile(upload.path, dek);
-      await this.db
-        .update(items)
-        .set({
-          avatarStorageKey: sealed.storageKey,
-          avatarDekWrapped: this.blobs.wrapDek(dek, sealed.storageKey),
-          avatarIv: sealed.iv,
-          avatarTag: sealed.authTag,
-          avatarMime: mime,
-          avatarUpdatedAt: new Date(),
-        })
-        .where(eq(items.id, itemId));
-
-      // Only once the row points at the new blob: a crash in between costs an orphan, not a photo.
-      const old = previous[0]?.key;
-      if (old) await this.blobs.delete(old);
-
-      await this.audit.record({
-        action: "item.avatar_set",
-        actorUserId,
-        entityType: "item",
-        entityId: itemId,
-        metadata: { kind: item.kind, label: item.label, mimeType: mime, byteSize: sealed.byteSize },
-      });
-      return this.get(itemId);
-    } finally {
-      await rm(upload.path, { force: true });
-    }
-  }
-
-  async removeAvatar(itemId: string, actorUserId: string): Promise<Item> {
-    const item = await this.get(itemId);
-    const [row] = await this.db.select({ key: items.avatarStorageKey }).from(items).where(eq(items.id, itemId));
-    if (!row?.key) return item;
-    await this.db
-      .update(items)
-      .set({ avatarStorageKey: null, avatarDekWrapped: null, avatarIv: null, avatarTag: null, avatarMime: null, avatarUpdatedAt: null })
-      .where(eq(items.id, itemId));
-    await this.blobs.delete(row.key);
-    await this.audit.record({ action: "item.avatar_remove", actorUserId, entityType: "item", entityId: itemId, metadata: { label: item.label } });
-    return this.get(itemId);
-  }
-
-  /** The decrypted photo, or null when the item has none. */
-  async openAvatar(itemId: string): Promise<{ stream: Readable; mimeType: string; version: string } | null> {
-    const [row] = await this.db
-      .select({
-        key: items.avatarStorageKey,
-        dek: items.avatarDekWrapped,
-        iv: items.avatarIv,
-        tag: items.avatarTag,
-        mime: items.avatarMime,
-        at: items.avatarUpdatedAt,
-      })
-      .from(items)
-      .where(eq(items.id, itemId));
-    if (!row?.key || !row.dek || !row.iv || !row.tag) return null;
-    return {
-      stream: this.blobs.openStream(row.key, this.blobs.unwrapDek(row.dek, row.key), row.iv, row.tag),
-      mimeType: row.mime ?? "application/octet-stream",
-      version: String(row.at?.getTime() ?? 0),
-    };
-  }
-
-  /** The first bytes only: enough to know the format, without reading the file into memory. */
-  private async sniff(file: string): Promise<string | null> {
-    const fh = await open(file, "r");
-    try {
-      const head = Buffer.alloc(12);
-      const { bytesRead } = await fh.read(head, 0, 12, 0);
-      return sniffImage(head.subarray(0, bytesRead));
-    } finally {
-      await fh.close();
-    }
   }
 
   /**
