@@ -172,11 +172,20 @@ else
 fi
 info "/etc/crypttab and /etc/fstab updated for '$HARBOR_UNLOCK' unlocking"
 
-# Docker starts the stack at boot with its own restart policies, before anyone has unlocked
-# anything. With the volume closed, it creates the bind-mount sources itself and Postgres
-# initialises a second, empty database on the system disk while the real one sits sealed — the
-# vault comes up looking empty. Making the bare mountpoint immutable turns that silent wrong
-# answer into a container that refuses to start, which is what you want to see.
+# Docker restarts the stack at boot with its own restart policies, before anyone has unlocked
+# anything, and with the volume closed Postgres initialises a second, empty database on the system
+# disk while the real one sits sealed — the vault comes up looking empty.
+#
+# The marker below tells install.sh to give the containers a "no" restart policy, so nothing comes
+# back by itself and `harbor unlock` is what starts the vault. That is the fix. The immutable
+# mountpoint after it is a backstop for the case where something starts anyway: it stops a *new*
+# stale directory being created, though it cannot help once one exists, which is how this was
+# found in the first place.
+if [ "$HARBOR_UNLOCK" = manual ]; then
+  mkdir -p /etc/harbor
+  echo "manual" > /etc/harbor/unlock-mode
+  info "recorded manual unlocking; the vault will not start itself at boot"
+fi
 if [ "$HARBOR_UNLOCK" = manual ] && command -v chattr >/dev/null 2>&1; then
   cat > /etc/systemd/system/harbor-mountpoint-guard.service <<UNIT
 [Unit]

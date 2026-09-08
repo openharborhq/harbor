@@ -342,6 +342,19 @@ if [ "$USE_HOST_TS" = 1 ]; then
   fi
 fi
 
+# With a manually unlocked volume, nothing may come back on its own: a container Docker restarts
+# at boot resolves its bind mounts while the volume is still closed, and either writes to the
+# empty mountpoint or serves an empty vault. `harbor unlock` is the only thing that should start
+# it. Found by rebooting a working appliance and watching Postgres create a second database.
+if [ -f /etc/harbor/unlock-mode ] && [ "$(cat /etc/harbor/unlock-mode)" = manual ]; then
+  ids=$(dc ps -q 2>/dev/null || true)
+  if [ -n "$ids" ]; then
+    docker update --restart=no $ids >/dev/null 2>&1 || true
+    say "This vault does not start itself"
+    info "the volume is unlocked by hand, so 'harbor unlock' is what brings it up after a reboot"
+  fi
+fi
+
 # ---- 6b. the harbor command ---------------------------------------------------------------------
 
 # Everything after the install used to be a three-flag compose line nobody wants to remember or
@@ -400,6 +413,10 @@ case "\${1:-help}" in
     # underneath the mount. Starting it does not fix that; only replacing it does. Without this the
     # vault comes up looking empty after every reboot while the real data sits on the volume.
     dc up -d --force-recreate
+    if [ -f /etc/harbor/unlock-mode ]; then
+      ids=\$(dc ps -q 2>/dev/null || true)
+      [ -n "\$ids" ] && sudo docker update --restart=no \$ids >/dev/null 2>&1 || true
+    fi
     ;;
   lock)
     dc down --remove-orphans 2>/dev/null || dc stop
