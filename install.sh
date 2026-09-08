@@ -397,6 +397,12 @@ case "\${1:-help}" in
     dc pull && dc up -d
     sleep 3
     _after=\$(dc exec -T api sh -c 'echo \$HARBOR_VERSION' 2>/dev/null || echo unknown)
+    # Recreating containers resets their restart policy to what compose declares, which would
+    # undo the "nothing starts itself" rule and bring back the empty-vault-after-reboot fault.
+    if [ -f /etc/harbor/unlock-mode ]; then
+      ids=\$(dc ps -q 2>/dev/null || true)
+      [ -n "\$ids" ] && sudo docker update --restart=no \$ids >/dev/null 2>&1 || true
+    fi
     echo "upgraded: \$_before -> \$_after"
     echo "'harbor status' to see it, 'harbor logs api' if anything looks wrong."
     echo "To go back: restore the backup this took first (docs/restore.md). Migrations do not reverse."
