@@ -72,6 +72,7 @@ export class SuggestService {
    * judgement is the answer, and asking the model again would not change it.
    */
   async staleFiles(limit: number): Promise<string[]> {
+    const provider = this.provider.name;
     const rows = await this.db
       .select({ id: documentFiles.id })
       .from(documentFiles)
@@ -79,10 +80,22 @@ export class SuggestService {
       .where(
         and(
           eq(documentFiles.isCurrent, true),
+          // "Has the provider that is running now looked at this document?" — not merely "has
+          // anything looked at it". Configuring a real model after uploading is the ordinary order
+          // of events, and keying only on the prompt version meant the heuristic guess written by
+          // `none` counted as current, so nothing re-ran and the document kept its placeholder.
+          //
+          // Provider, not model: the model recorded on a row is the one the provider reported,
+          // which need not equal the configured string, and a mismatch there would re-read the
+          // whole vault on every pass. A deliberate model change is rare enough to force by hand.
           sql`not exists (
             select 1 from suggestions s
             where s.document_file_id = ${documentFiles.id}
-              and (s.prompt_version >= ${PROMPT_VERSION} or s.accepted_at is not null or s.rejected_at is not null)
+              and (
+                (s.provider = ${provider} and s.prompt_version >= ${PROMPT_VERSION})
+                or s.accepted_at is not null
+                or s.rejected_at is not null
+              )
           )`,
         ),
       )

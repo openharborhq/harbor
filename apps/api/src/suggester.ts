@@ -57,7 +57,7 @@ async function bootstrap() {
       process.exit(2);
     }
     const stale = await suggest.staleFiles(limit);
-    console.log(`${stale.length} document${stale.length === 1 ? "" : "s"} have no suggestion from the current prompt (version ${PROMPT_VERSION})`);
+    console.log(`${stale.length} document${stale.length === 1 ? "" : "s"} have no suggestion from ${env.SUGGEST_PROVIDER} at prompt version ${PROMPT_VERSION}`);
     if (dryRun || stale.length === 0) {
       if (!dryRun) console.log("nothing to do");
       await app.close();
@@ -95,7 +95,7 @@ async function bootstrap() {
   log.log(`suggester ready · provider ${env.SUGGEST_PROVIDER} · model ${env.SUGGEST_MODEL} · people ${env.SUGGEST_SEND_PEOPLE ? "sent" : "withheld"}`);
   // Say it once at boot rather than acting on it: the operator decides whether to spend on a re-read.
   const stale = await suggest.staleFiles(1_000);
-  if (stale.length) log.log(`${stale.length} document(s) have no suggestion from prompt version ${PROMPT_VERSION} — \`node dist/suggester.js rerun\` re-reads them`);
+  if (stale.length) log.log(`${stale.length} document(s) have no suggestion from ${env.SUGGEST_PROVIDER} at prompt version ${PROMPT_VERSION} — \`node dist/suggester.js rerun\` re-reads them`);
 
   const shutdown = async (signal: string) => {
     log.log(`${signal}: draining`);

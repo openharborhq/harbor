@@ -47,7 +47,9 @@ paperwork, and neither the scan nor its title contains the words they would sear
 
 Bumping `PROMPT_VERSION` changes what new documents are asked. Existing ones keep the answer they
 gave to the older question until someone re-reads them deliberately — `node dist/suggester.js
-rerun` (`--dry-run` first, it says how many). Nothing re-runs on deploy: at a hosted provider a
+rerun` (`--dry-run` first, it says how many). The same command covers a **provider change**, which
+is the commoner case: a vault set up with `none` and pointed at a real model afterwards has a
+heuristic guess on every document, and those count as needing a re-read. Nothing re-runs on deploy: at a hosted provider a
 whole vault costs real money, and a document whose suggestion the reader already accepted or
 rejected is skipped, because their judgement is the answer. The unique index on
 `(document_file_id, provider, model, prompt_version)` keeps the old rows for comparison.
