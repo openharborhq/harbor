@@ -14,6 +14,20 @@ migrations, on purpose, because a half-reversed schema is worse than a restore. 
 wrong, follow [`docs/restore.md`](docs/restore.md) with the backup `harbor upgrade` took
 immediately before it. That is why the upgrade refuses to run without one.
 
+## v0.2.0 — 2026-09-08
+
+- **A QR code when enrolling an authenticator** ([#1](https://github.com/openharborhq/harbor/issues/1)).
+  The setup and invitation screens now draw the code so you can scan it, instead of asking you to
+  type a sixteen-character key into a phone. The key is still shown for anyone who cannot scan,
+  and the full link is behind a disclosure. Drawn in the browser from what the page already has,
+  so the secret never travels a second time or lands in a server log.
+
+**Worth knowing**
+
+- There is still no way to enrol an authenticator on a *new* phone after signup
+  ([#3](https://github.com/openharborhq/harbor/issues/3)). Replacing a handset means signing in
+  with recovery codes until that is built.
+
 ## v0.1.0 — 2026-09-08
 
 First tagged release. Everything before this was the tip of `main`.
