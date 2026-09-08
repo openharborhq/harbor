@@ -136,6 +136,23 @@ pnpm lint && pnpm typecheck && pnpm test
 
 `scripts/stack-test.sh up` runs the full production stack from images against a copy of your
 dev data — including a real backup and restore test — on `http://127.0.0.1:3001`.
+`scripts/fresh-test.sh` proves a from-nothing install.
+
+### Cutting a release
+
+Write the `## vX.Y.Z — date` section in [`CHANGELOG.md`](CHANGELOG.md) first, commit, then:
+
+```sh
+scripts/release.sh v0.5.0 --dry-run   # says what it would do
+scripts/release.sh v0.5.0
+```
+
+It refuses on a dirty tree, a version that already exists, or a missing changelog entry; runs
+lint, typecheck and tests; points fresh installs at the new version in both files that carry it
+and verifies the substitution; tags, pushes, publishes the GitHub release from your changelog
+section, and waits for CI to build the images and start every service.
+
+Then on an appliance: `sudo harbor upgrade`.
 
 ## License
 
