@@ -18,13 +18,14 @@ Convention: `[ ]` open, `[x]` done and left in place until its milestone doc abs
        Document detail also gained the **Filing** tab the artboards called for.
 
        Still owed on it:
-       - [ ] Re-run the suggester at **prompt version 6** so existing documents produce
-             obligations and are read past page one (`node dist/suggester.js rerun`). 7 of
-             ~175 done. Until then only newly filed documents propose to-dos, and the 53
-             bills already carrying a payment date in `expires_at` keep showing up under
-             *Needs attention* as expiries. Accepted suggestions are deliberately excluded
-             from the rerun, so a document whose card you already filed keeps the amount it
-             was given — correct those by hand on the document.
+       - [ ] **Skipped by Kai, 2026-09-10.** Re-running the suggester at prompt version 6
+             (`node dist/suggester.js rerun`, 7 of ~175 done) would make existing documents
+             propose to-dos and be read past page one. Left undone deliberately: new documents
+             already get both, and the back catalogue can wait for a moment when the API spend
+             is wanted. Until it runs, the 53 bills carrying a payment date in `expires_at`
+             keep showing up under *Needs attention* as expiries. Accepted suggestions are
+             excluded from the rerun in any case, so a card you already filed keeps its amount
+             — correct those by hand on the document.
        - [x] Worker, mailfetch and suggester containers built and running locally
              (2026-09-10). They had never been created in this compose project.
 
@@ -50,24 +51,7 @@ Convention: `[ ]` open, `[x]` done and left in place until its milestone doc abs
        - The existing `ailing` warning stays exactly as it is — a connection that is not `ok`
          must not be described as watched.
 
-3. [~] **Scanner station — a ScanSnap S1300 on a Raspberry Pi** (agreed and built
-       2026-09-10). Paper in, button, catalogued in Harbor. Plan at
-       `docs/plan/scanner-station.md`, code under `tools/scanstation/`, running on the Pi 4 at
-       192.168.2.134 (LAN only, ssh as `admin`, key auth, password logins off). Phase 1 is
-       live over email-in: the button test delivered a two-page PDF to the Gmail inbox Harbor
-       watches. Tuned the same day on the first six-page job: greyscale, JPEG quality 70 (~1 MB a
-       page, ~17 pages per mail), blank backs by ink coverage, scans sent to a plus address
-       so one Gmail filter labels them "Harbor". Still owed: a week of real mail; decide on
-       `TRIGGER=paper`; put the firmware blob and the app password in the password manager.
-
-4. [ ] **Device token for uploads** (the Harbor half of item 3). Created in Settings, shown
-       once, stored hashed, upload-only scope, revocable, `last_used_at`, audit entry.
-       `SessionGuard` accepts `Authorization: Bearer` for routes marked upload-capable; the
-       station then uses `GET /documents/duplicates` and `POST /documents` exactly as the
-       browser does. Roughly one table, one form, one guard branch. Do after item 3's phase 1
-       has run on real mail for a week.
-
-5. [ ] **Near-duplicate detection — the same paper scanned twice.** `sha256` catches identical
+3. [ ] **Near-duplicate detection — the same paper scanned twice.** `sha256` catches identical
        bytes and nothing else, so two passes through the scanner produce two Inbox cards
        (Kai hit this on 2026-09-10 with a 2-page scan re-run 2½ minutes later).
 
@@ -93,7 +77,7 @@ Convention: `[ ]` open, `[x]` done and left in place until its milestone doc abs
        The margin between 0.84 and 0.935 is thin and tuned on one vault. It proposes; a person
        decides.
 
-6. [ ] **Rewrite the release notes for someone outside this repo.** `CHANGELOG.md` currently
+4. [ ] **Rewrite the release notes for someone outside this repo.** `CHANGELOG.md` currently
        reads like a postmortem written for whoever fixed it — "Multer builds its disk storage the
        moment its module initialises", "the suggester died trying to create `/data/tmp`". True,
        and no help at all to a person deciding whether to upgrade.
@@ -112,9 +96,27 @@ Convention: `[ ]` open, `[x]` done and left in place until its milestone doc abs
        > suggestions those documents never got.
 
        Keep the **Worth knowing** section — it is the part that already speaks to a reader — and
-       keep the header on upgrading and rolling back. Trim the per-release prose to two or three
-       bullets. `parseChangelog` and its tests define the format, so the headings and structure
-       have to survive the edit; the Version settings page renders this file.
+       keep the header on upgrading and rolling back. `parseChangelog` and its tests define the
+       format, so the headings and structure have to survive the edit; the Version settings page
+       renders this file.
+
+       **How to decide how much a change is worth.** One question settles it: *would someone on
+       another install do anything differently because of this?* If not, it does not get its own
+       entry.
+
+       | | earns | examples |
+       | --- | --- | --- |
+       | **Called out** | a heading bullet, two or three sentences | a new capability; behaviour someone relied on has moved; data was affected; a manual step is needed; something visibly broken now works |
+       | **Named** | one line, no explanation | a fix to something people hit but could work around; a smaller addition inside an existing feature |
+       | **Summed up** | one closing line for the whole release | interface tidying, copy, layout, spacing; internal refactors; dependency bumps; anything only this repo can see |
+
+       The summed-up line is a real sentence, not an apology — "Plus a round of interface tidying
+       and internal cleanups." A reader who wants that detail has the commit log.
+
+       Two traps this exists to avoid. **Cause is not significance:** a one-line fix to a
+       crash-loop is a called-out change, and a week of refactoring that nobody can observe is a
+       summed-up one. And **a release note is not a receipt** — leaving small work uncounted is
+       the point, not a failure to credit it.
 
 ## Waiting on Kai
 
@@ -126,6 +128,12 @@ Convention: `[ ]` open, `[x]` done and left in place until its milestone doc abs
 
 ## Later
 
+- [ ] **Device token for uploads.** Created in Settings, shown once, stored hashed, upload-only
+  scope, revocable, `last_used_at`, audit entry. `SessionGuard` accepts `Authorization: Bearer`
+  for routes marked upload-capable, so a device can use `GET /documents/duplicates` and
+  `POST /documents` exactly as the browser does. Roughly one table, one form, one guard branch.
+  Wanted by Kai's scanner station, which is his own integration rather than part of Harbor — but
+  the token is a Harbor feature and any device would use it.
 - [ ] Folder drops on the Add page (`webkitGetAsEntry` traversal).
 - [ ] A real iPhone HEIC end to end through the worker.
 - [ ] Large-file behaviour: progress on a 100-page scan, the 200 MB ceiling.
