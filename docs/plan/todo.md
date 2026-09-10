@@ -18,12 +18,15 @@ Convention: `[ ]` open, `[x]` done and left in place until its milestone doc abs
        Document detail also gained the **Filing** tab the artboards called for.
 
        Still owed on it:
-       - [ ] Re-run the suggester at prompt version 5 so existing documents produce
-             obligations (`node dist/suggester.js rerun`). Until then only newly filed
-             documents propose to-dos, and the 53 bills already carrying a payment date in
-             `expires_at` keep showing up under *Needs attention* as expiries.
-       - [ ] The worker/suggester Docker images need rebuilding before the re-run —
-             `docker compose --env-file .env -f infra/compose.yml build suggester`.
+       - [ ] Re-run the suggester at **prompt version 6** so existing documents produce
+             obligations and are read past page one (`node dist/suggester.js rerun`). 7 of
+             ~175 done. Until then only newly filed documents propose to-dos, and the 53
+             bills already carrying a payment date in `expires_at` keep showing up under
+             *Needs attention* as expiries. Accepted suggestions are deliberately excluded
+             from the rerun, so a document whose card you already filed keeps the amount it
+             was given — correct those by hand on the document.
+       - [x] Worker, mailfetch and suggester containers built and running locally
+             (2026-09-10). They had never been created in this compose project.
 
 2. [ ] **Empty Inbox should name the mailbox it is watching.** Today it says "gmail.com is
        being watched. Harbor checks every few minutes and files what looks like paperwork
