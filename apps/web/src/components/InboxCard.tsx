@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
-import { displayTitle, formatAmount, shortDate, type Category, type DocumentSummary, type Item, type MuteResult } from "@harbor/shared";
+import { displayTitle, formatAmount, shortDate, type Category, type DocumentSummary, type DuplicateCandidate, type Item, type MuteResult } from "@harbor/shared";
 import { ItemPicker } from "./ItemPicker";
 import { api } from "@/lib/api-client";
 import { formatBytes, formatRelative, pages } from "@/lib/format";
@@ -14,7 +14,7 @@ import { StatusPill, isProcessing } from "./StatusPill";
  * The Inbox card from the Paper design: summary, FILE TO, FOR, accept-or-adjust.
  * Four states: processing, suggestion, no-suggestion (heuristics only), failed.
  */
-export function InboxCard({ doc, categories, items }: { doc: DocumentSummary; categories: Category[]; items: Item[] }) {
+export function InboxCard({ doc, categories, items, copies = [] }: { doc: DocumentSummary; categories: Category[]; items: Item[]; copies?: DuplicateCandidate[] }) {
   /** Who emailed it. On the document itself, so pruning the ingest log cannot take it away (§7). */
   const fromAddr = doc.mailFrom;
   const router = useRouter();
@@ -35,6 +35,7 @@ export function InboxCard({ doc, categories, items }: { doc: DocumentSummary; ca
    * because a to-do you never see is worse than one you have to dismiss.
    */
   const [createTasks, setCreateTasks] = useState(true);
+  const [merging, setMerging] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const grouped = useMemo(() => groupCategories(categories), [categories]);
@@ -43,6 +44,19 @@ export function InboxCard({ doc, categories, items }: { doc: DocumentSummary; ca
   /** What the model says still has to be done. Proposals — nothing exists until this card is filed. */
   const obligations = s && !s.rejectedAt ? (s.payload.obligations ?? []) : [];
   const forIsSuggested = !!s && s.resolved.itemIds.length > 0 && s.resolved.itemIds.every((id) => itemIds.includes(id));
+
+  /** "It is the same paper" — this file becomes the next version of the one already filed. */
+  async function mergeInto(target: DuplicateCandidate) {
+    setMerging(true);
+    setError(null);
+    try {
+      await api(`/documents/${doc.id}/merge-into/${target.documentId}`, { method: "POST" });
+      router.refresh();
+    } catch (err) {
+      setError((err as Error).message);
+      setMerging(false);
+    }
+  }
 
   async function fileIt() {
     if (!categoryId) return;
@@ -203,6 +217,34 @@ export function InboxCard({ doc, categories, items }: { doc: DocumentSummary; ca
             />
           </div>
         </div>
+
+        {/*
+          Advisory, and deliberately not a blocker: filing the card as usual is what "keep both"
+          means, so the option that needs no decision needs no button either.
+        */}
+        {copies.length > 0 && (
+          <div className="flex flex-col gap-2 rounded-md border border-warn/30 bg-warn-soft px-3.5 py-3">
+            <div className="text-row">
+              Looks like a copy of{" "}
+              <Link href={`/documents/${copies[0]!.documentId}`} className="font-semibold underline underline-offset-2">
+                {copies[0]!.title}
+              </Link>
+              {copies[0]!.categoryPath ? <span className="text-muted"> · {copies[0]!.categoryPath}</span> : null}
+              <span className="text-muted"> · same page count, near-identical figures</span>
+            </div>
+            <div className="flex flex-wrap items-center gap-3">
+              <button
+                type="button"
+                onClick={() => mergeInto(copies[0]!)}
+                disabled={merging || busy !== null || processing}
+                className="h-8 rounded-md bg-warn px-3 text-small font-medium text-white disabled:opacity-50"
+              >
+                {merging ? "Filing…" : "It is a newer scan of that one"}
+              </button>
+              <span className="text-small text-muted">or file this one as usual to keep both.</span>
+            </div>
+          </div>
+        )}
 
         {obligations.length > 0 && !s?.acceptedAt && (
           <label className="flex cursor-pointer items-center gap-3 rounded-md bg-accent-soft px-3.5 py-3">

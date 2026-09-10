@@ -208,3 +208,26 @@ export function looksLikeClutter(doc: Pick<DocumentSummary, "suggestion">): bool
   const s = doc.suggestion;
   return Boolean(s && !s.acceptedAt && !s.rejectedAt && s.payload.keep === "not_paperwork");
 }
+
+/**
+ * Another document that looks like the same piece of paper (spec §8 to-do).
+ *
+ * Proposed, never acted on: `sha256` cannot see a second pass through a scanner, and the measures
+ * that can are close enough to a genuine near-miss that only a person should decide.
+ */
+export const DuplicateCandidate = z.object({
+  documentId: z.string().uuid(),
+  title: z.string(),
+  categoryPath: z.string().nullable(),
+  createdAt: z.string().datetime(),
+  /** Share of the numbers — amounts, dates, reference numbers — the two have in common. */
+  numberOverlap: z.number(),
+  textSimilarity: z.number(),
+});
+export type DuplicateCandidate = z.infer<typeof DuplicateCandidate>;
+
+export const DuplicateReport = z.object({
+  documentId: z.string().uuid(),
+  candidates: z.array(DuplicateCandidate),
+});
+export type DuplicateReport = z.infer<typeof DuplicateReport>;

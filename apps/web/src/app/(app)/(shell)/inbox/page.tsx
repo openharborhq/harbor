@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { looksLikeClutter, type Category, type DocumentSummary, type Item, type MailConnectionView } from "@harbor/shared";
+import { looksLikeClutter, type Category, type DocumentSummary, type DuplicateReport, type Item, type MailConnectionView } from "@harbor/shared";
 import { MailWatchCard } from "@/components/MailWatchCard";
 import { AcceptAll } from "@/components/AcceptAll";
 import { AutoRefresh } from "@/components/AutoRefresh";
@@ -19,13 +19,17 @@ export default async function InboxPage(props: PageProps<"/inbox">) {
 
   // Counts come from the unfiltered list so the tabs can show them; the filter is applied here
   // rather than in a second request, because the Inbox is small by construction.
-  const [all, categories, items, connections] = await Promise.all([
+  const [all, categories, items, connections, duplicates] = await Promise.all([
     apiFetch<DocumentSummary[]>("/documents?inbox=1"),
     apiFetch<Category[]>("/categories"),
     apiFetch<Item[]>("/items"),
     // Only used to explain an empty Inbox, so a mail service that is down must not empty the page.
     apiFetch<MailConnectionView[]>("/mail/connections").catch(() => [] as MailConnectionView[]),
+    // Advisory, and never worth failing the Inbox over: a card without its "looks like a copy"
+    // banner is a card that behaves exactly as it did before this existed.
+    apiFetch<DuplicateReport[]>("/documents/near-duplicates?inbox=1").catch(() => [] as DuplicateReport[]),
   ]);
+  const copiesOf = new Map(duplicates.map((r) => [r.documentId, r.candidates]));
   /**
    * §5's `keep`, applied. Attachments the model judged not to be paperwork are held back from the
    * queue rather than deleted or hidden: they are one link away, counted, and deletable in bulk.
@@ -101,7 +105,13 @@ export default async function InboxPage(props: PageProps<"/inbox">) {
           <section key={heading} className="flex flex-col gap-4">
             <h2 className="text-body font-semibold">{heading}</h2>
             {groupDocs.map((d) => (
-              <InboxCard key={`${d.id}-${d.file.processingStatus}-${d.suggestion?.id ?? "none"}`} doc={d} categories={categories} items={items} />
+              <InboxCard
+                key={`${d.id}-${d.file.processingStatus}-${d.suggestion?.id ?? "none"}`}
+                doc={d}
+                categories={categories}
+                items={items}
+                copies={copiesOf.get(d.id) ?? []}
+              />
             ))}
           </section>
         ))}

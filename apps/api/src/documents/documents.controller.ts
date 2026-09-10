@@ -17,7 +17,7 @@ import {
 } from "@nestjs/common";
 import { FileInterceptor } from "@nestjs/platform-express";
 import type { Request, Response } from "express";
-import { AcceptSuggestion, BulkDeleteDocuments, ListDocumentsQuery, UpdateDocument, parseUploadFields, type AcceptAllResult, type ActivityEntry, type DeletedDocument, type DocumentSummary, type DocumentText, type DocumentVersion, type InboxCount, type RecentDocument, type SessionUser, type UploadResult } from "@harbor/shared";
+import { AcceptSuggestion, BulkDeleteDocuments, ListDocumentsQuery, UpdateDocument, parseUploadFields, type AcceptAllResult, type ActivityEntry, type DeletedDocument, type DocumentSummary, type DocumentText, type DocumentVersion, type DuplicateReport, type InboxCount, type RecentDocument, type SessionUser, type UploadResult } from "@harbor/shared";
 import { CurrentUser } from "../auth/current-user.decorator";
 import { ZodPipe } from "../common/zod.pipe";
 import { DocumentsService } from "./documents.service";
@@ -41,6 +41,13 @@ export class DocumentsController {
   }
 
   /** Pre-upload check so the UI can ask "add as new version, or skip?" before sending bytes. */
+  /** Documents in the Inbox that look like a copy of something already filed (spec §8 to-do). */
+  @Get("near-duplicates")
+  async nearDuplicates(@Query("inbox") inbox?: string): Promise<DuplicateReport[]> {
+    const list = await this.documents.list({ inboxOnly: inbox === "1" || inbox === "true", limit: 200 });
+    return this.documents.nearDuplicates(list.map((d) => d.id));
+  }
+
   @Get("duplicates")
   async duplicates(@Query("sha256") sha256: string): Promise<{ duplicateOf: UploadResult["duplicateOf"] }> {
     if (!/^[0-9a-f]{64}$/.test(sha256 ?? "")) throw new BadRequestException("sha256 must be 64 hex characters");
@@ -65,6 +72,17 @@ export class DocumentsController {
   }
 
   /** Files every high-confidence, unresolved Inbox suggestion. */
+  /** "It is the same paper" — this document's file becomes the next version of the other one. */
+  @Post(":id/merge-into/:targetId")
+  merge(
+    @Param("id", ParseUUIDPipe) id: string,
+    @Param("targetId", ParseUUIDPipe) targetId: string,
+    @CurrentUser() user: SessionUser,
+    @Req() req: Request,
+  ): Promise<DocumentSummary> {
+    return this.documents.mergeInto(id, targetId, user.id, req.ip ?? null);
+  }
+
   @Post("accept-all")
   @HttpCode(200)
   acceptAll(@CurrentUser() user: SessionUser, @Req() req: Request): Promise<AcceptAllResult> {

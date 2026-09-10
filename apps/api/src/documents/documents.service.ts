@@ -3,9 +3,10 @@ import { and, asc, desc, eq, inArray, isNull, sql, type SQL } from "drizzle-orm"
 import { Queue } from "bullmq";
 import { open, rm } from "node:fs/promises";
 import type { Readable } from "node:stream";
-import { auditLog, categories, documentFiles, documentItems, documentText, documentViews, documents, items, users, type Db } from "@harbor/db";
+import { auditLog, categories, documentFiles, documentItems, documentText, documentViews, documents, items, tasks, users, type Db } from "@harbor/db";
 import { looksLikeClutter, titleFromFilename } from "@harbor/shared";
-import type { AcceptAllResult, AcceptSuggestion, ActivityEntry, DeletedDocument, DocumentSummary, DocumentText, DocumentVersion, InboxCount, RecentDocument, SuggestionView, UpdateDocument, UploadFields, UploadResult } from "@harbor/shared";
+import type { AcceptAllResult, AcceptSuggestion, ActivityEntry, DeletedDocument, DocumentSummary, DocumentText, DocumentVersion, DuplicateReport, InboxCount, RecentDocument, SuggestionView, UpdateDocument, UploadFields, UploadResult } from "@harbor/shared";
+import { likeness, sizeIsClose } from "./duplicates";
 import { AuditService } from "../audit/audit.service";
 import { SearchIndexService } from "../search/search-index.service";
 import { MIME_BY_KIND, sniffKind } from "../common/sniff";
@@ -507,6 +508,123 @@ export class DocumentsService {
       }
     }
     return created;
+  }
+
+  /**
+   * Documents that look like the same piece of paper as these ones (spec §8 to-do).
+   *
+   * Two cheap gates first — same page count, file size within 5% — because comparing every
+   * document against every other is quadratic in the size of the vault and pointless: a re-scan of
+   * a two-page bill is never going to be the twelve-page one. Only what survives the gates has its
+   * text pulled and scored.
+   *
+   * Nothing is done with the answer here. It reaches the Inbox card as "looks like a copy of X",
+   * and keeping both is the option that needs no action at all.
+   */
+  async nearDuplicates(documentIds: string[]): Promise<DuplicateReport[]> {
+    if (documentIds.length === 0) return [];
+    const targets = await this.textRows(inArray(documents.id, documentIds));
+    if (targets.length === 0) return [];
+
+    const pageCounts = [...new Set(targets.map((t) => t.pageCount))];
+    const sizes = targets.map((t) => t.byteSize);
+    const pool = await this.textRows(
+      and(
+        pageCounts.every((p) => p !== null) ? inArray(documentFiles.pageCount, pageCounts as number[]) : sql`true`,
+        // Whole numbers: byte_size is a bigint, and a float bound is a type error, not a rounding one.
+        sql`${documentFiles.byteSize} between ${Math.floor(Math.min(...sizes) * 0.95)} and ${Math.ceil(Math.max(...sizes) * 1.05)}`,
+      )!,
+    );
+
+    const cats = await this.categoriesService.index();
+    const reports: DuplicateReport[] = [];
+    for (const target of targets) {
+      const candidates: DuplicateReport["candidates"] = [];
+      for (const other of pool) {
+        if (other.id === target.id) continue;
+        if (other.pageCount !== target.pageCount) continue;
+        if (!sizeIsClose(other.byteSize, target.byteSize)) continue;
+        const score = likeness(target.text, other.text);
+        if (!score.isCopy) continue;
+        candidates.push({
+          documentId: other.id,
+          title: other.title,
+          categoryPath: other.categoryId ? (cats.get(other.categoryId)?.path ?? null) : null,
+          createdAt: other.createdAt.toISOString(),
+          numberOverlap: Math.round(score.numberOverlap * 1000) / 1000,
+          textSimilarity: Math.round(score.textSimilarity * 1000) / 1000,
+        });
+      }
+      if (candidates.length > 0) {
+        candidates.sort((a, b) => b.numberOverlap - a.numberOverlap);
+        reports.push({ documentId: target.id, candidates });
+      }
+    }
+    return reports;
+  }
+
+  private textRows(where: SQL) {
+    return this.db
+      .select({
+        id: documents.id,
+        title: documents.title,
+        categoryId: documents.categoryId,
+        createdAt: documents.createdAt,
+        byteSize: documentFiles.byteSize,
+        pageCount: documentFiles.pageCount,
+        text: documentText.textContent,
+      })
+      .from(documents)
+      .innerJoin(documentFiles, and(eq(documentFiles.documentId, documents.id), eq(documentFiles.isCurrent, true)))
+      .innerJoin(documentText, eq(documentText.documentFileId, documentFiles.id))
+      .where(and(isNull(documents.deletedAt), where));
+  }
+
+  /**
+   * "This is the same paper — file it as a new version of that one."
+   *
+   * The good ending for a re-scan (spec §8 to-do). The newer file moves onto the older document as
+   * its next version, which is what `document_files` was built for, and the shell it leaves behind
+   * is removed. Nothing is re-encrypted and no blob is shared: the row moves, the bytes stay put
+   * under their own DEK, and §1's "no blob sharing" rule holds.
+   *
+   * Any to-dos attached to the duplicate come along. The alternative is that a bill you scanned
+   * twice loses the reminder to pay it because you tidied up the copy.
+   */
+  async mergeInto(sourceId: string, targetId: string, userId: string, ip: string | null): Promise<DocumentSummary> {
+    if (sourceId === targetId) throw new BadRequestException("A document cannot be a version of itself.");
+    const source = await this.loadRow(sourceId);
+    const target = await this.loadRow(targetId);
+
+    await this.db.transaction(async (tx) => {
+      const [{ next }] = await tx
+        .select({ next: sql<number>`coalesce(max(version), 0)::int + 1` })
+        .from(documentFiles)
+        .where(eq(documentFiles.documentId, targetId));
+      // The partial unique index allows one current file per document, so the old one steps down
+      // before the new one arrives.
+      await tx.update(documentFiles).set({ isCurrent: false }).where(eq(documentFiles.documentId, targetId));
+      await tx
+        .update(documentFiles)
+        .set({ documentId: targetId, version: next!, isCurrent: true })
+        .where(eq(documentFiles.id, source.df.id));
+      await tx.update(tasks).set({ documentId: targetId }).where(eq(tasks.documentId, sourceId));
+      await tx.update(documents).set({ updatedAt: new Date() }).where(eq(documents.id, targetId));
+      // The shell is empty now — it holds no file, so soft-deleting it would leave something in
+      // Recently deleted that could never be restored into anything.
+      await tx.delete(documents).where(eq(documents.id, sourceId));
+      await this.searchIndex.reindex([targetId], tx);
+    });
+
+    await this.audit.record({
+      action: "document.merge",
+      actorUserId: userId,
+      entityType: "document",
+      entityId: targetId,
+      metadata: { mergedFrom: sourceId, mergedTitle: source.doc.title, filename: source.df.originalFilename, version: target.df.version + 1 },
+      ip,
+    });
+    return this.get(targetId);
   }
 
   // ---------- helpers ----------

@@ -29,7 +29,7 @@ Convention: `[ ]` open, `[x]` done and left in place until its milestone doc abs
        - [x] Worker, mailfetch and suggester containers built and running locally
              (2026-09-10). They had never been created in this compose project.
 
-2. [ ] **Empty Inbox should name the mailbox it is watching.** Today it says "gmail.com is
+2. [x] **Empty Inbox names the mailbox it is watching** (built 2026-09-10). Today it says "gmail.com is
        being watched. Harbor checks every few minutes and files what looks like paperwork
        here…" — every fact in it is vague where a precise one is already in hand. Replace with
        the provider's logo and:
@@ -51,7 +51,7 @@ Convention: `[ ]` open, `[x]` done and left in place until its milestone doc abs
        - The existing `ailing` warning stays exactly as it is — a connection that is not `ok`
          must not be described as watched.
 
-3. [ ] **Near-duplicate detection — the same paper scanned twice.** `sha256` catches identical
+3. [x] **Near-duplicate detection — the same paper scanned twice** (built 2026-09-10). `sha256` catches identical
        bytes and nothing else, so two passes through the scanner produce two Inbox cards
        (Kai hit this on 2026-09-10 with a 2-page scan re-run 2½ minutes later).
 
@@ -76,6 +76,17 @@ Convention: `[ ]` open, `[x]` done and left in place until its milestone doc abs
 
        The margin between 0.84 and 0.935 is thin and tuned on one vault. It proposes; a person
        decides.
+
+       **Built as planned**, minus the stored token column: the two cheap gates cut the candidate
+       set to a handful, so the metrics are computed on demand and nothing had to be migrated or
+       backfilled. `GET /documents/near-duplicates?inbox=1` finds them; the Inbox card offers
+       "it is a newer scan of that one", which moves the file onto the older document as its next
+       version and carries any to-dos across. Filing normally is what keeping both means, so that
+       option needed no button. Found Kai's real pair at 0.935 / 0.895 with no false positives
+       across 165 documents.
+
+       Still worth doing later: the thresholds are one vault's evidence. Revisit once a few more
+       real re-scans have gone through.
 
 4. [ ] **Rewrite the release notes for someone outside this repo.** `CHANGELOG.md` currently
        reads like a postmortem written for whoever fixed it — "Multer builds its disk storage the
