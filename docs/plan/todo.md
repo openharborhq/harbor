@@ -67,7 +67,7 @@ Convention: `[ ]` open, `[x]` done and left in place until its milestone doc abs
        browser does. Roughly one table, one form, one guard branch. Do after item 3's phase 1
        has run on real mail for a week.
 
-3. [ ] **Near-duplicate detection — the same paper scanned twice.** `sha256` catches identical
+5. [ ] **Near-duplicate detection — the same paper scanned twice.** `sha256` catches identical
        bytes and nothing else, so two passes through the scanner produce two Inbox cards
        (Kai hit this on 2026-09-10 with a 2-page scan re-run 2½ minutes later).
 
@@ -93,7 +93,7 @@ Convention: `[ ]` open, `[x]` done and left in place until its milestone doc abs
        The margin between 0.84 and 0.935 is thin and tuned on one vault. It proposes; a person
        decides.
 
-4. [ ] **Rewrite the release notes for someone outside this repo.** `CHANGELOG.md` currently
+6. [ ] **Rewrite the release notes for someone outside this repo.** `CHANGELOG.md` currently
        reads like a postmortem written for whoever fixed it — "Multer builds its disk storage the
        moment its module initialises", "the suggester died trying to create `/data/tmp`". True,
        and no help at all to a person deciding whether to upgrade.
@@ -120,7 +120,9 @@ Convention: `[ ]` open, `[x]` done and left in place until its milestone doc abs
 
 - [ ] **Protectli deploy** — M1 step 11. Runbook at `docs/deploy.md`, never once executed.
 - [ ] **Backups to Backblaze B2** — needs a bucket and an application key.
-- [ ] **Git remote.** 35+ commits, all local, no remote. One `git remote add` from being safe.
+- [ ] **Push.** `origin` now exists — `openharborhq/harbor` — and `main` is **10 commits ahead**
+  of it (everything built on 2026-09-10: tasks, page-aware sampling, the row cleanup). They are
+  still on one disk until someone pushes.
 
 ## Later
 
