@@ -1,0 +1,22 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<!-- Gmail filter that labels every scan from the station "Harbor" without archiving it.
+     Replace the address with your MAIL_TO, then Gmail › Settings › Filters and Blocked
+     Addresses › Import filters. Harbor still sees the mail in the inbox. -->
+<feed xmlns='http://www.w3.org/2005/Atom' xmlns:apps='http://schemas.google.com/apps/2006'>
+  <title>Mail Filters</title>
+  <id>tag:mail.google.com,2008:filters:scanstation</id>
+  <updated>2026-09-10T00:00:00Z</updated>
+  <author><name>scanstation</name></author>
+  <entry>
+    <category term='filter'></category>
+    <title>Mail Filter</title>
+    <id>tag:mail.google.com,2008:filter:scanstation-label</id>
+    <updated>2026-09-10T00:00:00Z</updated>
+    <content></content>
+    <apps:property name='to' value='vault+harbor@example.com'/>
+    <apps:property name='label' value='Harbor'/>
+    <apps:property name='shouldNeverSpam' value='true'/>
+    <apps:property name='sizeOperator' value='s_sl'/>
+    <apps:property name='sizeUnit' value='s_smb'/>
+  </entry>
+</feed>

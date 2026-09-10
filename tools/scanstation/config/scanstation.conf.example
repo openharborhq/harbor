@@ -1,0 +1,48 @@
+# Scanner station configuration. Copied to /etc/scanstation/scanstation.conf by install.sh
+# on first run and never overwritten after that. Plain shell syntax, sourced by every script.
+
+# A name for this desk. Goes into meta.json and the mail subject.
+STATION_NAME="hall-table"
+
+# How scans reach Harbor: "mail" (phase 1, email-in) or "token" (phase 2, device token).
+TRANSPORT="mail"
+
+# --- mail transport ---------------------------------------------------------------------
+# The vault's forwarding mailbox. The SMTP account itself lives in /etc/scanstation/msmtprc.
+# A plus address lets one Gmail filter label every scan: see gmail-filter.xml.example.
+MAIL_TO="vault+harbor@example.com"
+MAIL_FROM="scanner@example.com"
+# PDF size ceiling for the mail transport. Gmail rejects messages over 25 MB *after* base64
+# encoding, which adds a third, so 17 MB of PDF is the real limit. Bigger files are parked
+# in failed/ rather than bounced.
+MAIL_MAX_BYTES=17000000
+
+# --- token transport --------------------------------------------------------------------
+HARBOR_URL="https://harbor.example.ts.net"
+# The token itself is in /etc/scanstation/token (one line, mode 0600).
+
+# --- trigger ----------------------------------------------------------------------------
+# button  press the scan button (the default)
+# paper   a sheet left in the feeder for PAPER_SETTLE_SECONDS starts a scan by itself
+# both    either one
+TRIGGER="button"
+PAPER_SETTLE_SECONDS=3
+# Seconds to wait after a button press before scanning; the S1300 needs a moment.
+BUTTON_DELAY_SECONDS=2
+
+# --- scanning ---------------------------------------------------------------------------
+RESOLUTION=300
+MODE="Gray"           # Color | Gray | Lineart. Gray is what OCR wants; Lineart loses faint print.
+SOURCE="ADF Duplex"   # ADF Front | ADF Back | ADF Duplex
+# 70 halves the file against 88 and reads identically to OCR at 300 dpi.
+JPEG_QUALITY=70
+# A duplex page whose ink fraction (dark pixels after a 55% threshold, border trimmed) is
+# below this is a blank back and is dropped. Measured: blank 0.0002, one line of text ~0.005,
+# a normal letter 0.04 and up.
+BLANK_INK=0.002
+
+# --- housekeeping -----------------------------------------------------------------------
+# Days to keep a local copy after Harbor has confirmed it. 0 deletes on success.
+KEEP_SENT_DAYS=90
+# Where the hourly health check sends its one-per-day-per-problem alerts. Empty disables.
+ALERT_TO="kai@example.com"

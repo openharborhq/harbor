@@ -1,0 +1,10 @@
+[Unit]
+Description=Scanner station: retry the outbox every five minutes
+
+[Timer]
+OnBootSec=2min
+OnCalendar=*:0/5
+Unit=scanstation-upload.service
+
+[Install]
+WantedBy=timers.target

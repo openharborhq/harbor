@@ -19,6 +19,7 @@ export function DocumentTasks({ documentId, tasks }: { documentId: string; tasks
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
+  const [editing, setEditing] = useState<string | null>(null);
   const [title, setTitle] = useState("");
   const [dueOn, setDueOn] = useState("");
 
@@ -30,6 +31,39 @@ export function DocumentTasks({ documentId, tasks }: { documentId: string; tasks
     setError(null);
     try {
       await api(`/tasks/${task.id}/close`, { method: "POST", body: JSON.stringify({ status: "done", reason: null }) });
+      router.refresh();
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  /**
+   * Correct what the model read off the page.
+   *
+   * A tax form carries half a dozen amounts — subtotals, a prior balance, the tax itself — and the
+   * one that matters is whichever line says what you owe. The model picks well but not always, and
+   * a reminder carrying the wrong number is worse than one carrying none, so the correction lives
+   * here beside the document rather than behind a trip to another page.
+   */
+  async function saveEdit(task: Task, patch: { title: string; amount: string; dueOn: string }) {
+    setBusy(task.id);
+    setError(null);
+    try {
+      const trimmed = patch.amount.trim().replace(/[^0-9.,-]/g, "").replace(",", ".");
+      const cents = trimmed ? Math.round(Number(trimmed) * 100) : null;
+      if (cents !== null && !Number.isFinite(cents)) throw new Error("That amount isn't a number.");
+      await api(`/tasks/${task.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          title: patch.title.trim() || task.title,
+          amountCents: cents,
+          currency: cents === null ? null : (task.currency ?? "EUR"),
+          dueOn: patch.dueOn || null,
+        }),
+      });
+      setEditing(null);
       router.refresh();
     } catch (err) {
       setError((err as Error).message);
@@ -69,6 +103,9 @@ export function DocumentTasks({ documentId, tasks }: { documentId: string; tasks
       {open.map((t) => {
         const due = dueLabel(t.dueOn);
         const amount = formatAmount(t.amountCents, t.currency);
+        if (editing === t.id) {
+          return <EditTask key={t.id} task={t} busy={busy === t.id} onCancel={() => setEditing(null)} onSave={(patch) => saveEdit(t, patch)} />;
+        }
         return (
           <div key={t.id} className="flex items-center gap-3 px-4 py-3.5">
             <button
@@ -90,6 +127,10 @@ export function DocumentTasks({ documentId, tasks }: { documentId: string; tasks
                     <span className="text-muted">was due {shortDate(t.dueOn)}</span>
                   </>
                 )}
+                <span className="text-border-strong">·</span>
+                <button type="button" onClick={() => setEditing(t.id)} className="font-medium text-accent hover:underline">
+                  {amount ? "Wrong amount?" : "Add an amount"}
+                </button>
               </div>
             </div>
             <button
@@ -146,5 +187,66 @@ export function DocumentTasks({ documentId, tasks }: { documentId: string; tasks
       )}
       {error && <p className="border-t border-border px-4 py-2 text-small text-danger">{error}</p>}
     </section>
+  );
+}
+
+/**
+ * The correction form. Pre-filled with what is stored, so fixing one field never means retyping
+ * the other two — and the amount is shown in euros, not the minor units the database keeps.
+ */
+function EditTask({
+  task,
+  busy,
+  onCancel,
+  onSave,
+}: {
+  task: Task;
+  busy: boolean;
+  onCancel: () => void;
+  onSave: (patch: { title: string; amount: string; dueOn: string }) => void;
+}) {
+  const [title, setTitle] = useState(task.title);
+  const [amount, setAmount] = useState(task.amountCents === null ? "" : (task.amountCents / 100).toFixed(2));
+  const [dueOn, setDueOn] = useState(task.dueOn ?? "");
+
+  return (
+    <form
+      onSubmit={(e) => {
+        e.preventDefault();
+        onSave({ title, amount, dueOn });
+      }}
+      className="flex flex-col gap-2 px-4 py-3.5"
+    >
+      <input
+        value={title}
+        onChange={(e) => setTitle(e.target.value)}
+        maxLength={120}
+        className="h-9 rounded-md border border-border-strong px-3 text-row outline-none focus:border-accent"
+      />
+      <div className="flex items-center gap-2">
+        <label className="flex items-center gap-1.5">
+          <span className="text-small text-muted">Amount</span>
+          <input
+            autoFocus
+            value={amount}
+            onChange={(e) => setAmount(e.target.value)}
+            inputMode="decimal"
+            placeholder="—"
+            className="h-9 w-28 rounded-md border border-border-strong px-3 text-row outline-none focus:border-accent"
+          />
+        </label>
+        <label className="flex items-center gap-1.5">
+          <span className="text-small text-muted">Due</span>
+          <input type="date" value={dueOn} onChange={(e) => setDueOn(e.target.value)} className="h-9 rounded-md border border-border-strong px-2 text-small" />
+        </label>
+        <div className="flex-1" />
+        <button type="button" onClick={onCancel} className="h-9 px-2 text-small text-muted hover:text-text">
+          Cancel
+        </button>
+        <button type="submit" disabled={busy} className="h-9 rounded-md bg-accent px-3 text-small font-medium text-white disabled:opacity-50">
+          {busy ? "Saving…" : "Save"}
+        </button>
+      </div>
+    </form>
   );
 }

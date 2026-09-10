@@ -99,7 +99,13 @@ export class FileProcessor {
           await this.setStatus(df.id, "ocr", 0);
           const out = path.join(work, "searchable.pdf");
           const total = pageCount ?? 1;
-          const args = ["--skip-text", "--rotate-pages", "--deskew", "--optimize", "1", "-l", this.ocrLanguages, "--jobs", "1", "-v", "1"];
+          // --rotate-pages only acts above a confidence ocrmypdf defaults to 14. Tesseract's
+          // orientation detector reported a real upside-down scan at 2.8 and 7.6, and correctly
+          // oriented pages at 5.9 and 13.9, so the default never rotates anything. A page the
+          // detector calls "facing up" is never rotated whatever the threshold, so the only risk
+          // of going low is a page it misreads as rotated with confidence above 2: measured
+          // 2026-09-10 on desk-scanner output, not seen.
+          const args = ["--skip-text", "--rotate-pages", "--rotate-pages-threshold", "2", "--deskew", "--optimize", "1", "-l", this.ocrLanguages, "--jobs", "1", "-v", "1"];
           if (kind !== "pdf") args.push("--image-dpi", "300");
           args.push(pdfIn, out);
           let lastPage = 0;

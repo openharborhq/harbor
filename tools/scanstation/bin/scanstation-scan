@@ -1,0 +1,59 @@
+#!/bin/bash
+# One button press → one PDF in the outbox. Run by scanstation-watch; can also be run by hand.
+# Every step leaves the job directory in a state that can be inspected or swept.
+SS_TAG=scanstation-scan
+# shellcheck disable=SC1091
+. /usr/local/lib/scanstation/scanstation-common
+
+# Open the first epjitsu device rather than a libusb address (see scanstation-watch).
+DEVICE=${SCAN_DEVICE:-epjitsu}
+
+ts=$(date +%Y%m%d-%H%M%S)
+job=$SS_JOBS/$ts
+mkdir -p "$job"; cd "$job"
+log "job $ts: scanning from $DEVICE ($SOURCE, $MODE, ${RESOLUTION}dpi)"
+
+# scanimage exits non-zero when the feeder runs dry in batch mode on some versions; the
+# real test is whether pages were produced.
+scanimage -d "$DEVICE" --source "$SOURCE" --mode "$MODE" --resolution "$RESOLUTION" \
+  --format=pnm --batch="p%03d.pnm" --batch-print >scan.log 2>&1 || true
+shopt -s nullglob
+pages=(p*.pnm)
+if [ ${#pages[@]} -eq 0 ]; then
+  err "job $ts: no pages scanned"; cat scan.log >&2
+  mkdir -p "$SS_FAILED"; mv "$job" "$SS_FAILED/$ts-nopages"; exit 1
+fi
+
+# Drop blank backs: trim the border (scanner edges are never clean), threshold to ink/no ink,
+# and measure the ink fraction. Brightness alone fails on greyscale scans, whose paper comes
+# out grey rather than white; a blank page has ~0.02% ink, one line of text ~0.5%.
+kept=()
+for p in "${pages[@]}"; do
+  ink=$(convert "$p" -shave 3%x3% -colorspace Gray -threshold 55% -negate -format "%[fx:mean]" info: 2>/dev/null) || ink=1
+  if awk -v i="$ink" -v t="$BLANK_INK" 'BEGIN{exit !(i<t)}'; then
+    log "job $ts: $p is blank (ink=$ink), dropped"; rm -f "$p"
+  else
+    jpg=${p%.pnm}.jpg
+    convert "$p" -quality "$JPEG_QUALITY" -density "$RESOLUTION" -units PixelsPerInch "$jpg" && rm -f "$p"
+    kept+=("$jpg")
+  fi
+done
+if [ ${#kept[@]} -eq 0 ]; then
+  warn "job $ts: every page was blank, nothing to file"; cd /; rm -rf "$job"; exit 0
+fi
+
+img2pdf "${kept[@]}" -o scan.pdf   # page size comes from the JPEG density tag
+sha=$(sha256sum scan.pdf | cut -c1-64)
+size=$(stat -c %s scan.pdf)
+cat > meta.json <<JSON
+{"station":"$STATION_NAME","scannedAt":"$(date -Is)","pages":${#kept[@]},"pagesScanned":${#pages[@]},
+ "dpi":$RESOLUTION,"mode":"$MODE","source":"$SOURCE","sha256":"$sha","bytes":$size,"device":"$DEVICE"}
+JSON
+rm -f "${kept[@]}"
+
+# Commit point. The move is atomic within the same filesystem.
+mkdir -p "$SS_OUTBOX"
+mv meta.json "$SS_OUTBOX/$ts.json"
+mv scan.pdf "$SS_OUTBOX/$ts.pdf"
+cd /; rm -rf "$job"
+log "job $ts: ${#kept[@]} pages, $((size/1024)) KB → outbox"

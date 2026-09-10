@@ -1,0 +1,64 @@
+#!/bin/bash
+# Deliver everything in the outbox to Harbor, oldest first, with backoff. Triggered by the
+# path unit whenever a file lands and by a timer as a backstop. Never runs twice at once.
+SS_TAG=scanstation-upload
+# shellcheck disable=SC1091
+. /usr/local/lib/scanstation/scanstation-common
+
+exec 9>"$SS_STATE/upload.lock"; flock -n 9 || exit 0
+mkdir -p "$SS_SENT" "$SS_FAILED"
+now=$(date +%s)
+backoff=(60 300 900 3600)   # then hourly
+
+deliver_mail() {
+  local f=$1 meta=$2 size subject
+  size=$(stat -c %s "$f")
+  if [ "$size" -gt "$MAIL_MAX_BYTES" ]; then
+    err "$(basename "$f") is $((size/1024/1024)) MB, over the mail cap; parked in failed/"
+    mv "$f" "$meta" "$SS_FAILED/"; return 2
+  fi
+  subject="Scan from $STATION_NAME $(jq -r .scannedAt "$meta") ($(jq -r .pages "$meta") pages)"
+  send_mail "$subject" "$(cat "$meta")" "$f"
+}
+
+deliver_token() {
+  local f=$1 meta=$2 sha dup res
+  local token; token=$(<"$SS_ETC/token")
+  sha=$(jq -r .sha256 "$meta")
+  dup=$(curl -fsS --max-time 30 -H "Authorization: Bearer $token" \
+        "$HARBOR_URL/api/documents/duplicates?sha256=$sha" | jq -r '.duplicateOf // empty') || return 1
+  if [ -n "$dup" ]; then log "$(basename "$f") already in Harbor ($dup), not sending again"; return 0; fi
+  res=$(curl -fsS --max-time 600 -H "Authorization: Bearer $token" -F "file=@$f;type=application/pdf" \
+        "$HARBOR_URL/api/documents") || return 1
+  log "$(basename "$f") → $(echo "$res" | jq -r '.id // "ok"')"
+}
+
+shopt -s nullglob
+files=("$SS_OUTBOX"/*.pdf)
+for f in "${files[@]}"; do
+  base=${f%.pdf}; meta=$base.json; st=$SS_STATE/$(basename "$base").attempts
+  [ -f "$meta" ] || echo "{}" > "$meta"
+  attempts=0; next=0
+  [ -f "$st" ] && read -r attempts next < "$st"
+  [ "$now" -ge "$next" ] || continue
+
+  case $TRANSPORT in
+    mail)  deliver_mail "$f" "$meta"; rc=$? ;;
+    token) deliver_token "$f" "$meta"; rc=$? ;;
+    *) err "unknown TRANSPORT '$TRANSPORT'"; exit 1 ;;
+  esac
+
+  if [ "$rc" -eq 0 ]; then
+    rm -f "$st"
+    if [ "$KEEP_SENT_DAYS" -gt 0 ]; then
+      d=$SS_SENT/$(date +%Y/%m); mkdir -p "$d"; mv "$f" "$meta" "$d/"
+    else rm -f "$f" "$meta"; fi
+    log "$(basename "$f") delivered via $TRANSPORT"
+  elif [ "$rc" -eq 2 ]; then
+    rm -f "$st"   # parked, nothing more to try
+  else
+    attempts=$((attempts+1)); i=$((attempts-1)); [ $i -ge ${#backoff[@]} ] && i=$(( ${#backoff[@]} - 1 ))
+    echo "$attempts $((now + backoff[i]))" > "$st"
+    warn "$(basename "$f") failed (attempt $attempts), retry in ${backoff[i]}s"
+  fi
+done

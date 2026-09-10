@@ -1,0 +1,9 @@
+[Unit]
+Description=Scanner station: run the uploader when a scan lands in the outbox
+
+[Path]
+PathChanged=/var/lib/scanstation/outbox
+Unit=scanstation-upload.service
+
+[Install]
+WantedBy=multi-user.target

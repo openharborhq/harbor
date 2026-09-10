@@ -1,0 +1,8 @@
+[Unit]
+Description=Scanner station: hourly health check and housekeeping
+
+[Service]
+Type=oneshot
+User=saned
+Group=scanner
+ExecStart=/usr/local/bin/scanstation-health

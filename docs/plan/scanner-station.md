@@ -25,7 +25,8 @@ No screen, no keyboard after setup. Everything is reachable over SSH on the tail
 
 - Raspberry Pi OS Lite, 64-bit, Bookworm. Headless, SSH enabled at image time, a non-root
   `scan` user in the `scanner` and `lp` groups.
-- Packages: `sane-utils libsane1 scanbd img2pdf imagemagick msmtp msmtp-mta curl jq`.
+- Packages: `sane-utils libsane1 img2pdf imagemagick msmtp msmtp-mta curl jq`. Everything runs
+  as `saned`, the unprivileged user `sane-utils` creates and its udev rules grant the scanner to.
 - **Firmware.** `epjitsu` needs the scanner's firmware blob, which Fujitsu ships inside the
   Windows ScanSnap Manager installer and which cannot be redistributed. Extract
   `1300i_0D12.nal` (S1300i) or `1300_0C26.nal` (S1300) from the installer once, copy it to
@@ -36,46 +37,73 @@ No screen, no keyboard after setup. Everything is reachable over SSH on the tail
 - Verify with `scanimage -L` (device appears as `epjitsu:libusb:…`) and
   `scanimage -A -d epjitsu` (lists the options the scripts use: `--source ADF Duplex`,
   `--mode`, `--resolution`, and the `scan` button sensor).
+- `/etc/sane.d/dll.conf` is reduced to `epjitsu`. The desktop image ships the `net`, `airscan`
+  and HP backends too, and each of them probes the LAN or USB on every open, which the watcher
+  does twice a second.
 - USB permissions come from the udev rule `sane-utils` installs; the `scan` user's membership
   in the `scanner` group is what makes the device writable without root.
 
 ## 3. The scan button
 
-`scanbd` polls the scanner's button sensor and runs a script when it is pressed. Two facts shape
-the setup:
+**Built 2026-09-10, not the way this section was first written.** The first design used
+`scanbd`, the usual Linux answer to scanner buttons. It polls the button, and when a script
+wants to scan it hands the device over through `scanbm`/`saned` on port 6566 with a D-Bus
+signal to pause polling. With the S1300 and the `epjitsu` backend that handoff failed twice
+out of two: the scan ended in a device I/O error with the sheet pulled through unscanned, and
+scanbd then lost the device for good because the S1300 re-enumerates on USB after some opens
+and scanbd only rediscovers on a udev event that never came. scanbd is purged by the installer.
 
-- **scanbd owns the device.** While it is running, nothing else may open the scanner directly.
-  scanbd hands the device over by starting `saned` on demand, so the scan script talks to
-  `net:localhost:epjitsu:…` rather than to the USB device. This is the well-known scanbd
-  gotcha; the config in `tools/scanstation/` sets `SANE_CONFIG_DIR` and the `net` backend up
-  the way scanbd expects so the script does not have to know.
+What replaced it is `scanstation-watch`, sixty lines of shell:
+
+- Every 0.4 s it runs `scanimage -d epjitsu -A` and reads the hardware sensors the backend
+  exposes: `scan` (the button), `page-loaded`, `top-edge`, `cover-open`, `power-save`. A read
+  costs about 80 ms.
+- The scanner is opened as plain `epjitsu`, never by its `libusb:001:NNN` address. The address
+  from `scanimage -L` can be stale a second later; the backend name always resolves to the
+  first device.
+- The button reads `scan=yes` for roughly one second and then clears, hence the poll rate.
+- After a press the watcher waits two seconds before scanning. Scanning inside that window
+  reproduces the I/O error exactly; with the pause it works every time. `BUTTON_DELAY_SECONDS`.
+- A failed read is a miss, five misses in a row mean the scanner is gone, and the watcher then
+  retries every five seconds and logs once. Unplugging, sleeping and re-enumeration all
+  resolve themselves.
 - **One press is one job is one PDF.** Everything in the feeder when the button is pressed
-  becomes a single document. Two letters that should be two documents need two presses. This
-  is the right default for a desk scanner and matches how Harbor treats an upload; separator
-  sheets and per-sheet splitting are deferred (§9).
+  becomes a single document. Two letters that should be two documents need two presses.
+- **Feed direction does not matter.** The S1300 takes paper face down, top edge first, and a
+  stack fed the other way comes out rotated 180°. The first real job went in that way and
+  OCR'd to garbage: ocrmypdf's `--rotate-pages` detected the rotation but at confidence 2.8,
+  under its default 14, and left it. Harbor's worker now rotates from confidence 2, so the
+  station has no orientation rule to remember, which is the point of the station.
 
-Fallback if the button turns out to be flaky under `epjitsu`: a one-line systemd timer that
-polls the ADF's paper-loaded sensor every two seconds and starts a job when paper appears.
-Same script, different trigger. Decide after a week of real use, not in advance.
+`TRIGGER=paper` is also implemented: a sheet sitting in the feeder for three seconds starts a
+scan with no button at all. It is off by default until a week of button use says whether the
+extra magic is wanted.
 
 ## 4. The scan job
 
-`/usr/local/bin/scanstation-scan`, run by scanbd as the `scan` user. Steps, each idempotent so a
+`/usr/local/bin/scanstation-scan`, run by the watcher as `saned`. Steps, each idempotent so a
 crash mid-job leaves a directory that can be finished or discarded, never a half-uploaded file:
 
 1. Make `/var/lib/scanstation/jobs/<timestamp>/` and `cd` into it.
-2. `scanimage --source "ADF Duplex" --mode Color --resolution 300 --batch=p%03d.pnm`.
-   Colour at 300 dpi is the setting that makes Harbor's OCR reliable on receipts and
-   handwritten notes; grey at 200 halves the size but costs accuracy on thin type. Start at
-   colour/300 and only step down if size becomes a problem.
+2. `scanimage --source "ADF Duplex" --mode Gray --resolution 300 --batch=p%03d.pnm`.
+   Greyscale at 300 dpi, decided 2026-09-10 after the first colour scans came out at 2.2 MB a
+   page: paperwork is black on white, OCR works on luminance anyway, and grey is a third of
+   the size. Not Lineart, which throws away the faint print OCR needs. `MODE=Color` in the
+   config brings colour back for a station that scans photographs.
 3. **Drop blank backs.** Duplex scanning produces a blank page for every single-sided sheet.
-   `epjitsu` has no hardware blank detection, so for each page compute the mean brightness and
-   standard deviation with ImageMagick and delete pages that are nearly white and nearly
-   uniform. Threshold is a variable in the script, default tuned on real single-sided mail;
-   a page with a single line of text must survive.
-4. `img2pdf p*.pnm -o scan.pdf`. Lossless wrap, no resampling, no OCR. Harbor's worker does
-   OCR, deskew and the searchable text layer; doing it twice would only slow the Pi down and
-   fight the worker's settings.
+   `epjitsu` has no hardware blank detection, so for each page trim the border, threshold to
+   ink or no ink, and measure the ink fraction with ImageMagick. Below `BLANK_INK` (0.2 %)
+   the page is dropped. Brightness was the first test and let a blank back through on the
+   first real multi-page job, because greyscale scans have grey paper, not white; ink
+   coverage measured on that job was 0.02 % for the blank page and 4 % and up for every
+   real one, so the margin is wide in both directions.
+4. Convert each kept page to JPEG (quality 70, dpi tag preserved) and wrap them with
+   `img2pdf`, which embeds the JPEGs as they are. No resampling, no OCR. Lossless would be
+   nicer in principle, but a 300 dpi page is several MB lossless against about 1 MB at
+   quality 70, and the email transport caps a job at 17 MB of PDF (Gmail's 25 MB is measured
+   after base64). Quality 88 was tried first and came out at 2 MB a page in grey. Harbor's worker does OCR,
+   deskew and the searchable text layer; doing any of it twice would only slow the Pi down
+   and fight the worker's settings.
 5. Write `meta.json` next to it: timestamp, page count, dpi, mode, sha256 of the PDF, scanner
    model, and the station's name. Harbor ignores this today; it is there so a future version
    can show "scanned on the hall table, 2026-09-10 14:02" instead of nothing.
@@ -154,8 +182,8 @@ question, because the scanner is a device, not a person, and has no login.
 
 - **Logs** go to the journal. `journalctl -u scanstation-scan -u scanstation-upload` tells the
   whole story of any scan.
-- **Health.** A `scanstation-health` timer once an hour checks: scanner visible on USB, scanbd
-  alive, nothing older than 24 h in `outbox/`, nothing in `failed/`, disk under 80 %. On a
+- **Health.** A `scanstation-health` timer once an hour checks: scanner visible on USB, the
+  watcher alive, nothing older than 24 h in `outbox/`, nothing in `failed/`, disk under 80 %. On a
   failure it sends one email to Kai through the same `msmtp` (never more than one per day per
   condition). This is deliberately not a dashboard; the station has no UI and should not need
   looking at.
@@ -176,7 +204,7 @@ remembering anything. The recipe, kept as `tools/scanstation/README.md`:
    udev rules, scanbd config, directories, permissions.
 3. Copy the firmware blob and the credential file from the backup location (Kai's password
    manager for the token; the firmware next to it as an attachment).
-4. `sudo systemctl start scanbd` and press the button. Done.
+4. `sudo systemctl restart scanstation-watch` and press the button. Done.
 
 Nothing on the station is state worth backing up except `outbox/` and `failed/`, which are by
 definition things not yet in Harbor; the health check makes sure those stay empty.
@@ -199,9 +227,12 @@ definition things not yet in Harbor; the health check makes sure those stay empt
 
 1. `tools/scanstation/`: `install.sh`, `scanstation-scan`, `scanstation-upload` (both
    transports), `scanstation-health`, the systemd units, `scanbd` config, `README.md`.
-   Test on the M3 with the scanner plugged in where possible (SANE runs on macOS via Homebrew
-   but scanbd does not, so the button path is Pi-only).
+   Built 2026-09-10; the Pi (a 4 GB Pi 4 at 192.168.2.134 on the LAN, not the tailnet) was
+   provisioned the same day over ssh.
 2. Build the Pi, extract the firmware, prove `scanimage` end to end.
-3. Phase 1 live: button → PDF → email → Harbor Inbox. Run it for a week on real mail.
+3. Phase 1 live: button → PDF → email → Harbor Inbox. **Done 2026-09-10**, two-page test
+   document delivered both by hand and by button. Run it for a week on real mail.
 4. Harbor device token (the `todo.md` item). Switch the transport. Delete nothing.
-5. Tune the blank-page threshold and the colour/dpi choice from that week's scans.
+5. Tune the blank-page threshold and the dpi choice from that week's scans. First data
+   point: a colour page at 300 dpi and JPEG quality 88 was about 2.2 MB, which is why the
+   station went to greyscale the same day; the device token removes the mail ceiling anyway.

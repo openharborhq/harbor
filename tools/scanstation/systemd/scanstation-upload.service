@@ -1,0 +1,11 @@
+[Unit]
+Description=Scanner station: deliver the outbox to Harbor
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=saned
+Group=scanner
+ExecStart=/usr/local/bin/scanstation-upload
+Nice=5

@@ -6,8 +6,10 @@ export interface SuggestInput {
   source: "upload" | "email";
   senderAddress: string | null;
   pageCount: number | null;
-  /** First N characters of the extracted text (N = TEXT_CHARS). */
+  /** The extracted text, sampled across the document's pages when it is longer than the budget. */
   text: string;
+  /** True when `text` is a sample rather than the whole document, so the prompt can say so. */
+  textTruncated: boolean;
   /** Vault vocabulary the model must choose from. */
   categories: { slug: string; path: string }[];
   /** The people and things the vault knows about (spec §6). Empty when SUGGEST_SEND_PEOPLE is off. */
@@ -31,5 +33,9 @@ export interface SuggestionProvider {
 }
 
 /** Bump when the prompt or schema changes so old suggestions can be told apart and re-run. */
-export const PROMPT_VERSION = 5;
+export const PROMPT_VERSION = 6;
+/**
+ * Superseded by TEXT_BUDGET in ./sample-text. Kept only as the ceiling for a single page's worth
+ * of text in tests that predate page-aware sampling.
+ */
 export const TEXT_CHARS = 4000;

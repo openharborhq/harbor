@@ -1,0 +1,10 @@
+[Unit]
+Description=Scanner station: hourly health check
+
+[Timer]
+OnBootSec=10min
+OnCalendar=hourly
+Unit=scanstation-health.service
+
+[Install]
+WantedBy=timers.target

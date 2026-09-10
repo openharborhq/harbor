@@ -1,0 +1,17 @@
+# SMTP account used by the mail transport and by health alerts.
+# Lives at /etc/scanstation/msmtprc, mode 0600, owned by the saned user.
+# Fill in `password` by hand over ssh; it is never stored in the repo.
+defaults
+auth           on
+tls            on
+tls_trust_file /etc/ssl/certs/ca-certificates.crt
+logfile        /var/lib/scanstation/state/msmtp.log
+
+account        scanstation
+host           smtp.gmail.com
+port           587
+from           scanner@example.com
+user           scanner@example.com
+password       FILL-ME-IN
+
+account default : scanstation

@@ -1,0 +1,35 @@
+#!/bin/bash
+# Hourly. Checks the things that would otherwise fail silently, mails once per day per
+# problem, prunes sent/, sweeps abandoned jobs. No output when all is well.
+SS_TAG=scanstation-health
+# shellcheck disable=SC1091
+. /usr/local/lib/scanstation/scanstation-common
+mkdir -p "$SS_STATE/alerts" "$SS_FAILED"
+problems=()
+
+lsusb | grep -qi "04c5:" || problems+=("scanner: no Fujitsu device on USB")
+systemctl is-active --quiet scanstation-watch || problems+=("scanstation-watch is not running")
+stuck=$(find "$SS_OUTBOX" -name '*.pdf' -mmin +1440 2>/dev/null | wc -l)
+[ "$stuck" -gt 0 ] && problems+=("outbox: $stuck file(s) older than 24 h not delivered")
+failed=$(find "$SS_FAILED" -mindepth 1 -maxdepth 1 2>/dev/null | wc -l)
+[ "$failed" -gt 0 ] && problems+=("failed/: $failed item(s) need a look")
+use=$(df --output=pcent "$SS_VAR" | tail -1 | tr -dc 0-9)
+[ "$use" -gt 80 ] && problems+=("disk: $use% used")
+
+# Jobs older than an hour are crashes; keep them where a human will see them.
+find "$SS_JOBS" -mindepth 1 -maxdepth 1 -type d -mmin +60 -exec mv {} "$SS_FAILED/" \; 2>/dev/null || true
+# Prune local copies Harbor already has.
+if [ "$KEEP_SENT_DAYS" -gt 0 ]; then
+  find "$SS_SENT" -type f -mtime +"$KEEP_SENT_DAYS" -delete 2>/dev/null || true
+  find "$SS_SENT" -type d -empty -delete 2>/dev/null || true
+fi
+
+for p in "${problems[@]}"; do
+  key=$(echo "$p" | cut -d: -f1 | tr -c 'a-z0-9' _); stamp=$SS_STATE/alerts/$key
+  warn "$p"
+  if [ -n "$ALERT_TO" ] && [ ! -f "$stamp" -o -n "$(find "$stamp" -mmin +1440 2>/dev/null)" ]; then
+    MAIL_TO=$ALERT_TO send_mail "[$STATION_NAME] $p" "$(printf '%s\n' "${problems[@]}")" && touch "$stamp" || true
+  fi
+done
+[ ${#problems[@]} -eq 0 ] && rm -f "$SS_STATE"/alerts/* 2>/dev/null
+exit 0

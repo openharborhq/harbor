@@ -1,0 +1,65 @@
+#!/bin/bash
+# The button watcher. Polls the ScanSnap's hardware sensors a few times a second (a read
+# costs ~80 ms) and runs scanstation-scan when the trigger fires. Replaces scanbd, whose
+# stop-polling / proxy-through-saned handoff proved unreliable with the epjitsu backend.
+#
+# The scanner is always opened as plain "epjitsu" (first device of that backend), never by
+# its libusb address: the S1300 re-enumerates on USB after some opens, so an address
+# learned from `scanimage -L` can be stale a second later. The button reads as `scan=yes`
+# for roughly one second, hence the poll interval.
+#
+# TRIGGER=button  the scan button (default)
+# TRIGGER=paper   paper sitting in the feeder for PAPER_SETTLE_SECONDS starts a scan
+# TRIGGER=both    either
+SS_TAG=scanstation-watch
+# shellcheck disable=SC1091
+. /usr/local/lib/scanstation/scanstation-common
+TRIGGER=${TRIGGER:-button}; PAPER_SETTLE_SECONDS=${PAPER_SETTLE_SECONDS:-3}; POLL_SECONDS=${POLL_SECONDS:-0.4}; BUTTON_DELAY_SECONDS=${BUTTON_DELAY_SECONDS:-2}
+
+dev=epjitsu
+read_sensors() {  # prints e.g. "scan=no page-loaded=yes top-edge=no cover-open=no"
+  scanimage -d "$dev" -A 2>/dev/null \
+    | sed -nE 's/^\s+--([a-z-]+)\[=\(yes\|no\)\] \[(yes|no)\].*/\1=\2/p' | tr '\n' ' '
+}
+
+misses=0; paper_since=0; last_state=""; absent=0
+log "watching for the $TRIGGER trigger"
+while :; do
+  state=$(read_sensors) || state=""   # a failed read is a miss, not a crash (set -e + pipefail)
+  if [ -z "$state" ]; then
+    misses=$((misses+1))
+    if [ $misses -ge 5 ]; then
+      [ $absent -eq 0 ] && warn "cannot read the scanner (unplugged, asleep, or in use); retrying every 5 s"
+      absent=1; sleep 5
+    else sleep 1; fi
+    continue
+  fi
+  [ $absent -eq 1 ] && log "scanner is back"
+  misses=0; absent=0
+  [ "$state" != "$last_state" ] && { log "sensors: $state"; last_state=$state; }
+
+  button=no; paper=no
+  case " $state " in *" scan=yes "*) button=yes;; esac
+  case " $state " in *" page-loaded=yes "*) paper=yes;; esac
+
+  fire=""
+  if [ "$button" = yes ] && [ "$TRIGGER" != paper ]; then fire="button"; fi
+  if [ "$paper" = yes ] && [ "$TRIGGER" != button ]; then
+    now=$(date +%s); [ $paper_since -eq 0 ] && paper_since=$now
+    [ $((now - paper_since)) -ge "$PAPER_SETTLE_SECONDS" ] && fire="paper"
+  else paper_since=0; fi
+
+  if [ -n "$fire" ]; then
+    if [ "$paper" = no ]; then
+      log "$fire trigger but the feeder is empty, ignoring"
+    else
+      log "$fire trigger → scanning"
+      # Right after a press the scanner is still busy with the press itself; starting a scan
+      # in that window ends in a device I/O error with the sheet pulled through unscanned.
+      [ "$fire" = button ] && sleep "$BUTTON_DELAY_SECONDS"
+      /usr/local/bin/scanstation-scan || warn "scan job failed (see scanstation-scan)"
+      paper_since=0; last_state=""
+    fi
+  fi
+  sleep "$POLL_SECONDS"
+done

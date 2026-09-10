@@ -1,0 +1,8 @@
+[Unit]
+Description=Scanner station: weekly reboot, Sunday 04:00
+
+[Timer]
+OnCalendar=Sun *-*-* 04:00:00
+
+[Install]
+WantedBy=timers.target

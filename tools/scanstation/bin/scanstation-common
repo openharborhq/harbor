@@ -1,0 +1,50 @@
+#!/bin/bash
+# Sourced by every scanstation script. Paths, config, logging.
+# Everything runs as the saned user (see install.sh for why).
+set -euo pipefail
+
+SS_ETC=/etc/scanstation
+SS_VAR=/var/lib/scanstation
+SS_JOBS=$SS_VAR/jobs
+SS_OUTBOX=$SS_VAR/outbox
+SS_SENT=$SS_VAR/sent
+SS_FAILED=$SS_VAR/failed
+SS_STATE=$SS_VAR/state
+
+# Defaults, overridden by the config file.
+STATION_NAME=$(hostname)
+TRANSPORT=mail
+MAIL_TO=""; MAIL_FROM=""; MAIL_MAX_BYTES=17000000
+HARBOR_URL=""
+RESOLUTION=300; MODE=Gray; SOURCE="ADF Duplex"; JPEG_QUALITY=70
+BLANK_INK=0.002
+KEEP_SENT_DAYS=90; ALERT_TO=""
+TRIGGER=button; PAPER_SETTLE_SECONDS=3; BUTTON_DELAY_SECONDS=2
+
+# shellcheck disable=SC1091
+[ -r "$SS_ETC/scanstation.conf" ] && . "$SS_ETC/scanstation.conf"
+
+# Under systemd stderr already goes to the journal, so only echo when run from a terminal.
+_say()  { logger -t "${SS_TAG:-scanstation}" -p "user.$1" -- "$2"; [ -n "${JOURNAL_STREAM:-}" ] || echo "$2" >&2; }
+log()  { _say info "$*"; }
+warn() { _say warning "WARN: $*"; }
+err()  { _say err "ERROR: $*"; }
+
+# send_mail SUBJECT BODY [ATTACHMENT]  — one MIME message through msmtp, no mailutils needed.
+send_mail() {
+  local subject=$1 body=$2 attach=${3:-} boundary="=_scanstation_$(date +%s)_$$"
+  {
+    printf 'From: %s\nTo: %s\nSubject: %s\nDate: %s\nMIME-Version: 1.0\n' \
+      "$MAIL_FROM" "$MAIL_TO" "$subject" "$(date -R)"
+    if [ -n "$attach" ]; then
+      printf 'Content-Type: multipart/mixed; boundary="%s"\n\n--%s\n' "$boundary" "$boundary"
+      printf 'Content-Type: text/plain; charset=utf-8\n\n%s\n\n--%s\n' "$body" "$boundary"
+      printf 'Content-Type: application/pdf; name="%s"\nContent-Disposition: attachment; filename="%s"\nContent-Transfer-Encoding: base64\n\n' \
+        "$(basename "$attach")" "$(basename "$attach")"
+      base64 "$attach"
+      printf '\n--%s--\n' "$boundary"
+    else
+      printf 'Content-Type: text/plain; charset=utf-8\n\n%s\n' "$body"
+    fi
+  } | msmtp -C "$SS_ETC/msmtprc" -a scanstation -- "$MAIL_TO"
+}

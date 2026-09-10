@@ -14,7 +14,8 @@ import { ItemsService } from "../vocabulary/items.service";
 import { AnthropicProvider } from "./anthropic.provider";
 import { NoneProvider } from "./none.provider";
 import { OpenAiCompatibleProvider } from "./openai-compatible.provider";
-import { PROMPT_VERSION, TEXT_CHARS, type SuggestInput, type SuggestionProvider } from "./provider";
+import { PROMPT_VERSION, type SuggestInput, type SuggestionProvider } from "./provider";
+import { sampleText } from "./sample-text";
 
 export const SUGGESTION_PROVIDER = Symbol("SUGGESTION_PROVIDER");
 
@@ -137,12 +138,15 @@ export class SuggestService {
       this.itemsService.list(),
       this.db.select({ name: tags.name }).from(tags),
     ]);
+    // Page-aware: a flat head-slice confined the model to page one of every scan (§5).
+    const sampled = sampleText(row.text ?? "");
     const input: SuggestInput = {
       filename: row.df.originalFilename,
       source: row.doc.source,
       senderAddress: null, // email-in arrives in M3
       pageCount: row.df.pageCount,
-      text: (row.text ?? "").slice(0, TEXT_CHARS),
+      text: sampled.text,
+      textTruncated: sampled.truncated,
       categories: [...cats.values()].map((c) => ({ slug: c.cat.slug, path: c.path })),
       items: this.sendPeople ? allItems.map((i) => ({ label: i.label, kind: i.kind, parentLabel: i.parentLabel })) : [],
       tags: tagRows.map((t) => t.name),

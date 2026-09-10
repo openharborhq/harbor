@@ -112,6 +112,7 @@ export class SuggestionSettingsService {
         senderAddress: null,
         pageCount: 1,
         text: "This is a connection test from Harbor. It is not a real document; answer briefly.",
+        textTruncated: false,
         categories: [{ slug: "taxes/returns", path: "Taxes › Returns" }],
         items: [],
         tags: [],
