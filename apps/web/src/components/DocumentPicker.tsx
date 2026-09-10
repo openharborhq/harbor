@@ -30,9 +30,15 @@ export function DocumentPicker({
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
   const [recent, setRecent] = useState<Choice[]>([]);
-  const [hits, setHits] = useState<Choice[]>([]);
-  const [searching, setSearching] = useState(false);
+  /**
+   * Results carry the query they answered. Whether a search is in flight is then derived rather
+   * than stored, which keeps the effect free of synchronous setState — and means results for
+   * "sta" can never be shown under "stadtwerke" while the newer request is still out.
+   */
+  const [hits, setHits] = useState<{ q: string; rows: Choice[] }>({ q: "", rows: [] });
   const box = useRef<HTMLDivElement>(null);
+  const q = query.trim();
+  const searched = hits.q === q;
 
   useEffect(() => {
     let cancelled = false;
@@ -46,35 +52,25 @@ export function DocumentPicker({
     };
   }, []);
 
-  // Debounced, and results are dropped when a newer keystroke has already been sent — otherwise a
-  // slow request for "sta" can land after "stadtwerke" and overwrite it.
+  // Debounced. A reply that arrives after the query moved on is stamped with its own query and
+  // simply never matches, so it cannot overwrite what is on screen.
   useEffect(() => {
-    const q = query.trim();
-    if (q.length < 2) {
-      setHits([]);
-      setSearching(false);
-      return;
-    }
+    if (q.length < 2) return;
     let cancelled = false;
-    setSearching(true);
     const timer = setTimeout(() => {
       api<SearchResponse>(`/search?q=${encodeURIComponent(q)}&limit=8`)
         .then((res) => {
-          if (cancelled) return;
-          setHits(res.hits.map((h) => ({ id: h.documentId, title: h.title, categoryPath: h.categoryPath })));
+          if (!cancelled) setHits({ q, rows: res.hits.map((h) => ({ id: h.documentId, title: h.title, categoryPath: h.categoryPath })) });
         })
         .catch(() => {
-          if (!cancelled) setHits([]);
-        })
-        .finally(() => {
-          if (!cancelled) setSearching(false);
+          if (!cancelled) setHits({ q, rows: [] });
         });
     }, 200);
     return () => {
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [query]);
+  }, [q]);
 
   useEffect(() => {
     if (!open) return;
@@ -107,8 +103,9 @@ export function DocumentPicker({
     );
   }
 
-  const list = query.trim().length >= 2 ? hits : recent;
-  const heading = query.trim().length >= 2 ? (searching ? "Searching…" : hits.length ? "Matches" : "Nothing matched") : "Opened recently";
+  const searching = q.length >= 2 && !searched;
+  const list = q.length >= 2 ? (searched ? hits.rows : []) : recent;
+  const heading = q.length >= 2 ? (searching ? "Searching…" : list.length ? "Matches" : "Nothing matched") : "Opened recently";
 
   return (
     <div ref={box} className="relative min-w-0">
@@ -138,7 +135,7 @@ export function DocumentPicker({
           ))}
           {list.length === 0 && !searching && (
             <p className="px-2.5 py-2 text-small text-muted">
-              {query.trim().length >= 2 ? "No document matched. It may still be processing." : "Nothing opened yet — type to search."}
+              {q.length >= 2 ? "No document matched. It may still be processing." : "Nothing opened yet — type to search."}
             </p>
           )}
         </div>
