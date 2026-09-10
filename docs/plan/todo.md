@@ -93,6 +93,29 @@ Convention: `[ ]` open, `[x]` done and left in place until its milestone doc abs
        The margin between 0.84 and 0.935 is thin and tuned on one vault. It proposes; a person
        decides.
 
+4. [ ] **Rewrite the release notes for someone outside this repo.** `CHANGELOG.md` currently
+       reads like a postmortem written for whoever fixed it — "Multer builds its disk storage the
+       moment its module initialises", "the suggester died trying to create `/data/tmp`". True,
+       and no help at all to a person deciding whether to upgrade.
+
+       What an outside reader needs from an entry, in this order: **what can I now do that I
+       could not**, **what was broken and is not**, **what do I have to do about it**. Cause
+       belongs in the commit message and the spec; a release note earns its detail only where the
+       detail changes the reader's decision — data was affected, a manual step is required, or
+       behaviour they relied on has moved.
+
+       Rough shape to aim for:
+
+       > **v0.5.2** — Suggestions work again on installs running v0.5.0 or v0.5.1, where the
+       > process that writes titles, summaries and dates was crash-looping. Documents kept
+       > arriving throughout and nothing was lost; run `harbor suggest rerun` to fill in the
+       > suggestions those documents never got.
+
+       Keep the **Worth knowing** section — it is the part that already speaks to a reader — and
+       keep the header on upgrading and rolling back. Trim the per-release prose to two or three
+       bullets. `parseChangelog` and its tests define the format, so the headings and structure
+       have to survive the edit; the Version settings page renders this file.
+
 ## Waiting on Kai
 
 - [ ] **Protectli deploy** — M1 step 11. Runbook at `docs/deploy.md`, never once executed.
