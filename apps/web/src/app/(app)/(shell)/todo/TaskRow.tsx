@@ -74,7 +74,7 @@ export function TaskRow({ task, showClosed = false }: { task: Task; showClosed?:
   }
 
   return (
-    <li className={`flex items-center gap-4 border-t border-border py-3.5 last:border-b ${busy ? "opacity-50" : ""}`}>
+    <li className={`flex items-start gap-4 border-t border-border py-3.5 last:border-b ${busy ? "opacity-50" : ""}`}>
       {closed ? (
         <button
           type="button"
@@ -82,7 +82,7 @@ export function TaskRow({ task, showClosed = false }: { task: Task; showClosed?:
           disabled={busy}
           title={task.status === "done" ? "Mark as not done" : "Put it back on the list"}
           aria-label="Reopen"
-          className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-pill ${task.status === "done" ? "bg-accent text-white" : "bg-surface text-muted"}`}
+          className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-pill ${task.status === "done" ? "bg-accent text-white" : "bg-surface text-muted"}`}
         >
           {task.status === "done" ? (
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
@@ -100,7 +100,7 @@ export function TaskRow({ task, showClosed = false }: { task: Task; showClosed?:
           onClick={() => close("done")}
           disabled={busy}
           aria-label={`Mark "${task.title}" done`}
-          className="h-5 w-5 shrink-0 rounded-pill border-[1.6px] border-border-strong bg-ground hover:border-accent"
+          className="mt-0.5 h-5 w-5 shrink-0 rounded-pill border-[1.6px] border-border-strong bg-ground hover:border-accent"
         />
       )}
 
@@ -156,18 +156,35 @@ export function TaskRow({ task, showClosed = false }: { task: Task; showClosed?:
         {error && <div className="mt-1 text-small text-danger">{error}</div>}
       </div>
 
-      <div className="flex w-[110px] shrink-0 justify-end text-body">
+      <div className="flex w-[110px] shrink-0 justify-end pt-px text-body">
         {amount && <span className={closed ? "text-muted" : "font-medium"}>{amount}</span>}
       </div>
 
-      <div className="flex w-[150px] shrink-0 flex-col items-end">
+      {/*
+        The date, and only the date. The section heading above already says whether this is
+        overdue or merely coming, and the colour repeats it — so "in 3 weeks" beside "1 Oct" was
+        the same fact told twice in a row that had no room for it.
+      */}
+      <div className="flex w-[110px] shrink-0 justify-end">
         {closed ? (
           task.dueOn && <span className="text-small text-muted">was due {shortDate(task.dueOn)}</span>
         ) : (
-          <>
-            <span className={`text-row ${TONE[due.tone]}`}>{due.text}</span>
-            {task.dueOn && <span className="text-small text-muted">{shortDate(task.dueOn)}</span>}
-          </>
+          <span className={`text-row ${TONE[due.tone]}`}>{task.dueOn ? shortDate(task.dueOn) : "No date"}</span>
+        )}
+      </div>
+
+      {/*
+        Straight to the paperwork. Only offered when there is a document behind the to-do — a
+        fetch reminder has none yet, and the row already says "Link a document" in its place.
+      */}
+      <div className="flex w-[62px] shrink-0 justify-end">
+        {task.document && (
+          <Link
+            href={`/documents/${task.document.id}`}
+            className="flex h-8 items-center rounded-md border border-border-strong bg-ground px-3 text-small font-medium text-text hover:border-accent hover:text-accent"
+          >
+            View
+          </Link>
         )}
       </div>
 
