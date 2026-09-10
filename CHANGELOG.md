@@ -14,6 +14,44 @@ migrations, on purpose, because a half-reversed schema is worse than a restore. 
 wrong, follow [`docs/restore.md`](docs/restore.md) with the backup `harbor upgrade` took
 immediately before it. That is why the upgrade refuses to run without one.
 
+## v0.6.0 — 2026-09-10
+
+- **Harbor now keeps track of what paperwork still needs doing.** A bill to pay, a form to return,
+  a deadline to object by. When you file a document, the suggestion offers the to-do it found as a
+  tick on the filing action — "…and remind me to pay €248.10 by 14 Oct" — rather than as a second
+  decision. A **To do** page lists what is outstanding, grouped by when it is due, and the sidebar
+  counts what is overdue or due today. Ticking something off records who did it and when, so "did
+  we ever pay that?" is still answerable next year. You can add a to-do by hand, attach it to any
+  document, and correct an amount the suggestion read wrongly.
+- **Documents longer than one page are read properly.** Until now the model was shown the first
+  4,000 characters — less than a page of a typical scan — so summaries of multi-page documents
+  described only the first page, and any figure further in was invisible. It now reads across
+  every page. Documents already in your vault were summarised under the old limit; see below.
+- **The same page scanned twice is now spotted.** A second pass through a scanner produces
+  different bytes, so the duplicate check never saw it. Harbor compares the figures a document
+  contains, says "looks like a copy of X" on the Inbox card, and offers to file the newer scan as
+  another version of the document you already have. It never merges or deletes on its own.
+- A **Filing** tab on each document lists every field with a label — where it is filed, where it
+  came from, its size, language and extracted text — leaving the main view for what is
+  outstanding, the summary and your notes.
+- An empty Inbox now names the mailbox it is watching, how often it checks and when it last did,
+  instead of saying "every few minutes".
+
+Plus a round of interface tidying and internal cleanups.
+
+**Worth knowing**
+
+- **Home's "Expiring soon" is now "Needs attention"**, and holds both to-dos and documents that
+  expire. Only a to-do can be ticked off — a passport is resolved by filing a new one, not by
+  saying you dealt with it.
+- **A payment due date is no longer an expiry.** Bills used to put their due date in the document's
+  expiry field, which is why "Expiring soon" filled up with lapsed invoices. New documents put it
+  in a to-do instead. Documents already filed keep the expiry they were given.
+- **To get to-dos and better summaries for documents you already have**, run `harbor suggest rerun`
+  on the box. It re-reads everything you have not already accepted a suggestion for — where you
+  accepted one, your decision stands and is left alone. This sends those documents to your
+  suggestion provider again, so it costs whatever your provider charges.
+
 ## v0.5.2 — 2026-09-09
 
 - **Fixes suggestions properly.** v0.5.1 aimed at the wrong cause. Photographs need two things the
