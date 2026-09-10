@@ -47,11 +47,15 @@ Convention: `[ ]` open, `[x]` done and left in place until its milestone doc abs
        - The existing `ailing` warning stays exactly as it is — a connection that is not `ok`
          must not be described as watched.
 
-3. [ ] **Scanner station — a ScanSnap S1300i on a Raspberry Pi** (agreed 2026-09-10). Paper
-       in, button, catalogued in Harbor. Plan at `docs/plan/scanner-station.md`. Pi side is
-       shell + systemd under `tools/scanstation/`: scanbd on the button, `scanimage` duplex
-       colour 300 dpi, blank-back removal, `img2pdf`, a spool with an atomic commit point, and
-       an uploader with backoff. Phase 1 sends over email-in and needs no Harbor change.
+3. [~] **Scanner station — a ScanSnap S1300 on a Raspberry Pi** (agreed and built
+       2026-09-10). Paper in, button, catalogued in Harbor. Plan at
+       `docs/plan/scanner-station.md`, code under `tools/scanstation/`, running on the Pi 4 at
+       192.168.2.134 (LAN only, ssh as `admin`, key auth, password logins off). Phase 1 is
+       live over email-in: the button test delivered a two-page PDF to the Gmail inbox Harbor
+       watches. Tuned the same day on the first six-page job: greyscale, JPEG quality 70 (~1 MB a
+       page, ~17 pages per mail), blank backs by ink coverage, scans sent to a plus address
+       so one Gmail filter labels them "Harbor". Still owed: a week of real mail; decide on
+       `TRIGGER=paper`; put the firmware blob and the app password in the password manager.
 
 4. [ ] **Device token for uploads** (the Harbor half of item 3). Created in Settings, shown
        once, stored hashed, upload-only scope, revocable, `last_used_at`, audit entry.
@@ -59,6 +63,32 @@ Convention: `[ ]` open, `[x]` done and left in place until its milestone doc abs
        station then uses `GET /documents/duplicates` and `POST /documents` exactly as the
        browser does. Roughly one table, one form, one guard branch. Do after item 3's phase 1
        has run on real mail for a week.
+
+3. [ ] **Near-duplicate detection — the same paper scanned twice.** `sha256` catches identical
+       bytes and nothing else, so two passes through the scanner produce two Inbox cards
+       (Kai hit this on 2026-09-10 with a 2-page scan re-run 2½ minutes later).
+
+       Measured on the real vault before choosing an approach:
+
+       | pair | text similarity | number-set Jaccard |
+       | --- | --- | --- |
+       | true duplicates (byte-different, text-identical) | 1.000 | 1.000 |
+       | **the re-scan pair** | 0.894 | **0.935** |
+       | genuinely different offers from one dealer | 0.90–0.98 | 0.56–0.84 |
+
+       Prose similarity **cannot** separate them: the re-scan scores *lower* than eleven pairs
+       of genuinely distinct documents, because a sender's boilerplate dominates the text. The
+       numbers a document contains — amounts, dates, invoice numbers, IBANs — do separate them,
+       because two scans of one page carry the same numbers and two different offers do not.
+
+       Plan: the worker stores the distinct numeric tokens at stage 3; candidates are gated by
+       page count, byte size ±5% and sender; flag when number-Jaccard ≥ 0.90 **and** text
+       similarity ≥ 0.7. Never auto-delete — surface it on the Inbox card as "looks like a copy
+       of X" with keep both / replace / delete, where *replace* files the newer scan as a new
+       version of the existing document rather than a second one.
+
+       The margin between 0.84 and 0.935 is thin and tuned on one vault. It proposes; a person
+       decides.
 
 ## Waiting on Kai
 
