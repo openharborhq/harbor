@@ -133,9 +133,8 @@ Convention: `[ ]` open, `[x]` done and left in place until its milestone doc abs
 
 - [ ] **Protectli deploy** — M1 step 11. Runbook at `docs/deploy.md`, never once executed.
 - [ ] **Backups to Backblaze B2** — needs a bucket and an application key.
-- [ ] **Push.** `origin` now exists — `openharborhq/harbor` — and `main` is **10 commits ahead**
-  of it (everything built on 2026-09-10: tasks, page-aware sampling, the row cleanup). They are
-  still on one disk until someone pushes.
+- [x] **Pushed and released as v0.6.0** (2026-09-10). 15 commits, images built, GitHub release
+  published. Still never installed anywhere — see the Protectli deploy above.
 
 ## Later
 
@@ -153,4 +152,5 @@ Convention: `[ ]` open, `[x]` done and left in place until its milestone doc abs
 
 ## Housekeeping
 
-- [ ] `apps/api` has no ESLint config, so `pnpm lint` fails at the repo root.
+- [x] `apps/api` has an ESLint config again — `pnpm lint` passes at the repo root, which is what
+  let the release script run its checks.
