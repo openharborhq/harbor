@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { dueLabel, formatAmount, shortDate, type Task } from "@harbor/shared";
+import { dueSentence, formatAmount, shortDate, type Task } from "@harbor/shared";
 import { api } from "@/lib/api-client";
 
 const TONE = { danger: "text-danger", warn: "text-warn", plain: "text-text", muted: "text-muted" } as const;
@@ -101,46 +101,50 @@ export function DocumentTasks({ documentId, tasks }: { documentId: string; tasks
   return (
     <section className="mt-6 flex flex-col overflow-hidden rounded-lg border border-border-strong">
       {open.map((t) => {
-        const due = dueLabel(t.dueOn);
+        const due = dueSentence(t.dueOn);
         const amount = formatAmount(t.amountCents, t.currency);
         if (editing === t.id) {
           return <EditTask key={t.id} task={t} busy={busy === t.id} onCancel={() => setEditing(null)} onSave={(patch) => saveEdit(t, patch)} />;
         }
         return (
-          <div key={t.id} className="flex items-center gap-3 px-4 py-3.5">
-            <button
-              type="button"
-              onClick={() => close(t)}
-              disabled={busy === t.id}
-              aria-label={`Mark "${t.title}" done`}
-              className="h-5 w-5 shrink-0 rounded-pill border-[1.6px] border-border-strong hover:border-accent disabled:opacity-50"
-            />
-            <div className="min-w-0 flex-1">
-              <div className="truncate text-body font-medium">{t.title}</div>
-              <div className="mt-0.5 flex items-center gap-1.5 text-small">
-                {amount && <span className="text-text">{amount}</span>}
-                {amount && <span className="text-border-strong">·</span>}
-                <span className={TONE[due.tone]}>{due.text}</span>
-                {t.dueOn && (
-                  <>
-                    <span className="text-border-strong">·</span>
-                    <span className="text-muted">was due {shortDate(t.dueOn)}</span>
-                  </>
-                )}
-                <span className="text-border-strong">·</span>
-                <button type="button" onClick={() => setEditing(t.id)} className="font-medium text-accent hover:underline">
-                  {amount ? "Wrong amount?" : "Add an amount"}
-                </button>
+          /*
+           * Three lines, not one. This panel is 420px wide and the row was carrying a title, an
+           * amount, a relative date, an absolute date, a correction link and a button — so the
+           * title truncated and the rest wrapped into nonsense. Vertical space is the cheap
+           * dimension here; horizontal is not.
+           */
+          <div key={t.id} className="flex flex-col gap-2 px-4 py-3.5">
+            <div className="flex items-start gap-3">
+              <button
+                type="button"
+                onClick={() => close(t)}
+                disabled={busy === t.id}
+                aria-label={`Mark "${t.title}" done`}
+                className="mt-0.5 h-5 w-5 shrink-0 rounded-pill border-[1.6px] border-border-strong hover:border-accent disabled:opacity-50"
+              />
+              <div className="min-w-0 flex-1">
+                <div className="text-body font-medium leading-snug">{t.title}</div>
+                <div className="mt-1 flex flex-wrap items-baseline gap-x-1.5 text-small">
+                  {amount && <span className="font-medium text-text">{amount}</span>}
+                  {amount && <span className="text-border-strong">·</span>}
+                  <span className={TONE[due.tone]}>{due.text}</span>
+                </div>
               </div>
             </div>
-            <button
-              type="button"
-              onClick={() => close(t)}
-              disabled={busy === t.id}
-              className="h-8 shrink-0 rounded-md bg-accent px-4 text-small font-medium text-white disabled:opacity-50"
-            >
-              {busy === t.id ? "…" : t.kind === "pay" ? "Mark paid" : "Mark done"}
-            </button>
+            <div className="flex items-center gap-3 pl-8">
+              <button type="button" onClick={() => setEditing(t.id)} className="text-small font-medium text-muted hover:text-accent">
+                Edit
+              </button>
+              <div className="flex-1" />
+              <button
+                type="button"
+                onClick={() => close(t)}
+                disabled={busy === t.id}
+                className="h-8 shrink-0 rounded-md bg-accent px-4 text-small font-medium text-white disabled:opacity-50"
+              >
+                {busy === t.id ? "…" : t.kind === "pay" ? "Mark paid" : "Mark done"}
+              </button>
+            </div>
           </div>
         );
       })}

@@ -90,11 +90,16 @@ export class TasksService {
   async count(): Promise<TaskCount> {
     const open = await this.list({ status: "open", limit: 500 });
     const today = todayIso();
-    const amounts = open.map((t) => t.amountCents).filter((c): c is number => c !== null);
+    const byCurrency = new Map<string, number>();
+    for (const t of open) {
+      if (t.amountCents === null) continue;
+      const key = t.currency ?? "EUR";
+      byCurrency.set(key, (byCurrency.get(key) ?? 0) + t.amountCents);
+    }
     return {
       pressing: open.filter((t) => isPressing(t.dueOn, today)).length,
       open: open.length,
-      unpaidCents: amounts.length ? amounts.reduce((a, b) => a + b, 0) : null,
+      unpaid: [...byCurrency].map(([currency, cents]) => ({ currency, cents })).sort((a, b) => b.cents - a.cents),
     };
   }
 

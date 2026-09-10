@@ -126,8 +126,14 @@ export type ListTasksQuery = z.infer<typeof ListTasksQuery>;
 export const TaskCount = z.object({
   pressing: z.number().int().nonnegative(),
   open: z.number().int().nonnegative(),
-  /** Sum of every open payment, in minor units. Null when nothing open has an amount. */
-  unpaidCents: z.number().int().nullable(),
+  /**
+   * What is outstanding, one entry per currency, largest first.
+   *
+   * Not a single number: adding dollars to euros produces a figure that is wrong in every
+   * currency, and a vault that holds a Vermont property tax bill beside a Stadtwerke invoice
+   * really does hold both. Empty when nothing open carries an amount.
+   */
+  unpaid: z.array(z.object({ currency: z.string(), cents: z.number().int() })),
 });
 export type TaskCount = z.infer<typeof TaskCount>;
 
@@ -200,9 +206,26 @@ export function shortDate(iso: string, today: string = todayIso()): string {
 
 export function formatAmount(amountCents: number | null, currency: string | null): string | null {
   if (amountCents === null) return null;
-  const value = (amountCents / 100).toFixed(2);
+  // Grouped, because "$5792.25" makes a reader count digits and "$5,792.25" does not.
+  const value = (amountCents / 100).toLocaleString("en-GB", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   const symbol = currency === "EUR" || currency === null ? "€" : currency === "USD" ? "$" : currency === "GBP" ? "£" : `${currency} `;
   return `${symbol}${value}`;
+}
+
+/**
+ * One line saying when a to-do is due, for places too narrow to stack a relative label above a
+ * date — the document strip, mainly.
+ *
+ * A date only earns the words "was due" once it has passed. Printing "in 3 weeks · was due 1 Oct"
+ * beside each other, as the first draft did, is a sentence that contradicts itself.
+ */
+export function dueSentence(dueOn: string | null, today: string = todayIso()): { text: string; tone: "danger" | "warn" | "plain" | "muted" } {
+  if (!dueOn) return { text: "No date set", tone: "muted" };
+  const { text, tone } = dueLabel(dueOn, today);
+  const days = daysUntil(dueOn, today);
+  if (days < 0) return { text: `${text} · was due ${shortDate(dueOn, today)}`, tone };
+  if (days === 0) return { text, tone };
+  return { text: `due ${shortDate(dueOn, today)} · ${text.replace(/^Due /, "")}`, tone };
 }
 
 /** The date the next occurrence of a repeating task falls on, counted from the one just closed. */

@@ -36,7 +36,8 @@ export default async function TodoPage() {
   const dismissed = await apiFetch<Task[]>("/tasks?status=dismissed&limit=20").catch(() => [] as Task[]);
   const today = todayIso();
   const settled = [...closed, ...dismissed].sort((a, b) => (b.closedAt ?? "").localeCompare(a.closedAt ?? ""));
-  const unpaid = formatAmount(count.unpaidCents, "EUR");
+  // One figure per currency; see TaskCount for why this is not a single total.
+  const unpaid = count.unpaid.map((u) => formatAmount(u.cents, u.currency)).filter(Boolean).join(" · ");
 
   return (
     <>

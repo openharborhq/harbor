@@ -3,7 +3,7 @@ import type { Category, InboxCount, RecentDocument, TaskCount } from "@harbor/sh
 import { apiFetch, currentUser } from "@/lib/api-server";
 
 const NO_INBOX: InboxCount = { needsReview: 0, notPaperwork: 0 };
-const NO_TASKS: TaskCount = { pressing: 0, open: 0, unpaidCents: null };
+const NO_TASKS: TaskCount = { pressing: 0, open: 0, unpaid: [] };
 
 /** The vault as it is normally used: the sidebar, and a page beside it. */
 export default async function ShellLayout({ children }: LayoutProps<"/">) {
