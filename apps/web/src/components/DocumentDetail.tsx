@@ -3,14 +3,21 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import type { ActivityEntry, Category, DocumentSummary, DocumentText, DocumentVersion, Item, UpdateDocument } from "@harbor/shared";
+import type { ActivityEntry, Category, DocumentSummary, DocumentText, DocumentVersion, Item, Task, UpdateDocument } from "@harbor/shared";
 import { DocumentNotes } from "./DocumentNotes";
+import { DocumentTasks } from "./DocumentTasks";
 import { ItemPicker } from "./ItemPicker";
 import { api } from "@/lib/api-client";
 import { formatBytes, formatDate, formatRelative, pages } from "@/lib/format";
 import { StatusPill, isProcessing } from "./StatusPill";
 
-type Tab = "details" | "text" | "versions" | "activity";
+type Tab = "details" | "filing" | "text" | "versions" | "activity";
+
+/**
+ * Two views of the same document, deliberately split (spec §8). **Details** is the working one —
+ * what is outstanding, what it says, what you wrote about it. **Filing** is the reference one —
+ * every field with a label. Tags appear on both: editable beside the notes, readable in the table.
+ */
 
 /** The right-hand panel of the Document Detail design: four tabs, an edit mode, and delete. */
 export function DocumentDetail({
@@ -20,6 +27,7 @@ export function DocumentDetail({
   activity,
   categories,
   items,
+  tasks,
 }: {
   doc: DocumentSummary;
   text: DocumentText;
@@ -27,6 +35,7 @@ export function DocumentDetail({
   activity: ActivityEntry[];
   categories: Category[];
   items: Item[];
+  tasks: Task[];
 }) {
   const router = useRouter();
   const [tab, setTab] = useState<Tab>("details");
@@ -35,6 +44,7 @@ export function DocumentDetail({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const s = doc.suggestion;
+  const openTasks = tasks.filter((t) => t.status === "open");
 
   async function remove() {
     setBusy(true);
@@ -51,48 +61,78 @@ export function DocumentDetail({
   return (
     <aside className="flex w-[420px] min-w-[360px] flex-col">
       <div className="flex gap-5 border-b border-border">
-        {(["details", "text", "versions", "activity"] as Tab[]).map((t) => (
+        {(["details", "filing", "text", "versions", "activity"] as Tab[]).map((t) => (
           <button
             key={t}
             type="button"
             onClick={() => setTab(t)}
             className={`-mb-px whitespace-nowrap border-b-2 pb-3 text-row font-medium ${tab === t ? "border-accent text-accent" : "border-transparent text-muted hover:text-text"}`}
           >
-            {t === "details" ? "Details" : t === "text" ? "Extracted text" : t === "versions" ? "Versions" : "Activity"}
+            {t === "details" ? "Details" : t === "filing" ? "Filing" : t === "text" ? "Extracted text" : t === "versions" ? "Versions" : "Activity"}
           </button>
         ))}
       </div>
 
-      {tab === "details" && !editing && (
+      {(tab === "details" || tab === "filing") && !editing && (
         <div className="flex flex-1 flex-col">
-          {s?.payload.summary ? (
-            <div className="mt-6 rounded-lg bg-surface px-4 py-3.5">
-              <div className="label">Summary</div>
-              <p className="mt-1.5 text-body">{s.payload.summary}</p>
-            </div>
-          ) : (
-            <div className="mt-6 rounded-lg bg-surface px-4 py-3.5 text-small text-muted">No summary for this document.</div>
+          {tab === "details" && (
+            <>
+              <DocumentTasks documentId={doc.id} tasks={tasks} />
+              {s?.payload.summary ? (
+                <div className="mt-4 rounded-lg bg-surface px-4 py-3.5">
+                  <div className="label">Summary</div>
+                  <p className="mt-1.5 text-body">{s.payload.summary}</p>
+                </div>
+              ) : (
+                <div className="mt-4 rounded-lg bg-surface px-4 py-3.5 text-small text-muted">No summary for this document.</div>
+              )}
+              <div className="mt-4 flex gap-4 text-row">
+                <span className="w-32 shrink-0 label pt-0.5">Tags</span>
+                <span className="flex flex-wrap gap-1.5">
+                  {doc.tags.map((t) => (
+                    <span key={t} className="rounded-sm bg-surface px-2 py-0.5 text-small font-medium">
+                      {t}
+                    </span>
+                  ))}
+                  {doc.tags.length === 0 && <span className="text-muted">—</span>}
+                </span>
+              </div>
+              <DocumentNotes doc={doc} />
+            </>
           )}
-          <dl className="mt-3 divide-y divide-border text-row">
-            <Row k="Category" v={doc.category ? doc.category.path : "Inbox — not filed yet"} />
-            <Row k="For" v={doc.items.length ? doc.items.map((p) => p.label).join(", ") : "—"} />
-            <Row k="Document date" v={formatDate(doc.documentDate)} />
-            <Row k="Expires" v={formatDate(doc.expiresAt)} />
-            <Row k="Added" v={`${formatDate(doc.createdAt)} · ${doc.source === "email" ? "email" : "upload"}`} />
-            <Row k="File" v={`${doc.file.originalFilename} · ${pages(doc.file.pageCount) || "—"} · ${formatBytes(doc.file.byteSize)}${doc.file.version > 1 ? ` · version ${doc.file.version}` : ""}`} />
-            <div className="flex gap-4 py-3">
-              <dt className="w-32 shrink-0 text-muted">Tags</dt>
-              <dd className="flex flex-wrap gap-1.5">
-                {doc.tags.map((t) => (
-                  <span key={t} className="rounded-sm bg-surface px-2 py-0.5 text-small font-medium">
-                    {t}
-                  </span>
-                ))}
-                {doc.tags.length === 0 && <span className="text-muted">—</span>}
-              </dd>
-            </div>
-          </dl>
-          <DocumentNotes doc={doc} />
+          {tab === "filing" && (
+            <>
+              <div className="label mt-6">How it is filed</div>
+              <dl className="mt-2 divide-y divide-border border-t border-border text-row">
+                <Row k="Category" v={doc.category ? doc.category.path : "Inbox — not filed yet"} />
+                <Row k="For" v={doc.items.length ? doc.items.map((p) => p.label).join(", ") : "—"} />
+                <div className="flex gap-4 py-3">
+                  <dt className="w-32 shrink-0 text-muted">Tags</dt>
+                  <dd className="flex flex-wrap gap-1.5">
+                    {doc.tags.map((t) => (
+                      <span key={t} className="rounded-sm bg-surface px-2 py-0.5 text-small font-medium">
+                        {t}
+                      </span>
+                    ))}
+                    {doc.tags.length === 0 && <span className="text-muted">—</span>}
+                  </dd>
+                </div>
+                <Row k="Document date" v={formatDate(doc.documentDate)} />
+                <Row k="Expires" v={formatDate(doc.expiresAt)} />
+                <Row k="To do" v={openTasks.length ? openTasks.map((t) => t.title).join(" · ") : "—"} />
+              </dl>
+              <div className="label mt-7">Where it came from</div>
+              <dl className="mt-2 divide-y divide-border border-t border-border text-row">
+                <Row k="Added" v={`${formatDate(doc.createdAt)} · ${doc.source === "email" ? "email" : "upload"}`} />
+                {doc.mailFrom && <Row k="Arrived by" v={`Email from ${doc.mailFrom}`} />}
+                <Row k="File" v={doc.file.originalFilename} />
+                <Row k="Size" v={`${pages(doc.file.pageCount) || "—"} · ${formatBytes(doc.file.byteSize)}`} />
+                <Row k="Version" v={doc.file.version > 1 ? `${doc.file.version} of ${versions.length}` : "1 — the only one"} />
+                <Row k="Text" v={text.chars ? `${text.chars.toLocaleString("en-GB")} characters${text.engine ? ` · ${text.engine}` : ""}` : "—"} />
+                {s?.payload.language && <Row k="Language" v={s.payload.language.toUpperCase()} />}
+              </dl>
+            </>
+          )}
           <div className="mt-auto flex items-center justify-between pt-8">
             {confirmDelete ? (
               <div className="flex items-center gap-3 text-row">
@@ -117,7 +157,7 @@ export function DocumentDetail({
         </div>
       )}
 
-      {tab === "details" && editing && <EditForm doc={doc} categories={categories} items={items} onDone={() => setEditing(false)} />}
+      {(tab === "details" || tab === "filing") && editing && <EditForm doc={doc} categories={categories} items={items} onDone={() => setEditing(false)} />}
 
       {tab === "text" && (
         <div className="mt-6 flex flex-1 flex-col gap-3">

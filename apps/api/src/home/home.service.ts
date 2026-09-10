@@ -1,15 +1,17 @@
 import { Injectable } from "@nestjs/common";
 import { and, asc, desc, eq, gte, inArray, isNull, lte, sql } from "drizzle-orm";
 import { documentItems, documents, items, type Db } from "@harbor/db";
-import { itemSubtitle, type HomeData, type Item } from "@harbor/shared";
+import { itemSubtitle, todayIso, type HomeData, type Item } from "@harbor/shared";
 import { BackupsService } from "../backups/backups.service";
 import { InjectDb } from "../db/db.module";
 import { CategoriesService } from "../vocabulary/categories.service";
+import { TasksService } from "../tasks/tasks.service";
 import { ItemsService } from "../vocabulary/items.service";
 
 const HORIZON_DAYS = 90;
 const RECENT_LIMIT = 8;
 const EXPIRING_LIMIT = 12;
+const ATTENTION_LIMIT = 12;
 
 @Injectable()
 export class HomeService {
@@ -18,12 +20,13 @@ export class HomeService {
     private readonly categoriesService: CategoriesService,
     private readonly itemsService: ItemsService,
     private readonly backups: BackupsService,
+    private readonly tasks: TasksService,
   ) {}
 
   async load(): Promise<HomeData> {
-    const today = isoToday();
+    const today = todayIso();
     const horizon = addDays(today, HORIZON_DAYS);
-    const [allItems, categories, cats, expiring, recent, totalRow, backupStatus] = await Promise.all([
+    const [allItems, categories, cats, expiring, recent, totalRow, backupStatus, openTasks] = await Promise.all([
       this.itemsService.list(),
       this.categoriesService.list(),
       this.categoriesService.index(),
@@ -41,6 +44,7 @@ export class HomeService {
         .limit(RECENT_LIMIT),
       this.db.select({ n: sql<number>`count(*)::int` }).from(documents).where(isNull(documents.deletedAt)),
       this.backups.status(),
+      this.tasks.list({ status: "open", limit: 200 }),
     ]);
     // Spec §4: Home says whether the vault is backed up. Only the last *completed* backup counts.
     const lastBackup = backupStatus.lastBackup?.status === "running" ? null : backupStatus.lastBackup;
@@ -89,14 +93,34 @@ export class HomeService {
       categories,
       totalDocuments: totalRow[0]?.n ?? 0,
       backup,
-      expiringSoon: expiring.map((d) => ({
-        documentId: d.id,
-        title: d.title,
-        categoryPath: pathOf(d.categoryId),
-        items: links.filter((l) => l.documentId === d.id).map((l) => l.label),
-        expiresAt: d.expiresAt!,
-        daysLeft: daysBetween(today, d.expiresAt!),
-      })),
+      // Tasks first, then expiries, each soonest-first — a bill that lapsed last week outranks a
+      // passport with six weeks left, and both outrank a task with no date at all.
+      needsAttention: [
+        ...openTasks.map((t) => ({
+          kind: "task" as const,
+          id: t.id,
+          title: t.title,
+          documentId: t.document?.id ?? null,
+          subtitle: t.item?.label ?? t.document?.title ?? null,
+          dueOn: t.dueOn,
+          daysLeft: t.dueOn ? daysBetween(today, t.dueOn) : null,
+          amountCents: t.amountCents,
+          currency: t.currency,
+        })),
+        ...expiring.map((d) => ({
+          kind: "expiry" as const,
+          id: d.id,
+          title: d.title,
+          documentId: d.id,
+          subtitle: links.filter((l) => l.documentId === d.id).map((l) => l.label).join(", ") || pathOf(d.categoryId),
+          dueOn: d.expiresAt!,
+          daysLeft: daysBetween(today, d.expiresAt!),
+          amountCents: null,
+          currency: null,
+        })),
+      ]
+        .sort((a, b) => rank(a) - rank(b))
+        .slice(0, ATTENTION_LIMIT),
       recentlyAdded: recent.map((d) => ({
         documentId: d.id,
         title: d.title,
@@ -109,9 +133,6 @@ export class HomeService {
   }
 }
 
-function isoToday(): string {
-  return new Date().toISOString().slice(0, 10);
-}
 function addDays(iso: string, days: number): string {
   const d = new Date(`${iso}T00:00:00Z`);
   d.setUTCDate(d.getUTCDate() + days);
@@ -119,4 +140,14 @@ function addDays(iso: string, days: number): string {
 }
 export function daysBetween(fromIso: string, toIso: string): number {
   return Math.round((Date.parse(`${toIso}T00:00:00Z`) - Date.parse(`${fromIso}T00:00:00Z`)) / 86_400_000);
+}
+
+/**
+ * Ordering for the one panel that holds both. Undated tasks sort last rather than first, which is
+ * what a null would otherwise do; a task and an expiry on the same day sort task-first, because
+ * one of them can still be acted on today.
+ */
+function rank(entry: { kind: "task" | "expiry"; daysLeft: number | null }): number {
+  if (entry.daysLeft === null) return Number.MAX_SAFE_INTEGER;
+  return entry.daysLeft * 2 + (entry.kind === "expiry" ? 1 : 0);
 }

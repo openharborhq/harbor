@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { BACKFILL_WINDOWS, backfillWindowLabel, type MailAutoconfigResult, type MailConnectionView } from "@harbor/shared";
 import { api } from "@/lib/api-client";
 
@@ -190,14 +190,61 @@ export function ConnectForm() {
 }
 
 /**
- * Test, scan, sync, remove. All four are queued for the fetcher rather than done here, so the
- * button says what it started, not what it finished — the connection's own status is the answer.
+ * Test, scan, sync, remove. All four are queued for the fetcher rather than done here, so pressing
+ * one starts something it cannot itself finish. What it does instead is watch the connection row
+ * until that row answers — `lastCheckedAt` for a test or a sync, `backfillStartedAt` for a scan —
+ * and only then stop saying it is working. Saying "Checking the connection…" until a refresh that
+ * never comes was the old behaviour, and it outlasted the check by for ever.
  */
+const POLL_MS = 2000;
+/** Long enough for a slow IMAP handshake, short enough that a dead fetcher is not a mystery. */
+const GIVE_UP_MS = 45000;
+
+type Action = "test" | "backfill" | "sync";
+type Pending = { action: Action; message: string; witness: string | null; startedAt: number };
+
+/** The field on the row that moves when this action has been answered. */
+function witnessOf(connection: MailConnectionView, action: Action): string | null {
+  return action === "backfill" ? connection.backfillStartedAt : connection.lastCheckedAt;
+}
+
 export function ConnectionActions({ connection }: { connection: MailConnectionView }) {
   const router = useRouter();
-  const [busy, setBusy] = useState<string | null>(null);
+  const [pending, setPending] = useState<Pending | null>(null);
+  const [removing, setRemoving] = useState(false);
   const [note, setNote] = useState<string | null>(null);
   const scanning = connection.backfillStartedAt !== null && connection.backfillCompletedAt === null;
+
+  // Whether the answer has landed is a fact about the row we were just handed, so it is read here
+  // rather than copied into state by an effect — there is only ever one source for it.
+  const answered = pending !== null && witnessOf(connection, pending.action) !== pending.witness;
+  const inFlight = pending !== null && !answered;
+  const busy = inFlight || removing;
+  const message = pending === null ? note : inFlight ? pending.message : pending.action === "backfill" ? null : "Checked just now";
+
+  // Ask the server again until the row carries the answer.
+  useEffect(() => {
+    if (!inFlight) return;
+    const t = setInterval(() => router.refresh(), POLL_MS);
+    return () => clearInterval(t);
+  }, [inFlight, router]);
+
+  // A confirmation is a fact about a moment and should not outlive the moment by much.
+  useEffect(() => {
+    if (!answered) return;
+    const t = setTimeout(() => setPending(null), 5000);
+    return () => clearTimeout(t);
+  }, [answered]);
+
+  // Nothing ever came back. Say that, rather than going on claiming to be busy.
+  useEffect(() => {
+    if (!inFlight) return;
+    const t = setTimeout(() => {
+      setPending(null);
+      setNote("No answer came back — the mail fetcher may not be running.");
+    }, GIVE_UP_MS);
+    return () => clearTimeout(t);
+  }, [inFlight]);
 
   /**
    * Default to one stage deeper than the last completed scan (§7.6). Reading two months, muting
@@ -211,44 +258,43 @@ export function ConnectionActions({ connection }: { connection: MailConnectionVi
     return BACKFILL_WINDOWS.find((w) => w > done) ?? done;
   });
 
-  async function run(action: "test" | "backfill" | "sync", started: string) {
-    setBusy(action);
+  async function run(action: Action, message: string) {
     setNote(null);
+    const witness = witnessOf(connection, action);
+    setPending({ action, message, witness, startedAt: Date.now() });
     try {
       await api(`/mail/connections/${connection.id}/${action}`, {
         method: "POST",
         body: action === "backfill" ? JSON.stringify({ months }) : undefined,
       });
-      setNote(started);
       router.refresh();
     } catch (err) {
+      setPending(null);
       setNote((err as Error).message);
-    } finally {
-      setBusy(null);
     }
   }
 
   async function remove() {
     if (!confirm(`Disconnect ${connection.emailAddress}? Documents already filed stay in the vault; nothing is removed from the mailbox.`)) return;
-    setBusy("remove");
+    setRemoving(true);
     try {
       await api(`/mail/connections/${connection.id}`, { method: "DELETE" });
       router.refresh();
     } catch (err) {
       setNote((err as Error).message);
-      setBusy(null);
+      setRemoving(false);
     }
   }
 
   return (
     <div className="flex flex-wrap items-center gap-2.5">
-      <button type="button" disabled={busy !== null} onClick={() => run("test", "Checking the connection…")} className={secondary}>
+      <button type="button" disabled={busy} onClick={() => run("test", "Checking the connection…")} className={secondary}>
         Test
       </button>
       <span className="inline-flex items-center gap-1.5">
         <select
           value={months}
-          disabled={busy !== null || scanning}
+          disabled={busy || scanning}
           onChange={(e) => setMonths(Number(e.target.value))}
           aria-label="How far back to scan"
           className="h-9 rounded-md border border-border bg-ground px-2 text-row font-medium disabled:opacity-60"
@@ -259,17 +305,19 @@ export function ConnectionActions({ connection }: { connection: MailConnectionVi
             </option>
           ))}
         </select>
-        <button type="button" disabled={busy !== null || scanning} onClick={() => run("backfill", `Scanning the last ${backfillWindowLabel(months)}…`)} className={secondary}>
+        <button type="button" disabled={busy || scanning} onClick={() => run("backfill", `Scanning the last ${backfillWindowLabel(months)}…`)} className={secondary}>
           Scan
         </button>
       </span>
-      <button type="button" disabled={busy !== null} onClick={() => run("sync", "Checking for new mail…")} className={secondary}>
+      <button type="button" disabled={busy} onClick={() => run("sync", "Checking for new mail…")} className={secondary}>
         Check now
       </button>
-      <button type="button" disabled={busy !== null} onClick={remove} className="h-9 rounded-md px-3 text-row font-medium text-danger">
+      <button type="button" disabled={busy} onClick={remove} className="h-9 rounded-md px-3 text-row font-medium text-danger">
         Disconnect
       </button>
-      {note && <span className="text-small text-muted">{note}</span>}
+      <span aria-live="polite" className="text-small text-muted">
+        {message}
+      </span>
     </div>
   );
 }

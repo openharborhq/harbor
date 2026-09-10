@@ -13,7 +13,8 @@ Status: **design complete, pre-implementation.** UI designed in Paper
 - **OCR** every scanned page so the words inside are searchable; born-digital PDFs skip OCR.
 - **Organise** by categories (two levels), the family member a document is *about*, and tags.
 - **Suggest** a title, category, items and dates for each new document (pluggable provider).
-- **Remind** about expiring documents — passports, policies, registrations.
+- **Remind** about expiring documents — passports, policies, registrations — and about
+  what still has to be *done*: bills to pay, forms to return, deadlines to meet (§8).
 - **Protect** everything at rest and offsite, with a tested restore path.
 
 ## Decisions (locked)

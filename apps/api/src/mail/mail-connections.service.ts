@@ -151,7 +151,7 @@ export class MailConnectionsService {
       const now = new Date();
       await this.db
         .update(mailConnections)
-        .set({ status: "ok", statusDetail: null, discoveredFolders: outcome.folders, lastOkAt: now })
+        .set({ status: "ok", statusDetail: null, discoveredFolders: outcome.folders, lastOkAt: now, lastCheckedAt: now })
         .where(eq(mailConnections.id, connectionId));
       // Success was silent before: pressing Test printed nothing, so a working connection and a
       // job that never ran looked identical in the log.
@@ -159,7 +159,12 @@ export class MailConnectionsService {
     } else {
       const status = /rejected the username or password/.test(outcome.problem ?? "") ? "auth_failed" : "unreachable";
       const detail = [outcome.problem, outcome.hint].filter(Boolean).join(" ");
-      await this.db.update(mailConnections).set({ status, statusDetail: detail }).where(eq(mailConnections.id, connectionId));
+      // `lastCheckedAt` moves on a failure too. A test that fails the same way twice changes
+      // nothing else on the row, and the page has no other way to know its answer came back.
+      await this.db
+        .update(mailConnections)
+        .set({ status, statusDetail: detail, lastCheckedAt: new Date() })
+        .where(eq(mailConnections.id, connectionId));
     }
     return outcome;
   }
@@ -180,7 +185,7 @@ export class MailConnectionsService {
     const now = new Date();
     await this.db
       .update(mailConnections)
-      .set({ status, statusDetail: detail, lastSyncAt: now, ...(status === "ok" ? { lastOkAt: now } : {}) })
+      .set({ status, statusDetail: detail, lastSyncAt: now, lastCheckedAt: now, ...(status === "ok" ? { lastOkAt: now } : {}) })
       .where(eq(mailConnections.id, id));
   }
 
@@ -265,6 +270,7 @@ function toView(row: typeof mailConnections.$inferSelect, ownerName: string | nu
     statusDetail: row.statusDetail,
     lastOkAt: row.lastOkAt?.toISOString() ?? null,
     lastSyncAt: row.lastSyncAt?.toISOString() ?? null,
+    lastCheckedAt: row.lastCheckedAt?.toISOString() ?? null,
     createdAt: row.createdAt.toISOString(),
   };
 }

@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { displayTitle, type ActivityEntry, type Category, type DocumentSummary, type DocumentText, type DocumentVersion, type Item } from "@harbor/shared";
+import { displayTitle, type ActivityEntry, type Category, type DocumentSummary, type DocumentText, type DocumentVersion, type Item, type Task } from "@harbor/shared";
 import { AutoRefresh } from "@/components/AutoRefresh";
 import { DocumentDetail } from "@/components/DocumentDetail";
 import { PdfPages } from "@/components/PdfPages";
@@ -21,12 +21,13 @@ export default async function DocumentPage(props: PageProps<"/documents/[id]">) 
     if (err instanceof ApiError && err.status === 404) notFound();
     throw err;
   }
-  const [text, versions, activity, categories, items] = await Promise.all([
+  const [text, versions, activity, categories, items, tasks] = await Promise.all([
     apiFetch<DocumentText>(`/documents/${id}/text`),
     apiFetch<DocumentVersion[]>(`/documents/${id}/versions`),
     apiFetch<ActivityEntry[]>(`/documents/${id}/activity`),
     apiFetch<Category[]>("/categories"),
     apiFetch<Item[]>("/items"),
+    apiFetch<Task[]>(`/tasks?document=${id}`).catch(() => [] as Task[]),
   ]);
   const f = doc.file;
   const fileUrl = `/api/documents/${doc.id}/file`;
@@ -84,7 +85,7 @@ export default async function DocumentPage(props: PageProps<"/documents/[id]">) 
               </span>
             </div>
           </div>
-          <DocumentDetail doc={doc} text={text} versions={versions} activity={activity} categories={categories} items={items} />
+          <DocumentDetail doc={doc} text={text} versions={versions} activity={activity} categories={categories} items={items} tasks={tasks} />
         </div>
       </main>
     </>

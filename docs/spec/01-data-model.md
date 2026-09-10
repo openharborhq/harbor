@@ -19,8 +19,12 @@ categories           id, name, slug, parent_id (nullable, depth ≤ 2), icon, so
 tags                 id, name, slug, color
 
 documents            id, title, category_id (NULL = Inbox), notes, document_date,
-                     expires_at, status, source (upload|email), created_by,
+                     expires_at, source (upload|email), created_by,
                      created_at, updated_at, deleted_at
+tasks                id, title, kind (pay|file|renew|fetch|review), due_on,
+                     amount_cents, currency, document_id, item_id,
+                     status (open|done|dismissed), closed_at, closed_by, closed_reason,
+                     repeat, source (manual|suggested), notes, created_by
 document_items       document_id, item_id
 document_tags        document_id, tag_id
 
@@ -83,8 +87,15 @@ audit_log            id, actor_user_id, action, entity_type, entity_id, metadata
 - **`documents.notes`** is free text about a document: why it was kept, what was agreed on
   the phone, which invoice it settles. Indexed at weight B beside tags and item labels, so a
   note can be searched for — a note nobody can find is half a note.
-- **`expires_at` is read** by Home ("Expiring soon", 90 days) and item pages. v1 reminders
-  are in-app; an email digest is v1.1.
+- **`expires_at` means the document stops being valid** — a passport, a policy, a
+  registration. A deadline for *doing* something is a `tasks` row, not an expiry (§8). The
+  two were conflated until §8; the cost was a Home panel that was 98% lapsed bills.
+- **`documents.status` was never built and is now retired.** `tasks.status` answers the
+  question it was reaching for, and answers it per obligation rather than per document.
+- **`tasks` is its own table** because one document can carry two deadlines, some
+  obligations have no document at all, and a completion has an actor and a time (§8).
+  Reads must exclude soft-deleted documents themselves; the FK only cascades on a hard
+  delete. v1 reminders are in-app; an email digest is v1.1.
 - **Envelope encryption:** `dek_wrapped` is the per-file key wrapped by the KEK; `key_version`
   lets rotation re-wrap DEKs without re-encrypting blobs (§3.3).
 

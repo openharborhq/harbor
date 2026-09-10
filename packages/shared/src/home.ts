@@ -23,14 +23,24 @@ export const HomeData = z.object({
   totalDocuments: z.number().int().nonnegative(),
   /** Spec §4: Home carries the backup state, because a vault nobody backs up should say so. */
   backup: z.object({ state: z.enum(["ok", "failed", "never", "unconfigured"]), at: z.string().datetime().nullable() }),
-  expiringSoon: z.array(
+  /**
+   * One panel for both lifecycles (spec §8). A bill to pay and a passport running out both want
+   * looking at, but only one of them can be ticked off — a passport is resolved by filing a new
+   * one. `kind` is what tells the panel which of the two it is holding, and it is the reason the
+   * old "Expiring soon" list could not simply be extended.
+   */
+  needsAttention: z.array(
     z.object({
-      documentId: z.string().uuid(),
+      kind: z.enum(["task", "expiry"]),
+      /** Task id for a task, document id for an expiry. */
+      id: z.string().uuid(),
       title: z.string(),
-      categoryPath: z.string().nullable(),
-      items: z.array(z.string()),
-      expiresAt: z.string().date(),
-      daysLeft: z.number().int(),
+      documentId: z.string().uuid().nullable(),
+      subtitle: z.string().nullable(),
+      dueOn: z.string().date().nullable(),
+      daysLeft: z.number().int().nullable(),
+      amountCents: z.number().int().nullable(),
+      currency: z.string().nullable(),
     }),
   ),
   recentlyAdded: z.array(

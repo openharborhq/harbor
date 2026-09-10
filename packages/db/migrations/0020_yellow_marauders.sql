@@ -1,0 +1,1 @@
+ALTER TABLE "mail_connections" ADD COLUMN "last_checked_at" timestamp with time zone;

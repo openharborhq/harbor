@@ -76,11 +76,28 @@ export type UpdateDocument = z.infer<typeof UpdateDocument>;
 export const AcceptSuggestion = z.object({
   categoryId: z.string().uuid().optional(),
   itemIds: z.array(z.string().uuid()).max(20).optional(),
+  /**
+   * Whether to also create the to-dos the model proposed (spec §8). Filing a bill and noticing it
+   * needs paying are the same moment, so the card carries this as a ticked clause on the filing
+   * action rather than a second button — and unticking it is how you say no.
+   */
+  createTasks: z.boolean().default(true),
 });
 export type AcceptSuggestion = z.infer<typeof AcceptSuggestion>;
 
 export const AcceptAllResult = z.object({ accepted: z.number().int().nonnegative(), skipped: z.number().int().nonnegative() });
 export type AcceptAllResult = z.infer<typeof AcceptAllResult>;
+
+/**
+ * What the Inbox is holding, small enough to ask for on every page so the sidebar can carry it.
+ * `needsReview` is the queue proper; `notPaperwork` is what §5 held back, counted separately
+ * because a badge that counted leaflets would be asking for attention it does not deserve.
+ */
+export const InboxCount = z.object({
+  needsReview: z.number().int().nonnegative(),
+  notPaperwork: z.number().int().nonnegative(),
+});
+export type InboxCount = z.infer<typeof InboxCount>;
 
 export const DocumentVersion = z.object({
   fileId: z.string().uuid(),

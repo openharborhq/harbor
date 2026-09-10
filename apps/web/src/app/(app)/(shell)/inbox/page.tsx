@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { looksLikeClutter, type Category, type DocumentSummary, type Item } from "@harbor/shared";
+import { looksLikeClutter, type Category, type DocumentSummary, type Item, type MailConnectionView } from "@harbor/shared";
 import { AcceptAll } from "@/components/AcceptAll";
 import { AutoRefresh } from "@/components/AutoRefresh";
 import { DeleteClutter } from "@/components/DeleteClutter";
@@ -18,10 +18,12 @@ export default async function InboxPage(props: PageProps<"/inbox">) {
 
   // Counts come from the unfiltered list so the tabs can show them; the filter is applied here
   // rather than in a second request, because the Inbox is small by construction.
-  const [all, categories, items] = await Promise.all([
+  const [all, categories, items, connections] = await Promise.all([
     apiFetch<DocumentSummary[]>("/documents?inbox=1"),
     apiFetch<Category[]>("/categories"),
     apiFetch<Item[]>("/items"),
+    // Only used to explain an empty Inbox, so a mail service that is down must not empty the page.
+    apiFetch<MailConnectionView[]>("/mail/connections").catch(() => [] as MailConnectionView[]),
   ]);
   /**
    * §5's `keep`, applied. Attachments the model judged not to be paperwork are held back from the
@@ -83,32 +85,7 @@ export default async function InboxPage(props: PageProps<"/inbox">) {
           </nav>
         )}
 
-        {docs.length === 0 && (
-          <div className="rounded-card border border-dashed border-border-strong p-12 text-center">
-            <p className="text-section font-semibold tracking-snug">
-              {source === "email" ? "Nothing from email to review" : source === "upload" ? "Nothing uploaded to review" : "Your Inbox is empty"}
-            </p>
-            <p className="mt-2 text-body text-muted">
-              {source ? (
-                <Link href="/inbox" className="font-medium text-accent">
-                  See everything in the Inbox
-                </Link>
-              ) : (
-                <>
-                  Drop paperwork on the{" "}
-                  <Link href="/add" className="font-medium text-accent">
-                    Add documents
-                  </Link>{" "}
-                  page, or{" "}
-                  <Link href="/settings/mail" className="font-medium text-accent">
-                    connect a mailbox
-                  </Link>{" "}
-                  — everything lands here first.
-                </>
-              )}
-            </p>
-          </div>
-        )}
+        {docs.length === 0 && <EmptyInbox source={source} connections={connections} />}
 
         {!clutterView && clutter.length > 0 && (
           <p className="-mt-4 text-row text-muted">
@@ -129,6 +106,76 @@ export default async function InboxPage(props: PageProps<"/inbox">) {
         ))}
       </main>
     </>
+  );
+}
+
+/**
+ * An empty Inbox means two opposite things and the difference matters. With nothing connected it
+ * is a vault waiting to be given something. With a mailbox connected it is a queue that is up to
+ * date, and the honest thing to say is that the watching is happening without you.
+ *
+ * A connection that is not `ok` is called out rather than glossed: the sweep skips it entirely, so
+ * "we are watching" would be untrue exactly when it matters most.
+ */
+function EmptyInbox({ source, connections }: { source: "email" | "upload" | null; connections: MailConnectionView[] }) {
+  const watching = connections.filter((c) => c.status === "ok");
+  const ailing = connections.filter((c) => c.status !== "ok");
+  const names = watching.map((c) => c.label).join(", ");
+
+  return (
+    <div className="rounded-card border border-dashed border-border-strong p-12 text-center">
+      <p className="text-section font-semibold tracking-snug">
+        {source === "email" ? "Nothing from email to review" : source === "upload" ? "Nothing uploaded to review" : "Your Inbox is empty"}
+      </p>
+      <p className="mx-auto mt-2 max-w-[520px] text-body text-muted">
+        {source === "upload" ? (
+          <>
+            Nothing you uploaded is waiting.{" "}
+            <Link href="/inbox" className="font-medium text-accent">
+              See everything in the Inbox
+            </Link>
+          </>
+        ) : watching.length > 0 ? (
+          <>
+            {names} {watching.length === 1 ? "is" : "are"} being watched. Harbor checks every few minutes and files what
+            looks like paperwork here, so there is nothing to do but come back — or{" "}
+            <Link href="/add" className="font-medium text-accent">
+              add something yourself
+            </Link>
+            .
+          </>
+        ) : source === "email" ? (
+          <>
+            No mailbox is connected yet.{" "}
+            <Link href="/settings/mail" className="font-medium text-accent">
+              Connect one
+            </Link>{" "}
+            and its paperwork will arrive here on its own.
+          </>
+        ) : (
+          <>
+            Drop paperwork on the{" "}
+            <Link href="/add" className="font-medium text-accent">
+              Add documents
+            </Link>{" "}
+            page, or{" "}
+            <Link href="/settings/mail" className="font-medium text-accent">
+              connect a mailbox
+            </Link>{" "}
+            — everything lands here first.
+          </>
+        )}
+      </p>
+      {ailing.length > 0 && (
+        <p className="mx-auto mt-3 max-w-[520px] rounded-md bg-warn-soft px-3 py-2 text-small text-warn">
+          {ailing.map((c) => c.label).join(", ")} {ailing.length === 1 ? "is" : "are"} not connected, so nothing is being
+          read from {ailing.length === 1 ? "it" : "them"}.{" "}
+          <Link href="/settings/mail" className="font-semibold underline underline-offset-2">
+            Fix it in Email Ingest
+          </Link>
+        </p>
+      )}
+    </div>
   );
 }
 

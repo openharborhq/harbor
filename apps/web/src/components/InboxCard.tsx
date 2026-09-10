@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
-import { displayTitle, type Category, type DocumentSummary, type Item, type MuteResult } from "@harbor/shared";
+import { displayTitle, formatAmount, shortDate, type Category, type DocumentSummary, type Item, type MuteResult } from "@harbor/shared";
 import { ItemPicker } from "./ItemPicker";
 import { api } from "@/lib/api-client";
 import { formatBytes, formatRelative, pages } from "@/lib/format";
@@ -29,11 +29,19 @@ export function InboxCard({ doc, categories, items }: { doc: DocumentSummary; ca
   const [itemIds, setItemIds] = useState<string[]>([...new Set([...doc.items.map((i) => i.id), ...(s?.resolved.itemIds ?? [])])]);
   const [busy, setBusy] = useState<"file" | "delete" | "delete-all" | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  /**
+   * The reminder rides on the filing action as a clause you can untick, not as a second button:
+   * noticing a bill needs paying and filing it are one moment (spec §8). Ticked by default,
+   * because a to-do you never see is worse than one you have to dismiss.
+   */
+  const [createTasks, setCreateTasks] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const grouped = useMemo(() => groupCategories(categories), [categories]);
   const unchanged = !!s && categoryId === (s.resolved.categoryId ?? "") && sameSet(itemIds, [...new Set([...doc.items.map((i) => i.id), ...s.resolved.itemIds])]);
   /** The FOR selection still holds everything the model proposed. */
+  /** What the model says still has to be done. Proposals — nothing exists until this card is filed. */
+  const obligations = s && !s.rejectedAt ? (s.payload.obligations ?? []) : [];
   const forIsSuggested = !!s && s.resolved.itemIds.length > 0 && s.resolved.itemIds.every((id) => itemIds.includes(id));
 
   async function fileIt() {
@@ -42,7 +50,7 @@ export function InboxCard({ doc, categories, items }: { doc: DocumentSummary; ca
     setError(null);
     try {
       // Accepting sends the card's own category/items so filing can never silently no-op.
-      if (s && !s.rejectedAt) await api(`/documents/${doc.id}/suggestion/accept`, { method: "POST", body: JSON.stringify({ categoryId, itemIds }) });
+      if (s && !s.rejectedAt) await api(`/documents/${doc.id}/suggestion/accept`, { method: "POST", body: JSON.stringify({ categoryId, itemIds, createTasks }) });
       else await api(`/documents/${doc.id}`, { method: "PATCH", body: JSON.stringify({ categoryId, itemIds }) });
       router.refresh();
     } catch (err) {
@@ -195,6 +203,35 @@ export function InboxCard({ doc, categories, items }: { doc: DocumentSummary; ca
             />
           </div>
         </div>
+
+        {obligations.length > 0 && !s?.acceptedAt && (
+          <label className="flex cursor-pointer items-center gap-3 rounded-md bg-accent-soft px-3.5 py-3">
+            <input
+              type="checkbox"
+              checked={createTasks}
+              onChange={(e) => setCreateTasks(e.target.checked)}
+              disabled={processing}
+              className="h-[18px] w-[18px] shrink-0 accent-accent"
+            />
+            <span className="flex-1 text-row">
+              …and remind me to{" "}
+              {obligations.map((o, i) => (
+                <span key={`${o.title}-${i}`}>
+                  {i > 0 && ", then "}
+                  <span className="font-semibold">
+                    {o.amountCents !== null ? `pay ${formatAmount(o.amountCents, o.currency)}` : o.title.toLowerCase()}
+                  </span>
+                  {o.dueOn && (
+                    <>
+                      {" by "}
+                      <span className="font-semibold">{shortDate(o.dueOn)}</span>
+                    </>
+                  )}
+                </span>
+              ))}
+            </span>
+          </label>
+        )}
 
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">

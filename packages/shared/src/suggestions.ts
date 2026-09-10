@@ -46,6 +46,30 @@ export const SuggestionPayload = z.object({
    * a default for the same reason.
    */
   keep: z.enum(["paperwork", "not_paperwork"]).default("paperwork"),
+  /**
+   * What this document says still has to be *done* — a bill to pay, a form to return, a deadline
+   * to meet (spec §8). Proposals only: nothing is created until a person accepts the suggestion,
+   * exactly like the category and the items.
+   *
+   * This is where a payment due date belongs. It used to be crammed into `expiresAt`, which is
+   * why Home's "Expiring soon" panel was 98% lapsed bills and one passport.
+   *
+   * Defaulted for the reason spelled out on `keep`: this schema also validates rows written
+   * before the field existed, and the read path drops what it cannot parse.
+   */
+  obligations: z
+    .array(
+      z.object({
+        kind: z.enum(["pay", "file", "renew", "fetch", "review"]),
+        title: z.string().max(80),
+        dueOn: z.string().nullable(),
+        /** Minor units — 24810 for €248.10. Null unless the document states an amount. */
+        amountCents: z.number().int().nullable(),
+        currency: z.string().max(3).nullable(),
+      }),
+    )
+    .max(3)
+    .default([]),
   /** Language the document is written in, ISO 639-1. */
   language: z.string().max(8),
   confidence: z.enum(["high", "medium", "low"]),

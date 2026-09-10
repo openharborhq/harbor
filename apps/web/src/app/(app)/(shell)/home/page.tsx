@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import type { HomeData } from "@harbor/shared";
+import { formatAmount, type HomeData } from "@harbor/shared";
 import { TopBar } from "@/components/shell/TopBar";
 import { apiFetch } from "@/lib/api-server";
 import { formatDate, formatRelative } from "@/lib/format";
@@ -77,24 +77,49 @@ export default async function HomePage() {
         </section>
 
         <div className="grid grid-cols-[1.6fr_1fr] gap-12">
-          {/* Expiring soon */}
+          {/* Needs attention — to-dos and expiries in one list (spec §8) */}
           <section className="flex flex-col gap-4">
-            <SectionHeader title="Expiring soon" meta="next 90 days" small />
-            {h.expiringSoon.length === 0 && <p className="border-t border-border pt-4 text-body text-muted">Nothing expires in the next 90 days — or nothing has an expiry date yet. Suggestions fill those in from bills, policies and passports.</p>}
+            <SectionHeader title="Needs attention" meta="to-dos and expiries" small />
+            {h.needsAttention.length === 0 && (
+              <p className="border-t border-border pt-4 text-body text-muted">
+                Nothing is due and nothing expires in the next 90 days. Bills and deadlines land here when a document that carries one is filed.
+              </p>
+            )}
             <ul className="flex flex-col">
-              {h.expiringSoon.map((d) => (
-                <li key={d.documentId} className="flex h-[70px] items-center gap-4 border-t border-border last:border-b">
-                  <DocIcon />
+              {h.needsAttention.map((e) => (
+                <li key={`${e.kind}-${e.id}`} className="flex h-[70px] items-center gap-4 border-t border-border last:border-b">
+                  {/* A to-do can be ticked off; an expiry cannot — a passport is resolved by
+                      filing a new one, not by saying you did it. The two glyphs are the only
+                      thing telling them apart, and that difference is the point of the panel. */}
+                  {e.kind === "task" ? (
+                    <span className="h-5 w-5 shrink-0 rounded-pill border-[1.6px] border-border-strong" aria-label="To do" />
+                  ) : (
+                    <DocIcon />
+                  )}
                   <div className="min-w-0 flex-1">
-                    <Link href={`/documents/${d.documentId}`} className="block truncate text-row font-semibold hover:text-accent">
-                      {d.title}
-                    </Link>
-                    <div className="truncate text-small text-muted">{d.categoryPath ?? "Inbox"}</div>
+                    {e.documentId ? (
+                      <Link href={`/documents/${e.documentId}`} className="block truncate text-row font-semibold hover:text-accent">
+                        {e.title}
+                      </Link>
+                    ) : (
+                      <span className="block truncate text-row font-semibold">{e.title}</span>
+                    )}
+                    <div className="truncate text-small text-muted">{e.subtitle ?? (e.kind === "task" ? "Nothing filed yet" : "Inbox")}</div>
                   </div>
-                  <div className="w-24 shrink-0 truncate text-row">{d.items.join(", ") || "—"}</div>
-                  <div className="w-28 shrink-0 text-row">{formatDate(d.expiresAt)}</div>
-                  <span className={`inline-flex h-[22px] shrink-0 items-center rounded-pill px-2.5 text-label font-semibold ${d.daysLeft <= 30 ? "bg-warn-soft text-warn" : "bg-surface text-muted"}`}>
-                    {d.daysLeft <= 0 ? "today" : `${d.daysLeft} days`}
+                  <div className="w-24 shrink-0 text-right text-row">{formatAmount(e.amountCents, e.currency) ?? ""}</div>
+                  <div className="w-28 shrink-0 text-row">{e.dueOn ? formatDate(e.dueOn) : "No date"}</div>
+                  <span
+                    className={`inline-flex h-[22px] shrink-0 items-center rounded-pill px-2.5 text-label font-semibold ${
+                      e.daysLeft === null
+                        ? "bg-surface text-muted"
+                        : e.daysLeft < 0
+                          ? "bg-danger/10 text-danger"
+                          : e.daysLeft <= 30
+                            ? "bg-warn-soft text-warn"
+                            : "bg-surface text-muted"
+                    }`}
+                  >
+                    {e.daysLeft === null ? "someday" : e.daysLeft < 0 ? `${-e.daysLeft} d late` : e.daysLeft === 0 ? "today" : `${e.daysLeft} days`}
                   </span>
                 </li>
               ))}

@@ -24,6 +24,7 @@ export class NoneProvider implements SuggestionProvider {
       expiresAt: null,
       tags: [],
       aliases: [],
+      obligations: [],
       // Heuristics cannot tell a leaflet from a bill, and the borderline rule is the same as the
       // model's: never hide something that might matter.
       keep: "paperwork",

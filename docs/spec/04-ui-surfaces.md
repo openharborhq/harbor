@@ -7,7 +7,8 @@ accent, Inter, 7-step type scale. All desktop artboards 1440 px; sidebar 248, co
 
 | Surface | Status | Backed by | Gap |
 |---|---|---|---|
-| Home | Drawn | items/categories + counts, `expires_at` ≤ 90 d, recent docs, `backup_runs` | — |
+| Home | Drawn | items/categories + counts, *Needs attention* (open `tasks` + `expires_at` ≤ 90 d), recent docs, `backup_runs` | — |
+| To do | Drawn — Paper row 5 | `tasks`, grouped by when | — |
 | Inbox | Drawn | `category_id IS NULL`, `suggestions` | **No-suggestion, processing, and failed states not drawn** |
 | Library / Search | Drawn | ranked `tsv` search, snippets, facet counts | Browse mode (no query) — reuse item-page table |
 | Add documents | Drawn | intake, job status stream, sha256 check | — |

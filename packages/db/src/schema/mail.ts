@@ -57,6 +57,13 @@ export const mailConnections = pgTable(
     lastOkAt: timestamp("last_ok_at", { withTimezone: true }),
     lastSyncAt: timestamp("last_sync_at", { withTimezone: true }),
     /**
+     * When the connection last got an answer about itself, whatever the answer was. `lastOkAt`
+     * only moves on success and `status` may come back identical twice running, so neither can
+     * tell "the check came back" from "the check never ran" — which left the settings page saying
+     * "Checking the connection…" for ever.
+     */
+    lastCheckedAt: timestamp("last_checked_at", { withTimezone: true }),
+    /**
      * folder name → where the last pass got to. UIDVALIDITY changing means the server renumbered,
      * so the cursor is thrown away and the folder is re-read against `email_ingest_log` by
      * Message-ID rather than re-ingested (§7.5).

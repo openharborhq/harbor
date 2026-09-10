@@ -6,3 +6,4 @@ export * from "./mail";
 export * from "./audit";
 export * from "./backups";
 export * from "./settings";
+export * from "./tasks";

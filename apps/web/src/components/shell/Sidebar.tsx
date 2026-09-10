@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import type { Category, RecentDocument, SessionUser } from "@harbor/shared";
+import type { Category, InboxCount, RecentDocument, SessionUser, TaskCount } from "@harbor/shared";
 import { api } from "@/lib/api-client";
 import { initials } from "@/lib/initials";
 import { Brand } from "./Brand";
@@ -11,14 +11,32 @@ import { RecentDocuments } from "./RecentDocuments";
 const NAV: { href: string; label: string; icon: string; soon?: boolean }[] = [
   { href: "/home", label: "Home", icon: "M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1v-9.5Z" },
   { href: "/inbox", label: "Inbox", icon: "M3 12h4l2 3h6l2-3h4M5 5h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2Z" },
+  { href: "/todo", label: "To do", icon: "M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18Zm-3.6-9.2 2.5 2.5 4.7-5.2" },
   { href: "/library", label: "Library", icon: "M4 5a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5Zm4 3h8M8 12h8M8 16h5" },
   { href: "/items", label: "People & things", icon: "M16 19v-1a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v1M9.5 11a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Zm8.5 8v-1a4 4 0 0 0-3-3.9M15 4.1a3.5 3.5 0 0 1 0 6.8" },
   { href: "/settings", label: "Settings", icon: "M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Zm7.4-3a7.4 7.4 0 0 0-.1-1l2-1.5-2-3.4-2.3.9a7.5 7.5 0 0 0-1.7-1L15 3.5H9l-.3 2.5a7.5 7.5 0 0 0-1.7 1L4.7 6.1l-2 3.4 2 1.5a7.4 7.4 0 0 0 0 2l-2 1.5 2 3.4 2.3-.9a7.5 7.5 0 0 0 1.7 1L9 20.5h6l.3-2.5a7.5 7.5 0 0 0 1.7-1l2.3.9 2-3.4-2-1.5c.1-.3.1-.7.1-1Z" },
 ];
 
-export function Sidebar({ user, categories = [], recent = [] }: { user: SessionUser; categories?: Category[]; recent?: RecentDocument[] }) {
+export function Sidebar({
+  user,
+  categories = [],
+  recent = [],
+  inbox,
+  tasks,
+}: {
+  user: SessionUser;
+  categories?: Category[];
+  recent?: RecentDocument[];
+  inbox?: InboxCount;
+  tasks?: TaskCount;
+}) {
   const pathname = usePathname();
   const router = useRouter();
+  const waiting = inbox?.needsReview ?? 0;
+  // Overdue and due today only. Counting everything open would mean a badge that never reaches
+  // zero, which is a badge nobody reads — the same reason held-back leaflets stay out of the one
+  // above.
+  const pressing = tasks?.pressing ?? 0;
 
   async function signOut() {
     await api("/auth/logout", { method: "POST" });
@@ -44,6 +62,30 @@ export function Sidebar({ user, categories = [], recent = [] }: { user: SessionU
                 <path d={item.icon} />
               </svg>
               <span className="flex-1">{item.label}</span>
+              {/* The one count in this nav, because it is the one that means work is waiting.
+                  Held-back leaflets are excluded on purpose — the Inbox page offers those
+                  separately, and a badge that counted them would be asking for attention on
+                  behalf of a newsletter. */}
+              {item.href === "/inbox" && waiting > 0 && (
+                <span
+                  aria-label={`${waiting} to review`}
+                  className={`inline-flex h-[18px] min-w-[18px] shrink-0 items-center justify-center rounded-pill px-1.5 text-label font-bold ${
+                    active ? "bg-accent text-white" : "bg-accent-soft text-accent"
+                  }`}
+                >
+                  {waiting}
+                </span>
+              )}
+              {item.href === "/todo" && pressing > 0 && (
+                <span
+                  aria-label={`${pressing} overdue or due today`}
+                  className={`inline-flex h-[18px] min-w-[18px] shrink-0 items-center justify-center rounded-pill px-1.5 text-label font-bold ${
+                    active ? "bg-danger text-white" : "bg-danger/10 text-danger"
+                  }`}
+                >
+                  {pressing}
+                </span>
+              )}
               {item.soon && <span className="text-label uppercase tracking-label text-muted/70">soon</span>}
             </>
           );

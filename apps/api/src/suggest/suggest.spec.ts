@@ -61,6 +61,7 @@ test("anthropic provider: structured output is validated, usage is summed, refus
     tags: [],
     aliases: ["electricity bill", "Stromrechnung", "utility bill"],
     keep: "paperwork",
+  obligations: [],
     language: "de",
     confidence: "high",
   };
@@ -108,6 +109,7 @@ const PAYLOAD: SuggestionPayload = {
   tags: [],
   aliases: ["electricity bill", "Stromrechnung"],
   keep: "paperwork",
+  obligations: [],
   language: "de",
   confidence: "high",
 };
@@ -217,7 +219,7 @@ test("the prompt asks whether a document is worth keeping at all, and errs towar
   assert.match(SYSTEM_PROMPT, /not who sent it/, "a utility company also sends leaflets");
 
   // Heuristics cannot read the document, so they must not be the thing that hides one.
-  assert.equal(PROMPT_VERSION, 4, "bumped so every existing document is re-judged");
+  assert.equal(PROMPT_VERSION, 5, "bumped so every existing document is re-judged");
 });
 
 test("the heuristic provider never hides a document it cannot judge", async () => {

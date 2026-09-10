@@ -17,7 +17,7 @@ import {
 } from "@nestjs/common";
 import { FileInterceptor } from "@nestjs/platform-express";
 import type { Request, Response } from "express";
-import { AcceptSuggestion, BulkDeleteDocuments, ListDocumentsQuery, UpdateDocument, parseUploadFields, type AcceptAllResult, type ActivityEntry, type DeletedDocument, type DocumentSummary, type DocumentText, type DocumentVersion, type RecentDocument, type SessionUser, type UploadResult } from "@harbor/shared";
+import { AcceptSuggestion, BulkDeleteDocuments, ListDocumentsQuery, UpdateDocument, parseUploadFields, type AcceptAllResult, type ActivityEntry, type DeletedDocument, type DocumentSummary, type DocumentText, type DocumentVersion, type InboxCount, type RecentDocument, type SessionUser, type UploadResult } from "@harbor/shared";
 import { CurrentUser } from "../auth/current-user.decorator";
 import { ZodPipe } from "../common/zod.pipe";
 import { DocumentsService } from "./documents.service";
@@ -50,6 +50,12 @@ export class DocumentsController {
   @Get()
   list(@Query(new ZodPipe(ListDocumentsQuery)) q: ListDocumentsQuery): Promise<DocumentSummary[]> {
     return this.documents.list({ inboxOnly: q.inbox !== undefined, categoryId: q.category, itemIds: q.item ? [q.item] : undefined, source: q.source, sort: q.sort, limit: q.limit });
+  }
+
+  /** What the Inbox is holding. Declared before `:id`, like every other literal route here. */
+  @Get("inbox-count")
+  inboxCount(): Promise<InboxCount> {
+    return this.documents.inboxCount();
   }
 
   /** Documents this owner opened lately, most recent first. Declared before `:id` on purpose. */

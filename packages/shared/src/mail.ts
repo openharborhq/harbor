@@ -115,6 +115,12 @@ export const MailConnectionView = z.object({
   statusDetail: z.string().nullable(),
   lastOkAt: z.string().datetime().nullable(),
   lastSyncAt: z.string().datetime().nullable(),
+  /**
+   * When this connection last got an answer about itself, success or failure. It is what lets the
+   * settings page tell "the check came back" from "the check never ran" — `lastOkAt` moves only on
+   * success, and a test that fails identically twice leaves every other field untouched.
+   */
+  lastCheckedAt: z.string().datetime().nullable(),
   createdAt: z.string().datetime(),
 });
 export type MailConnectionView = z.infer<typeof MailConnectionView>;

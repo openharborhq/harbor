@@ -4,8 +4,8 @@ import { Queue } from "bullmq";
 import { open, rm } from "node:fs/promises";
 import type { Readable } from "node:stream";
 import { auditLog, categories, documentFiles, documentItems, documentText, documentViews, documents, items, users, type Db } from "@harbor/db";
-import { titleFromFilename } from "@harbor/shared";
-import type { AcceptAllResult, AcceptSuggestion, ActivityEntry, DeletedDocument, DocumentSummary, DocumentText, DocumentVersion, RecentDocument, SuggestionView, UpdateDocument, UploadFields, UploadResult } from "@harbor/shared";
+import { looksLikeClutter, titleFromFilename } from "@harbor/shared";
+import type { AcceptAllResult, AcceptSuggestion, ActivityEntry, DeletedDocument, DocumentSummary, DocumentText, DocumentVersion, InboxCount, RecentDocument, SuggestionView, UpdateDocument, UploadFields, UploadResult } from "@harbor/shared";
 import { AuditService } from "../audit/audit.service";
 import { SearchIndexService } from "../search/search-index.service";
 import { MIME_BY_KIND, sniffKind } from "../common/sniff";
@@ -14,6 +14,7 @@ import { InjectDb } from "../db/db.module";
 import { InjectProcessFileQueue, type ProcessFileJob } from "../queue/queue.module";
 import { BlobStore } from "../storage/blob-store.service";
 import { SuggestService } from "../suggest/suggest.service";
+import { TasksService } from "../tasks/tasks.service";
 import { CategoriesService } from "../vocabulary/categories.service";
 import { TagsService } from "../vocabulary/tags.service";
 
@@ -52,6 +53,7 @@ export class DocumentsService {
     private readonly categoriesService: CategoriesService,
     private readonly tagsService: TagsService,
     private readonly searchIndex: SearchIndexService,
+    private readonly tasks: TasksService,
     @InjectProcessFileQueue() private readonly queue: Queue<ProcessFileJob>,
   ) {}
 
@@ -406,7 +408,7 @@ export class DocumentsService {
    * `override` carries what the card actually shows, so accepting always files the document —
    * a suggestion whose category could not be resolved must never leave it stuck in the Inbox.
    */
-  async acceptSuggestion(documentId: string, userId: string, ip: string | null, override: AcceptSuggestion = {}): Promise<DocumentSummary> {
+  async acceptSuggestion(documentId: string, userId: string, ip: string | null, override: AcceptSuggestion = { createTasks: true }): Promise<DocumentSummary> {
     const row = await this.loadRow(documentId);
     const s = (await this.suggest.latestForFiles([row.df.id])).get(row.df.id);
     if (!s) throw new NotFoundException("No suggestion to accept");
@@ -421,7 +423,8 @@ export class DocumentsService {
     };
     await this.update(documentId, patch, userId, ip);
     await this.suggest.markAccepted(s.id);
-    await this.audit.record({ action: "document.suggestion_accept", actorUserId: userId, entityType: "document", entityId: documentId, metadata: { suggestionId: s.id, confidence: s.payload.confidence }, ip });
+    const createdTasks = override.createTasks === false ? 0 : await this.createSuggestedTasks(documentId, s, patch.itemIds ?? [], userId, ip);
+    await this.audit.record({ action: "document.suggestion_accept", actorUserId: userId, entityType: "document", entityId: documentId, metadata: { suggestionId: s.id, confidence: s.payload.confidence, tasks: createdTasks }, ip });
     return this.get(documentId);
   }
 
@@ -432,6 +435,17 @@ export class DocumentsService {
     await this.suggest.markRejected(s.id);
     await this.audit.record({ action: "document.suggestion_reject", actorUserId: userId, entityType: "document", entityId: documentId, metadata: { suggestionId: s.id }, ip });
     return this.get(documentId);
+  }
+
+  /**
+   * How much is waiting, for the sidebar. Built from the same list the Inbox page builds and split
+   * by the same `looksLikeClutter`, so the badge and the page can never disagree — a badge that
+   * says 3 over a page showing 5 is worse than no badge.
+   */
+  async inboxCount(): Promise<InboxCount> {
+    const inbox = await this.list({ inboxOnly: true, limit: 500 });
+    const notPaperwork = inbox.filter(looksLikeClutter).length;
+    return { needsReview: inbox.length - notPaperwork, notPaperwork };
   }
 
   /**
@@ -452,6 +466,47 @@ export class DocumentsService {
     }
     await this.audit.record({ action: "document.accept_all", actorUserId: userId, metadata: { accepted, skipped }, ip });
     return { accepted, skipped };
+  }
+
+  /**
+   * Turn the obligations a person just accepted into real to-dos (spec §8).
+   *
+   * Attached to the first item the document is filed against, so the bill for the house shows up
+   * on the house. A failure here must not undo the filing — the document is already where it
+   * belongs, and a lost reminder is recoverable by hand while a half-filed document is not.
+   */
+  private async createSuggestedTasks(
+    documentId: string,
+    suggestion: SuggestionView,
+    itemIds: string[],
+    userId: string,
+    ip: string | null,
+  ): Promise<number> {
+    let created = 0;
+    for (const o of suggestion.payload.obligations ?? []) {
+      try {
+        await this.tasks.create(
+          {
+            title: o.title.trim().slice(0, 120),
+            kind: o.kind,
+            dueOn: isoDate(o.dueOn) ?? null,
+            amountCents: o.amountCents,
+            currency: o.currency,
+            repeat: null,
+            documentId,
+            itemId: itemIds[0] ?? null,
+            notes: null,
+          },
+          userId,
+          ip,
+          "suggested",
+        );
+        created++;
+      } catch (err) {
+        this.log.warn(`could not create suggested to-do for ${documentId}: ${(err as Error).message}`);
+      }
+    }
+    return created;
   }
 
   // ---------- helpers ----------

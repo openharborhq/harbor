@@ -8,3 +8,4 @@ export * from "./home";
 export * from "./mail";
 export * from "./backups";
 export * from "./settings";
+export * from "./tasks";

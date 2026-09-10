@@ -13,7 +13,9 @@ export const metadata: Metadata = { title: "Email Ingest · Settings" };
 export default async function MailSettingsPage() {
   const [me, connections] = await Promise.all([currentUser(), apiFetch<MailConnectionView[]>("/mail/connections")]);
 
-  // A queued test or backfill answers on the connection row, so poll while one is in flight (§7.10).
+  // A scan is the one job whose progress outlives the page, so it is polled here rather than by
+  // the button that started it. A test or a sync is watched by ConnectionActions, which knows it
+  // pressed the button; a scan is still running when you come back to the page tomorrow (§7.10).
   const settling = connections.some((c) => c.backfillStartedAt !== null && c.backfillCompletedAt === null);
 
   return (

@@ -14,7 +14,8 @@ One `suggestions` row per current `document_files` row, from a single structured
 | `category_slug` | **must be one of the vault's existing categories** or `null`; `new_category_hint` is a free-text side channel, never auto-created | FILE TO prefill |
 | `item_labels[]` | subset of the vault's item list (people and things) | FOR prefill |
 | `aliases[]` | ≤ 6 other names for this *kind* of document, in the document's language and the reader's | search only, never shown |
-| `document_date`, `expires_at` | ISO dates or `null`; expiry only when the document states one | Home *Expiring soon*, item tables |
+| `document_date`, `expires_at` | ISO dates or `null`; expiry only when the document itself stops being valid — never a payment due date (§8) | Home *Needs attention*, item tables |
+| `obligations` | ≤ 3 proposed to-dos: kind, title, due date, amount. Created only when a person accepts (§8) | `/todo`, the Inbox card's tick-box clause |
 | `tags[]` | ≤ 3, from existing tags only | Detail |
 | `confidence` | `high` / `medium` / `low` | *Accept all suggestions* takes `high` only |
 | `keep` | `paperwork` / `not_paperwork`; borderline resolves to `paperwork` | Inbox holds `not_paperwork` back under *Probably not paperwork*, with a bulk delete |

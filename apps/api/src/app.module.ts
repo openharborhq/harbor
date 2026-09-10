@@ -15,6 +15,7 @@ import { SearchModule } from "./search/search.module";
 import { SettingsModule } from "./settings/settings.module";
 import { StorageModule } from "./storage/storage.module";
 import { SuggestModule } from "./suggest/suggest.module";
+import { TasksModule } from "./tasks/tasks.module";
 import { VersionModule } from "./version/version.module";
 import { ItemAvatarModule } from "./vocabulary/item-avatar.module";
 import { VocabularyModule } from "./vocabulary/vocabulary.module";
@@ -33,6 +34,7 @@ import { VocabularyModule } from "./vocabulary/vocabulary.module";
     QueueModule,
     VocabularyModule,
     ItemAvatarModule,
+    TasksModule,
     SuggestModule.register({ withProvider: false }),
     AuthModule,
     DocumentsModule,
