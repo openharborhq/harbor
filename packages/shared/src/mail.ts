@@ -41,6 +41,16 @@ export const BACKFILL_WINDOW = `${BACKFILL_MONTHS} months`;
  */
 export const BACKFILL_WINDOWS = [2, 6, 12, 24, 60] as const;
 
+/** "every 5 minutes", "every half hour" — how often the sweep runs, said the way a person would. */
+export function syncIntervalLabel(seconds: number): string {
+  const minutes = Math.round(seconds / 60);
+  if (minutes <= 1) return "every minute";
+  if (minutes === 30) return "every half hour";
+  if (minutes < 60) return `every ${minutes} minutes`;
+  const hours = Math.round(minutes / 60);
+  return hours === 1 ? "every hour" : `every ${hours} hours`;
+}
+
 export function backfillWindowLabel(months: number): string {
   if (months % 12 === 0) {
     const years = months / 12;
@@ -121,6 +131,14 @@ export const MailConnectionView = z.object({
    * success, and a test that fails identically twice leaves every other field untouched.
    */
   lastCheckedAt: z.string().datetime().nullable(),
+  /**
+   * How often the sweep runs, in seconds — `MAIL_SYNC_INTERVAL_SECONDS` on the box.
+   *
+   * Served rather than hardcoded in copy. The Inbox tells people how often their mail is looked
+   * at, and a number typed into a sentence would go on claiming five minutes on a deployment
+   * that had been changed to thirty.
+   */
+  syncIntervalSeconds: z.number().int().positive(),
   createdAt: z.string().datetime(),
 });
 export type MailConnectionView = z.infer<typeof MailConnectionView>;

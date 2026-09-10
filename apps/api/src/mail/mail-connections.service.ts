@@ -1,9 +1,11 @@
 import { BadRequestException, ForbiddenException, Injectable, Logger, NotFoundException } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
 import { and, desc, eq } from "drizzle-orm";
 import { mailConnections, users, type Db } from "@harbor/db";
 import type { CreateMailConnection, MailConnectionView, UpdateMailConnection } from "@harbor/shared";
 import { AuditService } from "../audit/audit.service";
 import { CryptoService } from "../crypto/crypto.service";
+import type { Env } from "../config/env";
 import { InjectDb } from "../db/db.module";
 import { ImapSource } from "./imap.source";
 import type { MailSource, MailSourceConfig } from "./mail-source";
@@ -23,7 +25,13 @@ export class MailConnectionsService {
     @InjectDb() private readonly db: Db,
     private readonly crypto: CryptoService,
     private readonly audit: AuditService,
+    private readonly config: ConfigService<Env, true>,
   ) {}
+
+  /** What the sweep interval is on this box, for anything that has to say so out loud. */
+  private get syncIntervalSeconds(): number {
+    return this.config.get("MAIL_SYNC_INTERVAL_SECONDS", { infer: true });
+  }
 
   /** Every connection in the vault. Held mail is owner-scoped (§7.7); the connections themselves are not. */
   async list(): Promise<MailConnectionView[]> {
@@ -32,7 +40,7 @@ export class MailConnectionsService {
       .from(mailConnections)
       .leftJoin(users, eq(users.id, mailConnections.ownerUserId))
       .orderBy(desc(mailConnections.createdAt));
-    return rows.map((r) => toView(r.c, r.ownerName));
+    return rows.map((r) => toView(r.c, r.ownerName, this.syncIntervalSeconds));
   }
 
   async create(input: CreateMailConnection, actorUserId: string): Promise<MailConnectionView> {
@@ -80,7 +88,7 @@ export class MailConnectionsService {
       // Host and scope, never the address's password and never the folder contents.
       metadata: { kind, host: input.imapHost, scopeMode: input.scopeMode },
     });
-    return toView(created, null);
+    return toView(created, null, this.syncIntervalSeconds);
   }
 
   async update(id: string, input: UpdateMailConnection, actorUserId: string): Promise<MailConnectionView> {
@@ -110,7 +118,7 @@ export class MailConnectionsService {
       entityId: id,
       metadata: { fields: Object.keys(set).map((f) => (f === "secretEnc" ? "password" : f)) },
     });
-    return toView(updated, null);
+    return toView(updated, null, this.syncIntervalSeconds);
   }
 
   async remove(id: string, actorUserId: string): Promise<void> {
@@ -245,7 +253,7 @@ export function explain(err: Error, config: MailSourceConfig): { problem: string
   return { problem: message, hint: null };
 }
 
-function toView(row: typeof mailConnections.$inferSelect, ownerName: string | null): MailConnectionView {
+function toView(row: typeof mailConnections.$inferSelect, ownerName: string | null, syncIntervalSeconds = 300): MailConnectionView {
   return {
     id: row.id,
     ownerUserId: row.ownerUserId,
@@ -270,6 +278,7 @@ function toView(row: typeof mailConnections.$inferSelect, ownerName: string | nu
     statusDetail: row.statusDetail,
     lastOkAt: row.lastOkAt?.toISOString() ?? null,
     lastSyncAt: row.lastSyncAt?.toISOString() ?? null,
+    syncIntervalSeconds,
     lastCheckedAt: row.lastCheckedAt?.toISOString() ?? null,
     createdAt: row.createdAt.toISOString(),
   };

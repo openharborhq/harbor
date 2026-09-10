@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { looksLikeClutter, type Category, type DocumentSummary, type Item, type MailConnectionView } from "@harbor/shared";
+import { MailWatchCard } from "@/components/MailWatchCard";
 import { AcceptAll } from "@/components/AcceptAll";
 import { AutoRefresh } from "@/components/AutoRefresh";
 import { DeleteClutter } from "@/components/DeleteClutter";
@@ -120,7 +121,6 @@ export default async function InboxPage(props: PageProps<"/inbox">) {
 function EmptyInbox({ source, connections }: { source: "email" | "upload" | null; connections: MailConnectionView[] }) {
   const watching = connections.filter((c) => c.status === "ok");
   const ailing = connections.filter((c) => c.status !== "ok");
-  const names = watching.map((c) => c.label).join(", ");
 
   return (
     <div className="rounded-card border border-dashed border-border-strong p-12 text-center">
@@ -137,8 +137,7 @@ function EmptyInbox({ source, connections }: { source: "email" | "upload" | null
           </>
         ) : watching.length > 0 ? (
           <>
-            {names} {watching.length === 1 ? "is" : "are"} being watched. Harbor checks every few minutes and files what
-            looks like paperwork here, so there is nothing to do but come back — or{" "}
+            Paperwork files itself here as it arrives, so there is nothing to do but come back — or{" "}
             <Link href="/add" className="font-medium text-accent">
               add something yourself
             </Link>
@@ -166,6 +165,11 @@ function EmptyInbox({ source, connections }: { source: "email" | "upload" | null
           </>
         )}
       </p>
+      {watching.length > 0 && (
+        <div className="mt-5">
+          <MailWatchCard connections={watching} />
+        </div>
+      )}
       {ailing.length > 0 && (
         <p className="mx-auto mt-3 max-w-[520px] rounded-md bg-warn-soft px-3 py-2 text-small text-warn">
           {ailing.map((c) => c.label).join(", ")} {ailing.length === 1 ? "is" : "are"} not connected, so nothing is being

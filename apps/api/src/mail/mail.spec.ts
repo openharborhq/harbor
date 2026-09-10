@@ -143,7 +143,7 @@ test("connection-test failures are explained in terms someone can act on", () =>
 });
 
 test("the connection test reports folders on success and always closes the connection", async () => {
-  const service = new MailConnectionsService(null as never, null as never, null as never);
+  const service = new MailConnectionsService(null as never, null as never, null as never, null as never);
   const config: MailSourceConfig = { host: "imap.example.com", port: 993, username: "kai", password: "app-password" };
   let closed = 0;
 
