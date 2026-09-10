@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { TASK_REPEAT_LABEL, dueLabel, formatAmount, shortDate, type Task } from "@harbor/shared";
 import { api } from "@/lib/api-client";
+import { DocumentPicker } from "@/components/DocumentPicker";
 
 const TONE: Record<ReturnType<typeof dueLabel>["tone"], string> = {
   danger: "text-danger font-medium",
@@ -26,6 +27,7 @@ export function TaskRow({ task, showClosed = false }: { task: Task; showClosed?:
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [linking, setLinking] = useState(false);
 
   const due = dueLabel(task.dueOn);
   const amount = formatAmount(task.amountCents, task.currency);
@@ -40,6 +42,21 @@ export function TaskRow({ task, showClosed = false }: { task: Task; showClosed?:
       router.refresh();
     } catch (err) {
       setError((err as Error).message);
+      setBusy(false);
+    }
+  }
+
+  /** Attach (or detach) the document this to-do is about, after the fact. */
+  async function link(choice: { id: string; title: string; categoryPath: string | null } | null) {
+    setBusy(true);
+    setError(null);
+    try {
+      await api(`/tasks/${task.id}`, { method: "PATCH", body: JSON.stringify({ documentId: choice?.id ?? null }) });
+      setLinking(false);
+      router.refresh();
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
       setBusy(false);
     }
   }
@@ -111,7 +128,9 @@ export function TaskRow({ task, showClosed = false }: { task: Task; showClosed?:
                   {task.document.title}
                 </Link>
               ) : (
-                <span className="shrink-0">Nothing filed yet</span>
+                <button type="button" onClick={() => setLinking(true)} className="shrink-0 font-medium text-accent hover:underline">
+                  Link a document
+                </button>
               )}
               {task.item && (
                 <>
@@ -124,6 +143,16 @@ export function TaskRow({ task, showClosed = false }: { task: Task; showClosed?:
             </>
           )}
         </div>
+        {linking && (
+          <div className="mt-2 flex items-center gap-2">
+            <div className="min-w-0 max-w-[420px] flex-1">
+              <DocumentPicker value={null} onChange={(c) => c && link(c)} />
+            </div>
+            <button type="button" onClick={() => setLinking(false)} className="shrink-0 text-small text-muted hover:text-text">
+              Cancel
+            </button>
+          </div>
+        )}
         {error && <div className="mt-1 text-small text-danger">{error}</div>}
       </div>
 
@@ -154,6 +183,21 @@ export function TaskRow({ task, showClosed = false }: { task: Task; showClosed?:
         )}
         {menuOpen && (
           <div className="absolute right-0 top-7 z-10 w-56 rounded-md border border-border bg-ground p-1 shadow-lg">
+            <button
+              type="button"
+              onClick={() => {
+                setMenuOpen(false);
+                setLinking(true);
+              }}
+              className="w-full rounded px-3 py-2 text-left text-row hover:bg-surface"
+            >
+              {task.document ? "Link a different document" : "Link a document"}
+            </button>
+            {task.document && (
+              <button type="button" onClick={() => { setMenuOpen(false); void link(null); }} className="w-full rounded px-3 py-2 text-left text-row hover:bg-surface">
+                Detach the document
+              </button>
+            )}
             <button type="button" onClick={() => close("dismissed")} className="w-full rounded px-3 py-2 text-left text-row hover:bg-surface">
               Dismiss — not ours to do
             </button>

@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { TASK_KIND_VERB, TaskKind, type Item } from "@harbor/shared";
 import { api } from "@/lib/api-client";
+import { DocumentPicker } from "@/components/DocumentPicker";
 
 /**
  * A to-do that came from nobody's paperwork — "ask the Hausverwaltung about the meter reading".
@@ -18,6 +19,7 @@ export function AddTask({ items }: { items: Item[] }) {
   const [dueOn, setDueOn] = useState("");
   const [amount, setAmount] = useState("");
   const [itemId, setItemId] = useState("");
+  const [doc, setDoc] = useState<{ id: string; title: string; categoryPath: string | null } | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -39,12 +41,14 @@ export function AddTask({ items }: { items: Item[] }) {
           amountCents: cents,
           currency: cents === null ? null : "EUR",
           itemId: itemId || null,
+          documentId: doc?.id ?? null,
         }),
       });
       setTitle("");
       setDueOn("");
       setAmount("");
       setItemId("");
+      setDoc(null);
       setOpen(false);
       router.refresh();
     } catch (err) {
@@ -75,6 +79,12 @@ export function AddTask({ items }: { items: Item[] }) {
         maxLength={120}
         className="h-9 rounded-md border border-border-strong px-3 text-body outline-none focus:border-accent"
       />
+      <div className="flex items-center gap-2">
+        <span className="w-[92px] shrink-0 label">Document</span>
+        <div className="min-w-0 flex-1">
+          <DocumentPicker value={doc} onChange={setDoc} placeholder="Which document is this about? (optional)" />
+        </div>
+      </div>
       <div className="flex flex-wrap items-center gap-2">
         <select value={kind} onChange={(e) => setKind(e.target.value as TaskKind)} className="h-9 rounded-md border border-border-strong px-2 text-row">
           {TaskKind.options.map((k) => (

@@ -90,6 +90,12 @@ export const UpdateTask = z.object({
   amountCents: z.number().int().nonnegative().nullable().optional(),
   currency: z.string().trim().max(3).nullable().optional(),
   repeat: TaskRepeat.nullable().optional(),
+  /**
+   * A to-do written before its paperwork arrived — "pay the boiler service" typed on Tuesday,
+   * the invoice filed on Thursday — has to be able to find its document afterwards. `null`
+   * detaches it again without deleting anything.
+   */
+  documentId: z.string().uuid().nullable().optional(),
   itemId: z.string().uuid().nullable().optional(),
   notes: z.string().max(2000).nullable().optional(),
 });
