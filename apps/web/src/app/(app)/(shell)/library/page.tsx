@@ -231,7 +231,6 @@ async function SearchResults({ q }: { q: string }) {
         <ul className="flex flex-col">
           {result.hits.map((h) => (
             <li key={h.documentId} className="flex items-start gap-4 border-t border-border py-4 last:border-b">
-              <div className="h-14 w-11 shrink-0 rounded-sm border border-border bg-surface" />
               <div className="flex min-w-0 flex-1 flex-col gap-1.5">
                 <div className="flex items-baseline gap-2.5">
                   <Link href={`/documents/${h.documentId}`} className="text-row font-semibold hover:text-accent">
@@ -242,8 +241,37 @@ async function SearchResults({ q }: { q: string }) {
                   </span>
                 </div>
                 <Snippet html={h.snippetHtml} />
+                {/*
+                  Labels get their own fill (`label`, green), never the accent: the accent fill is
+                  what the snippet uses for a matched word, and a person or tag drawn the same way
+                  reads as a match it is not. Items stay links and say so on hover.
+                */}
+                <div className="mt-0.5 flex flex-wrap items-center gap-1.5">
+                  {h.items.map((i) => (
+                    <Link
+                      key={i.id}
+                      href={`/items/${i.id}`}
+                      title={ITEM_KIND_LABEL[i.kind as keyof typeof ITEM_KIND_LABEL]?.one ?? i.kind}
+                      className="rounded-sm bg-label-soft px-2 py-0.5 text-small font-medium text-label hover:underline"
+                    >
+                      {i.label}
+                    </Link>
+                  ))}
+                  {h.tags.map((t) => (
+                    <span key={t} className="rounded-sm bg-label-soft px-2 py-0.5 text-small font-medium text-label">
+                      {t}
+                    </span>
+                  ))}
+                  {/* How it arrived, as one more label rather than a column of its own: the row's right edge is for View alone. */}
+                  <span className="rounded-sm bg-label-soft px-2 py-0.5 text-small font-medium text-label">{h.source === "email" ? "Email" : "Upload"}</span>
+                </div>
               </div>
-              <span className="w-24 shrink-0 text-right text-small text-muted">{h.source === "email" ? "Email" : "Upload"}</span>
+              <Link
+                href={`/documents/${h.documentId}`}
+                className="flex h-8 shrink-0 items-center self-center rounded-md border border-border px-3 text-small font-medium text-text hover:border-accent hover:text-accent"
+              >
+                View
+              </Link>
             </li>
           ))}
         </ul>

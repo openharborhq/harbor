@@ -17,6 +17,13 @@
   --color-warn: #b06a12;
   --color-warn-soft: #fbf1e1;
   --color-danger: #a33125;
+  /*
+   * Labels — the people, things, tags and source on a search result. Their own pair, because the
+   * accent fill already means "matched your search" in a snippet and the warn fill means "failed",
+   * so a label in either colour makes a claim it does not mean. Not yet in the Paper file.
+   */
+  --color-label: #17604a;
+  --color-label-soft: #e3f2ea;
 
   --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
 

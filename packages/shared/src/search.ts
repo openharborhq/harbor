@@ -16,6 +16,9 @@ export const SearchHit = z.object({
   /** ts_headline output with <mark>…</mark> around matches. */
   snippetHtml: z.string(),
   rank: z.number(),
+  /** The people and things the document is about, so a result row says who it concerns. */
+  items: z.array(z.object({ id: z.string().uuid(), kind: z.string(), label: z.string() })),
+  tags: z.array(z.string()),
 });
 export type SearchHit = z.infer<typeof SearchHit>;
 

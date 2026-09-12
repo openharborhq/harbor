@@ -1,10 +1,11 @@
 import { Injectable } from "@nestjs/common";
-import { sql } from "drizzle-orm";
-import type { Db } from "@harbor/db";
+import { eq, inArray, sql } from "drizzle-orm";
+import { documentItems, items, type Db } from "@harbor/db";
 import type { SearchHit, SearchQuery, SearchResponse } from "@harbor/shared";
 
 import { InjectDb } from "../db/db.module";
 import { CategoriesService } from "../vocabulary/categories.service";
+import { TagsService } from "../vocabulary/tags.service";
 import { TS_CONFIG, TS_CONFIGS } from "./ts-config";
 
 /** Low enough to catch a dropped letter, high enough that unrelated documents stay out. */
@@ -29,6 +30,7 @@ export class SearchService {
   constructor(
     @InjectDb() private readonly db: Db,
     private readonly categories: CategoriesService,
+    private readonly tags: TagsService,
   ) {}
 
   async search(q: SearchQuery): Promise<SearchResponse> {
@@ -93,7 +95,20 @@ export class SearchService {
   }
 
   private async respond(rows: Row[], started: number, fuzzy: boolean): Promise<SearchResponse> {
-    const cats = await this.categories.index();
+    const docIds = rows.map((r) => r.document_id);
+    const [cats, links, tagNames] = await Promise.all([
+      this.categories.index(),
+      docIds.length
+        ? this.db
+            .select({ documentId: documentItems.documentId, id: items.id, kind: items.kind, label: items.label })
+            .from(documentItems)
+            .innerJoin(items, eq(items.id, documentItems.itemId))
+            .where(inArray(documentItems.documentId, docIds))
+        : [],
+      this.tags.namesForDocuments(docIds),
+    ]);
+    const itemsByDoc = new Map<string, SearchHit["items"]>();
+    for (const l of links) itemsByDoc.set(l.documentId, [...(itemsByDoc.get(l.documentId) ?? []), { id: l.id, kind: l.kind, label: l.label }]);
     const hits: SearchHit[] = rows.map((r) => ({
       documentId: r.document_id,
       title: r.title,
@@ -102,6 +117,8 @@ export class SearchService {
       source: r.source,
       snippetHtml: r.snippet ?? "",
       rank: Number(r.rank),
+      items: itemsByDoc.get(r.document_id) ?? [],
+      tags: tagNames.get(r.document_id) ?? [],
     }));
     return { hits, total: rows.length ? Number(rows[0]!.total) : 0, tookMs: Date.now() - started, fuzzy };
   }
