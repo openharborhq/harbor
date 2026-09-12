@@ -1,5 +1,5 @@
 import { Injectable, Logger } from "@nestjs/common";
-import { and, eq, isNull } from "drizzle-orm";
+import { and, eq, inArray, isNull } from "drizzle-orm";
 import { createHash } from "node:crypto";
 import { rm, writeFile } from "node:fs/promises";
 import { documents, emailIngestLog, mailConnections, mailSenders, type Db, type FolderCursor } from "@harbor/db";
@@ -20,6 +20,16 @@ import type { MailEnvelope, MailSource, MailSourceConfig } from "./mail-source";
 const MESSAGES_PER_PASS = 200;
 /** A hard stop, so one explicit action over a decade-old mailbox cannot become an unbounded one. */
 const MESSAGES_PER_BACKFILL = 20_000;
+
+/**
+ * Which connections the periodic sweep opens. `unreachable` is what one dropped socket leaves
+ * behind, and a mailbox that was fine at 03:00 must not stay unread until someone opens Settings
+ * and presses Test — the sweep selecting `ok` alone did exactly that for a whole day (2026-09-12).
+ * The Inbox still says it is not connected in the meantime; the first pass that succeeds clears
+ * it. `auth_failed` waits for a new password, because retrying a rejected one every five minutes
+ * is how an account gets locked, and `disabled` was asked for.
+ */
+export const SWEPT_STATUSES = ["ok", "unreachable"] as const;
 
 interface PassOptions {
   /** Read every folder the server offers, not just the connection's — the backfill only (§7.4). */
@@ -69,7 +79,7 @@ export class MailFetcherService {
   ) {}
 
   async syncAll(make?: SourceFactory): Promise<SyncSummary[]> {
-    const rows = await this.db.select({ id: mailConnections.id }).from(mailConnections).where(eq(mailConnections.status, "ok"));
+    const rows = await this.db.select({ id: mailConnections.id }).from(mailConnections).where(inArray(mailConnections.status, [...SWEPT_STATUSES]));
     const summaries: SyncSummary[] = [];
     for (const row of rows) summaries.push(await this.syncConnection(row.id, make));
     return summaries;

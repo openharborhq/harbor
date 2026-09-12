@@ -103,8 +103,9 @@ export function detect(envelope: MailEnvelope, rule: SenderRule | null, caps: De
  * and gives each one a filename. So a filename proves nothing.
  *
  * What does distinguish them is how the body refers to the part: an embedded image is marked
- * `inline`, carries a Content-ID, or both, because the HTML has to point at it. An attachment is
- * something the sender deliberately added.
+ * `inline`, or carries a Content-ID with no disposition of its own, because the HTML has to
+ * point at it. An attachment is something the sender deliberately added — and when the sender
+ * says `attachment` outright, that word wins over any Content-ID beside it.
  */
 export function filableAttachments(parts: MailPart[]): MailPart[] {
   return parts.filter(isAttachment);
@@ -113,13 +114,18 @@ export function filableAttachments(parts: MailPart[]): MailPart[] {
 function isAttachment(part: MailPart): boolean {
   if (!ATTACHABLE_MIME.test(part.mimeType)) return false;
 
-  // Referenced from the HTML body as `cid:…`, or explicitly drawn in it. Decoration either way,
-  // whatever it is called and however large it is — a 4 MB photo pasted into a body is still not
-  // an attachment someone chose to send.
-  if (part.contentId) return false;
-  if (part.disposition?.toLowerCase() === "inline") return false;
+  // The sender's own word comes first. Gmail's web client puts a Content-ID on every file it
+  // attaches (`<f_…>`) while also saying `attachment` about it, so a Content-ID on its own cannot
+  // mean decoration. Testing it first threw away a water bill sent from Gmail (2026-09-12) —
+  // scanned by both installs, filed by neither, and logged nowhere because it was never a candidate.
+  const disposition = part.disposition?.toLowerCase() ?? null;
+  if (disposition === "attachment") return true;
+  if (disposition === "inline") return false;
 
-  if (part.disposition?.toLowerCase() === "attachment") return true;
+  // No disposition, but referenced from the HTML body as `cid:…`: decoration, whatever it is
+  // called and however large it is — a 4 MB photo pasted into a body is still not an attachment
+  // someone chose to send.
+  if (part.contentId) return false;
 
   // Some mailers send no disposition at all. A named PDF is unambiguous even then; a bare image
   // is not, and images are what this rule exists to keep out. Phone scans arrive from a share

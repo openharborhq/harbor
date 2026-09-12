@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { PAPERWORK_TERMS, gmailFilterXml } from "./gmail-filter";
-import { scanRangeFor } from "./mail-fetcher.service";
+import { SWEPT_STATUSES, scanRangeFor } from "./mail-fetcher.service";
 import { DEFAULT_CAPS, detect, filableAttachments, type SenderRule } from "./mail-detector";
 import type { MailEnvelope, MailPart } from "./mail-source";
 
@@ -94,6 +94,13 @@ test("inline decoration is not an attachment, however it is named", () => {
   assert.equal(filableAttachments([{ part: "2", filename: "invoice.pdf", mimeType: "application/pdf", size: 90_000, disposition: null, contentId: null }]).length, 1);
   assert.equal(filableAttachments([{ part: "2", filename: "photo.jpg", mimeType: "image/jpeg", size: 90_000, disposition: null, contentId: null }]).length, 0);
 
+  // Gmail's web client gives every file it attaches a Content-ID *and* says `attachment` about
+  // it. The disposition is the sender's word and wins: this exact manifest was a real water bill
+  // that both installs scanned and neither filed (2026-09-12).
+  assert.equal(filableAttachments([{ part: "2", filename: "Invoice 6157.pdf", mimeType: "application/pdf", size: 15_296, disposition: "attachment", contentId: "<f_mtxauogd0>" }]).length, 1);
+  // …while an explicit `inline` still loses, Content-ID or not.
+  assert.equal(filableAttachments([{ part: "2", filename: "logo.png", mimeType: "image/png", size: 15_296, disposition: "inline", contentId: null }]).length, 0);
+
   // A phone scan is a real attachment and must still get through (§2 stage 1).
   assert.equal(filableAttachments([{ part: "2", filename: "scan.heic", mimeType: "image/heic", size: 2_000_000, disposition: "attachment", contentId: null }]).length, 1);
 
@@ -128,4 +135,11 @@ test("the folder cursor is trusted only while the server's numbering is", () => 
 
   const first = scanRangeFor(undefined, 5000, connectedAt);
   assert.deepEqual(first.range, { since: connectedAt }, "a new connection reads forward, never backward (§7.6)");
+});
+
+test("the sweep retries a mailbox that dropped out; only a rejected password waits for a person", () => {
+  // One dropped socket at 03:12 marked the local install's only connection `unreachable`, and the
+  // sweep — then selecting `ok` alone — never looked at it again. Nothing was read for the rest
+  // of the day and nothing said so beyond the Inbox banner.
+  assert.deepEqual([...SWEPT_STATUSES].sort(), ["ok", "unreachable"]);
 });
