@@ -120,7 +120,15 @@ Convention: `[ ]` open, `[x]` done and left in place until its milestone doc abs
        accept, null rendered as a bare figure, and the prompt (version 7) told to read the
        currency off the page or return null. Prompt 7 does not need a rerun for this.
 
-7. [ ] **Rewrite the release notes for someone outside this repo.** `CHANGELOG.md` currently
+7. [x] **`harbor upgrade` wrote the tag before the pull** (fixed in `install.sh` 2026-09-12, ships
+       with the next release; the copy already on the box keeps the old behaviour until
+       `install.sh` is re-run there). Kai ran it on the Protectli before CI had published v0.6.1:
+       the pull failed, the containers stayed on v0.6.0, but `/data/harbor.env` said v0.6.1, so a
+       retry would have said "already on it". The pull now runs with the wanted tag first and the
+       file is written only when it succeeds. The v0.6.1 rollout itself was finished by hand with
+       `docker compose … pull && up -d` from `/opt/harbor`.
+
+8. [ ] **Rewrite the release notes for someone outside this repo.** `CHANGELOG.md` currently
        reads like a postmortem written for whoever fixed it — "Multer builds its disk storage the
        moment its module initialises", "the suggester died trying to create `/data/tmp`". True,
        and no help at all to a person deciding whether to upgrade.

@@ -416,10 +416,13 @@ case "\${1:-help}" in
       echo "  no backup repository configured; upgrading without one"
     fi
     _before=\$(dc exec -T api sh -c 'echo \$HARBOR_VERSION' 2>/dev/null || echo unknown)
-    # Written only after the backup succeeded, so a failed backup cannot leave the configuration
-    # pointing at a release that was never pulled.
+    # Pull first, write the tag second. The shell variable outranks the env file for compose, so
+    # the pull already uses the wanted tag; a pull that fails — a release whose images CI has not
+    # published yet — must not leave the configuration claiming a version that never arrived,
+    # or the next 'harbor upgrade' says "already on it" and does nothing (2026-09-12).
+    HARBOR_IMAGE_TAG="\$_want" dc pull || { echo "could not pull \$_want — are its images published yet? Nothing was changed."; exit 1; }
     sudo sed -i "s|^HARBOR_IMAGE_TAG=.*|HARBOR_IMAGE_TAG=\$_want|" "$ENV_FILE"
-    dc pull && dc up -d
+    dc up -d
     sleep 3
     _after=\$(dc exec -T api sh -c 'echo \$HARBOR_VERSION' 2>/dev/null || echo unknown)
     # Recreating containers resets their restart policy to what compose declares, which would
