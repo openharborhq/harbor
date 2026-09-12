@@ -50,7 +50,7 @@ fi
 # A release, not `latest`. `latest` follows main, which is wherever development happens to be;
 # an appliance should move between versions deliberately, when you choose to. `harbor config` to
 # change it, then `harbor upgrade`.
-HARBOR_IMAGE_TAG="${HARBOR_IMAGE_TAG:-v0.6.0}"
+HARBOR_IMAGE_TAG="${HARBOR_IMAGE_TAG:-v0.6.1}"
 HARBOR_PROJECT="${HARBOR_PROJECT:-harbor}"
 TS_AUTHKEY="${TS_AUTHKEY:-}"
 # Tailscale on the host beats Tailscale in the stack: SSH over the tailnet then survives a Harbor
