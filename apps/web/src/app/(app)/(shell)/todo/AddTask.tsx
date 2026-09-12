@@ -2,9 +2,21 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { TASK_KIND_VERB, TaskKind, type Item } from "@harbor/shared";
+import { TASK_KIND_VERB, TaskKind, normaliseCurrency, type Currency, type Item } from "@harbor/shared";
 import { api } from "@/lib/api-client";
+import { CurrencySelect } from "@/components/CurrencySelect";
 import { DocumentPicker } from "@/components/DocumentPicker";
+
+/** The last currency typed into this form, per browser. A household that pays in dollars should not correct "€" every time. */
+const LAST_CURRENCY_KEY = "harbor.lastCurrency";
+
+function rememberedCurrency(): Currency {
+  try {
+    return normaliseCurrency(window.localStorage.getItem(LAST_CURRENCY_KEY)) ?? "EUR";
+  } catch {
+    return "EUR";
+  }
+}
 
 /**
  * A to-do that came from nobody's paperwork — "ask the Hausverwaltung about the meter reading".
@@ -18,6 +30,7 @@ export function AddTask({ items }: { items: Item[] }) {
   const [kind, setKind] = useState<TaskKind>("review");
   const [dueOn, setDueOn] = useState("");
   const [amount, setAmount] = useState("");
+  const [currency, setCurrency] = useState<Currency | null>(rememberedCurrency);
   const [itemId, setItemId] = useState("");
   const [doc, setDoc] = useState<{ id: string; title: string; categoryPath: string | null } | null>(null);
   const [busy, setBusy] = useState(false);
@@ -39,11 +52,18 @@ export function AddTask({ items }: { items: Item[] }) {
           kind,
           dueOn: dueOn || null,
           amountCents: cents,
-          currency: cents === null ? null : "EUR",
+          currency: cents === null ? null : currency,
           itemId: itemId || null,
           documentId: doc?.id ?? null,
         }),
       });
+      if (cents !== null && currency) {
+        try {
+          window.localStorage.setItem(LAST_CURRENCY_KEY, currency);
+        } catch {
+          // A browser that refuses storage just asks again next time.
+        }
+      }
       setTitle("");
       setDueOn("");
       setAmount("");
@@ -94,13 +114,16 @@ export function AddTask({ items }: { items: Item[] }) {
           ))}
         </select>
         <input type="date" value={dueOn} onChange={(e) => setDueOn(e.target.value)} className="h-9 rounded-md border border-border-strong px-2 text-row" />
-        <input
-          value={amount}
-          onChange={(e) => setAmount(e.target.value)}
-          inputMode="decimal"
-          placeholder="Amount (€)"
-          className="h-9 w-32 rounded-md border border-border-strong px-3 text-row"
-        />
+        <div className="flex items-center gap-1">
+          <CurrencySelect value={currency} onChange={setCurrency} />
+          <input
+            value={amount}
+            onChange={(e) => setAmount(e.target.value)}
+            inputMode="decimal"
+            placeholder="Amount"
+            className="h-9 w-28 rounded-md border border-border-strong px-3 text-row"
+          />
+        </div>
         <select value={itemId} onChange={(e) => setItemId(e.target.value)} className="h-9 max-w-[220px] rounded-md border border-border-strong px-2 text-row">
           <option value="">Not about anything in particular</option>
           {items.map((i) => (

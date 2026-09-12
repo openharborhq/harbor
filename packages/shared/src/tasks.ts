@@ -45,6 +45,37 @@ export const TASK_REPEAT_LABEL: Record<TaskRepeat, string> = {
 
 const TASK_REPEAT_MONTHS: Record<TaskRepeat, number> = { monthly: 1, quarterly: 3, yearly: 12, two_yearly: 24 };
 
+/**
+ * The currencies a to-do can carry. Four, deliberately: this household's paperwork arrives in
+ * euros and dollars with the odd British or Swiss bill, and a select of 180 codes turns a
+ * one-glance correction into a scroll. Null is a real value — the document did not say — and it
+ * is shown as such rather than quietly defaulted, because "€5,792.25" on a Vermont tax bill is
+ * wrong in a way "5,792.25" is not.
+ */
+export const Currency = z.enum(["EUR", "USD", "GBP", "CHF"]);
+export type Currency = z.infer<typeof Currency>;
+
+export const CURRENCY_SYMBOL: Record<Currency, string> = { EUR: "€", USD: "$", GBP: "£", CHF: "CHF " };
+
+const CURRENCY_ALIASES: Record<string, Currency> = {
+  "€": "EUR", EURO: "EUR", EUROS: "EUR",
+  "$": "USD", "US$": "USD", DOLLAR: "USD", DOLLARS: "USD",
+  "£": "GBP", POUND: "GBP", POUNDS: "GBP", STERLING: "GBP",
+  FR: "CHF", SFR: "CHF", FRANKEN: "CHF", FRANCS: "CHF",
+};
+
+/**
+ * What a model wrote into `currency`, or a person typed, as one of ours — or null when it is
+ * nothing recognisable. "Euro", "€", "eur" and "EUR" are one thing; an unknown code is not a
+ * currency the list can show, so it reads as "not stated" rather than being guessed at.
+ */
+export function normaliseCurrency(raw: string | null | undefined): Currency | null {
+  if (!raw) return null;
+  const s = raw.trim().toUpperCase();
+  const code = CURRENCY_ALIASES[s] ?? s;
+  return Currency.safeParse(code).success ? (code as Currency) : null;
+}
+
 export const Task = z.object({
   id: z.string().uuid(),
   title: z.string(),
@@ -75,7 +106,8 @@ export const CreateTask = z.object({
   kind: TaskKind.default("review"),
   dueOn: z.string().date().nullable().default(null),
   amountCents: z.number().int().nonnegative().nullable().default(null),
-  currency: z.string().trim().max(3).nullable().default(null),
+  /** One of ours, or null for "the document did not say" — never free text, which is how a task ended up in "Euro". */
+  currency: Currency.nullable().default(null),
   repeat: TaskRepeat.nullable().default(null),
   documentId: z.string().uuid().nullable().default(null),
   itemId: z.string().uuid().nullable().default(null),
@@ -88,7 +120,7 @@ export const UpdateTask = z.object({
   kind: TaskKind.optional(),
   dueOn: z.string().date().nullable().optional(),
   amountCents: z.number().int().nonnegative().nullable().optional(),
-  currency: z.string().trim().max(3).nullable().optional(),
+  currency: Currency.nullable().optional(),
   repeat: TaskRepeat.nullable().optional(),
   /**
    * A to-do written before its paperwork arrived — "pay the boiler service" typed on Tuesday,
@@ -208,8 +240,11 @@ export function formatAmount(amountCents: number | null, currency: string | null
   if (amountCents === null) return null;
   // Grouped, because "$5792.25" makes a reader count digits and "$5,792.25" does not.
   const value = (amountCents / 100).toLocaleString("en-GB", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  const symbol = currency === "EUR" || currency === null ? "€" : currency === "USD" ? "$" : currency === "GBP" ? "£" : `${currency} `;
-  return `${symbol}${value}`;
+  // No currency means the document did not say. That shows as a bare figure — never as a euro
+  // sign assumed on its behalf, which is what this did until a dollar bill came through in euros.
+  const code = normaliseCurrency(currency);
+  if (!code) return currency?.trim() ? `${currency.trim()} ${value}` : value;
+  return `${CURRENCY_SYMBOL[code]}${value}`;
 }
 
 /**

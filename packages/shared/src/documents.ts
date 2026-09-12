@@ -1,5 +1,6 @@
 import { z } from "zod/v4";
 import { SuggestionView } from "./suggestions";
+import { Currency } from "./tasks";
 
 /** Mirrors document_files.processing_status (spec §1). */
 export const ProcessingStatus = z.enum([
@@ -82,6 +83,13 @@ export const AcceptSuggestion = z.object({
    * action rather than a second button — and unticking it is how you say no.
    */
   createTasks: z.boolean().default(true),
+  /**
+   * Corrections to the proposed to-dos, by position. Only the currency so far: the model reads
+   * the figure well and the currency less well — a total line with no symbol on it came back
+   * as whichever the model assumed — and the card is the one moment the person has the page and
+   * the proposal side by side. Null says "the document does not state one" and is kept as such.
+   */
+  obligations: z.array(z.object({ currency: Currency.nullable() })).max(3).optional(),
 });
 export type AcceptSuggestion = z.infer<typeof AcceptSuggestion>;
 

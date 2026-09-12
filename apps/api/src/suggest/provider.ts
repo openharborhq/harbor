@@ -33,7 +33,7 @@ export interface SuggestionProvider {
 }
 
 /** Bump when the prompt or schema changes so old suggestions can be told apart and re-run. */
-export const PROMPT_VERSION = 6;
+export const PROMPT_VERSION = 7;
 /**
  * Superseded by TEXT_BUDGET in ./sample-text. Kept only as the ceiling for a single page's worth
  * of text in tests that predate page-aware sampling.

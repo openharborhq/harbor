@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
-import { displayTitle, formatAmount, shortDate, type Category, type DocumentSummary, type DuplicateCandidate, type Item, type MuteResult } from "@harbor/shared";
+import { displayTitle, formatAmount, normaliseCurrency, shortDate, type Category, type Currency, type DocumentSummary, type DuplicateCandidate, type Item, type MuteResult } from "@harbor/shared";
+import { CurrencySelect } from "./CurrencySelect";
 import { ItemPicker } from "./ItemPicker";
 import { api } from "@/lib/api-client";
 import { formatBytes, formatRelative, pages } from "@/lib/format";
@@ -43,6 +44,12 @@ export function InboxCard({ doc, categories, items, copies = [] }: { doc: Docume
   /** The FOR selection still holds everything the model proposed. */
   /** What the model says still has to be done. Proposals — nothing exists until this card is filed. */
   const obligations = s && !s.rejectedAt ? (s.payload.obligations ?? []) : [];
+  /**
+   * The currency on each proposed payment, correctable here. The model reads the figure well
+   * and the currency less well, and this card is the moment the page and the proposal are side
+   * by side. What is chosen goes with the accept; null stays null — "the document does not say".
+   */
+  const [currencies, setCurrencies] = useState<(Currency | null)[]>(() => obligations.map((o) => normaliseCurrency(o.currency)));
   const forIsSuggested = !!s && s.resolved.itemIds.length > 0 && s.resolved.itemIds.every((id) => itemIds.includes(id));
 
   /** "It is the same paper" — this file becomes the next version of the one already filed. */
@@ -64,7 +71,7 @@ export function InboxCard({ doc, categories, items, copies = [] }: { doc: Docume
     setError(null);
     try {
       // Accepting sends the card's own category/items so filing can never silently no-op.
-      if (s && !s.rejectedAt) await api(`/documents/${doc.id}/suggestion/accept`, { method: "POST", body: JSON.stringify({ categoryId, itemIds, createTasks }) });
+      if (s && !s.rejectedAt) await api(`/documents/${doc.id}/suggestion/accept`, { method: "POST", body: JSON.stringify({ categoryId, itemIds, createTasks, obligations: currencies.map((currency) => ({ currency })) }) });
       else await api(`/documents/${doc.id}`, { method: "PATCH", body: JSON.stringify({ categoryId, itemIds }) });
       router.refresh();
     } catch (err) {
@@ -260,9 +267,20 @@ export function InboxCard({ doc, categories, items, copies = [] }: { doc: Docume
               {obligations.map((o, i) => (
                 <span key={`${o.title}-${i}`}>
                   {i > 0 && ", then "}
-                  <span className="font-semibold">
-                    {o.amountCents !== null ? `pay ${formatAmount(o.amountCents, o.currency)}` : o.title.toLowerCase()}
-                  </span>
+                  {o.amountCents !== null ? (
+                    <span className="inline-flex items-center gap-1 font-semibold">
+                      pay
+                      <CurrencySelect
+                        value={currencies[i] ?? null}
+                        onChange={(c) => setCurrencies((prev) => prev.map((x, j) => (j === i ? c : x)))}
+                        disabled={processing || !createTasks}
+                        className="h-7 text-small"
+                      />
+                      {formatAmount(o.amountCents, null)}
+                    </span>
+                  ) : (
+                    <span className="font-semibold">{o.title.toLowerCase()}</span>
+                  )}
                   {o.dueOn && (
                     <>
                       {" by "}

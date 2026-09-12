@@ -5,6 +5,7 @@ import { open, rm } from "node:fs/promises";
 import type { Readable } from "node:stream";
 import { auditLog, categories, documentFiles, documentItems, documentText, documentViews, documents, items, tasks, users, type Db } from "@harbor/db";
 import { looksLikeClutter, titleFromFilename } from "@harbor/shared";
+import { normaliseCurrency } from "@harbor/shared";
 import type { AcceptAllResult, AcceptSuggestion, ActivityEntry, DeletedDocument, DocumentSummary, DocumentText, DocumentVersion, DuplicateReport, InboxCount, RecentDocument, SuggestionView, UpdateDocument, UploadFields, UploadResult } from "@harbor/shared";
 import { likeness, sizeIsClose } from "./duplicates";
 import { AuditService } from "../audit/audit.service";
@@ -424,7 +425,7 @@ export class DocumentsService {
     };
     await this.update(documentId, patch, userId, ip);
     await this.suggest.markAccepted(s.id);
-    const createdTasks = override.createTasks === false ? 0 : await this.createSuggestedTasks(documentId, s, patch.itemIds ?? [], userId, ip);
+    const createdTasks = override.createTasks === false ? 0 : await this.createSuggestedTasks(documentId, s, patch.itemIds ?? [], userId, ip, override.obligations);
     await this.audit.record({ action: "document.suggestion_accept", actorUserId: userId, entityType: "document", entityId: documentId, metadata: { suggestionId: s.id, confidence: s.payload.confidence, tasks: createdTasks }, ip });
     return this.get(documentId);
   }
@@ -482,9 +483,13 @@ export class DocumentsService {
     itemIds: string[],
     userId: string,
     ip: string | null,
+    overrides?: AcceptSuggestion["obligations"],
   ): Promise<number> {
     let created = 0;
-    for (const o of suggestion.payload.obligations ?? []) {
+    for (const [i, o] of (suggestion.payload.obligations ?? []).entries()) {
+      // The card's correction wins over the model's reading; either way only one of the
+      // currencies the list can show is stored, or null for "the document did not say".
+      const fix = overrides?.[i];
       try {
         await this.tasks.create(
           {
@@ -492,7 +497,7 @@ export class DocumentsService {
             kind: o.kind,
             dueOn: isoDate(o.dueOn) ?? null,
             amountCents: o.amountCents,
-            currency: o.currency,
+            currency: o.amountCents === null ? null : fix ? fix.currency : normaliseCurrency(o.currency),
             repeat: null,
             documentId,
             itemId: itemIds[0] ?? null,

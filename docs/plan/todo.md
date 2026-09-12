@@ -88,7 +88,39 @@ Convention: `[ ]` open, `[x]` done and left in place until its milestone doc abs
        Still worth doing later: the thresholds are one vault's evidence. Revisit once a few more
        real re-scans have gone through.
 
-4. [ ] **Rewrite the release notes for someone outside this repo.** `CHANGELOG.md` currently
+4. [x] **Search results say who and what a document is about** (built 2026-09-11). Each hit
+       now carries the linked people and things as chips (accent, each one a link to its page)
+       and the tags after them (grey), the same chip style as the document view. The row ends
+       in a **View** button instead of relying on the title link. `SearchHit` gained `items`
+       and `tags`; `SearchService.respond` loads both in one pass alongside the category index.
+
+5. [x] **Mail from Gmail with a PDF was silently skipped; a dropped connection stopped the sweep
+       for good** (fixed 2026-09-12, unreleased). Found on a water bill sent from Gmail on
+       2026-09-11: Gmail sets a Content-ID on real attachments and `isAttachment` tested that
+       before the disposition, so both installs scanned the message and neither filed or logged
+       it. Separately, the local install's connection went `unreachable` on one dropped socket
+       at 03:12 and `syncAll` only swept `ok`, so nothing was read after that. Both fixed with
+       tests; `SWEPT_STATUSES` names what the sweep opens.
+
+       Still owed:
+       - [ ] Release as v0.6.1 (`scripts/release.sh v0.6.1`) and `harbor upgrade` on the box.
+       - [ ] Then **Scan history**, last month, from Settings → Mail on each install: the bill
+             was never logged as seen, so the ordinary sweep will not go back for it.
+       - [x] Rebuild the local `mailfetch` image (done 2026-09-12; the fixed sweep cleared the
+             stuck status on its first pass). Always `docker compose --env-file .env -f
+             infra/compose.yml …` — without the env file compose recreates postgres and redis on
+             the default ports, which collide with the Homebrew ones and leave the stack down.
+
+6. [x] **A to-do's currency is chosen, not assumed** (built 2026-09-12, unreleased). Reported
+       as "sometimes $, sometimes €": `AddTask` hardcoded EUR, `DocumentTasks` kept `?? "EUR"`,
+       the Inbox card could not change what the model proposed, and `formatAmount` drew "€" for
+       a null currency. Now: `Currency` enum (EUR/USD/GBP/CHF) on `CreateTask`/`UpdateTask`,
+       `normaliseCurrency` for whatever a model or person wrote, a `CurrencySelect` on all three
+       forms, `AcceptSuggestion.obligations[i].currency` so the card's choice travels with the
+       accept, null rendered as a bare figure, and the prompt (version 7) told to read the
+       currency off the page or return null. Prompt 7 does not need a rerun for this.
+
+7. [ ] **Rewrite the release notes for someone outside this repo.** `CHANGELOG.md` currently
        reads like a postmortem written for whoever fixed it — "Multer builds its disk storage the
        moment its module initialises", "the suggester died trying to create `/data/tmp`". True,
        and no help at all to a person deciding whether to upgrade.

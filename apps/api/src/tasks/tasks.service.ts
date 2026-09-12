@@ -12,6 +12,7 @@ import {
   type Task,
   type TaskCount,
   type UpdateTask,
+  normaliseCurrency,
 } from "@harbor/shared";
 import { AuditService } from "../audit/audit.service";
 import { InjectDb } from "../db/db.module";
@@ -93,7 +94,8 @@ export class TasksService {
     const byCurrency = new Map<string, number>();
     for (const t of open) {
       if (t.amountCents === null) continue;
-      const key = t.currency ?? "EUR";
+      // Amounts with no stated currency are a group of their own, not euros by assumption.
+      const key = t.currency ?? "";
       byCurrency.set(key, (byCurrency.get(key) ?? 0) + t.amountCents);
     }
     return {
@@ -178,7 +180,7 @@ export class TasksService {
           kind: existing.kind,
           dueOn: nextDueOn(existing.dueOn, existing.repeat),
           amountCents: existing.amountCents,
-          currency: existing.currency,
+          currency: normaliseCurrency(existing.currency),
           repeat: existing.repeat,
           documentId: existing.document?.id ?? null,
           itemId: existing.item?.id ?? null,

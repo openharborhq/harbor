@@ -14,6 +14,26 @@ migrations, on purpose, because a half-reversed schema is worse than a restore. 
 wrong, follow [`docs/restore.md`](docs/restore.md) with the backup `harbor upgrade` took
 immediately before it. That is why the upgrade refuses to run without one.
 
+## v0.6.1 — 2026-09-12
+
+- **PDFs attached from Gmail are filed again.** Gmail's web client marks every file it attaches
+  in a way Harbor read as an inline picture, so a bill forwarded or sent from Gmail was skipped
+  without a trace — the water bill that surfaced this was scanned by two installs and filed by
+  neither. Mail that arrived before this release was never recorded as seen, so a **Scan
+  history** over the last month from Settings → Mail picks it up now.
+- **A mailbox that drops out once is retried.** A single failed connection marked the mailbox
+  unreachable and the five-minute sweep then left it alone for good, until someone pressed Test
+  in Settings. The sweep now keeps trying; the Inbox still says the mailbox is not connected
+  until a pass succeeds. A rejected password still waits for a new one rather than retrying.
+- **You choose the currency on a to-do.** A to-do typed by hand was always stored in euros,
+  whatever you meant, and one proposed from a document carried whichever currency the model
+  assumed when the page showed none — so a dollar bill could sit on the list as "€5,792.25".
+  Every place an amount is entered or accepted now has a currency beside it (€, $, £, CHF), and
+  when a document does not state one the to-do says so with a "?" instead of guessing. Existing
+  to-dos keep what they have; correct one from **Edit** on its document.
+- Search results now show the people, things and tags a document is about, and how it arrived,
+  as labels under the matched text.
+
 ## v0.6.0 — 2026-09-10
 
 - **Harbor now keeps track of what paperwork still needs doing.** A bill to pay, a form to return,

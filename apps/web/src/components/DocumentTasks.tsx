@@ -2,7 +2,8 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { dueSentence, formatAmount, shortDate, type Task } from "@harbor/shared";
+import { dueSentence, formatAmount, normaliseCurrency, shortDate, type Currency, type Task } from "@harbor/shared";
+import { CurrencySelect } from "./CurrencySelect";
 import { api } from "@/lib/api-client";
 
 const TONE = { danger: "text-danger", warn: "text-warn", plain: "text-text", muted: "text-muted" } as const;
@@ -47,7 +48,7 @@ export function DocumentTasks({ documentId, tasks }: { documentId: string; tasks
    * a reminder carrying the wrong number is worse than one carrying none, so the correction lives
    * here beside the document rather than behind a trip to another page.
    */
-  async function saveEdit(task: Task, patch: { title: string; amount: string; dueOn: string }) {
+  async function saveEdit(task: Task, patch: { title: string; amount: string; currency: Currency | null; dueOn: string }) {
     setBusy(task.id);
     setError(null);
     try {
@@ -59,7 +60,7 @@ export function DocumentTasks({ documentId, tasks }: { documentId: string; tasks
         body: JSON.stringify({
           title: patch.title.trim() || task.title,
           amountCents: cents,
-          currency: cents === null ? null : (task.currency ?? "EUR"),
+          currency: cents === null ? null : patch.currency,
           dueOn: patch.dueOn || null,
         }),
       });
@@ -207,17 +208,19 @@ function EditTask({
   task: Task;
   busy: boolean;
   onCancel: () => void;
-  onSave: (patch: { title: string; amount: string; dueOn: string }) => void;
+  onSave: (patch: { title: string; amount: string; currency: Currency | null; dueOn: string }) => void;
 }) {
   const [title, setTitle] = useState(task.title);
   const [amount, setAmount] = useState(task.amountCents === null ? "" : (task.amountCents / 100).toFixed(2));
+  // Pre-filled with what the model read, or "?" when it read nothing — never a euro by default.
+  const [currency, setCurrency] = useState<Currency | null>(normaliseCurrency(task.currency));
   const [dueOn, setDueOn] = useState(task.dueOn ?? "");
 
   return (
     <form
       onSubmit={(e) => {
         e.preventDefault();
-        onSave({ title, amount, dueOn });
+        onSave({ title, amount, currency, dueOn });
       }}
       className="flex flex-col gap-2 px-4 py-3.5"
     >
@@ -230,13 +233,14 @@ function EditTask({
       <div className="flex items-center gap-2">
         <label className="flex items-center gap-1.5">
           <span className="text-small text-muted">Amount</span>
+          <CurrencySelect value={currency} onChange={setCurrency} />
           <input
             autoFocus
             value={amount}
             onChange={(e) => setAmount(e.target.value)}
             inputMode="decimal"
             placeholder="—"
-            className="h-9 w-28 rounded-md border border-border-strong px-3 text-row outline-none focus:border-accent"
+            className="h-9 w-24 rounded-md border border-border-strong px-3 text-row outline-none focus:border-accent"
           />
         </label>
         <label className="flex items-center gap-1.5">
