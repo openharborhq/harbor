@@ -25,6 +25,7 @@ reproduction you can manage.
 | Burglar takes the box | A powered-off appliance | The data volume is LUKS; the passphrase is never stored on it |
 | Backup provider is breached | Snapshots | restic encrypts client-side; the key never leaves the house |
 | Attacker on the internet | Nothing to connect to | With `compose.tailscale.yml` no container publishes a host port; the only ingress is your tailnet |
+| Attacker on the internet, with sharing published | Only what you chose to share | `harbor public enable` exposes one path on a **separate** tailnet node: the doorman, which has no database, no master key, no accounts and no route that lists anything. It holds the sealed bundles you are already handing out, and nothing else |
 | A malicious PDF arrives by email | Code execution inside the OCR worker | That container has no route out, a read-only filesystem, no capabilities and is not root |
 | Someone reads a database dump | Mail passwords among the rows | Sealed under the master key, which lives only on the encrypted volume |
 | A family laptop is stolen | A session | Second factor required to sign in; sessions are revocable from Settings |
@@ -43,7 +44,12 @@ Stated plainly, because a security page that claims everything is worth nothing:
 - **The LLM provider**, when you choose a hosted one. It receives the document text. Choosing
   `none`, or pointing `openai-compatible` at a model on your own network, is how you avoid that.
 - **A compromised Tailscale account**, which is a route onto your tailnet.
-- **Traffic analysis.** Sizes and timings of outbound backups and API calls are visible.
+- **Anyone you share with.** A share link hands over real documents. Once the recipient has
+  downloaded them, they have them: expiry, a download limit and withdrawing the share all stop
+  *further* fetches, and none of them reach a copy that has already left. Share deliberately, and
+  withdraw when the reason for sharing has passed.
+- **Traffic analysis.** Sizes and timings of outbound backups and API calls are visible. Share
+  bundles are padded to fixed sizes for this reason, but a fetch is still observably a fetch.
 
 There is no end-to-end encryption. Server-side OCR and search need the plaintext.
 
@@ -66,6 +72,7 @@ Each container gets only the reach its job needs, which is what makes the OCR ro
 | `api` | serves them to you | mail autodiscover, and a daily check for a newer release (`HARBOR_UPDATE_CHECK=false` stops it) |
 | `web` | no | no host port of its own with the tailnet overlay |
 | `tailscale` | no | the tailnet; the only way in |
+| `share` (the doorman) | serves sealed bundles | none of its own; reachable from outside only while `harbor public enable` is on, and then on its own node |
 | `postgres`, `redis` | — | none |
 
 Keys are layered: a LUKS passphrase protects the powered-off disk; a master key on that volume

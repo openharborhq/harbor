@@ -8,7 +8,7 @@
 |---|---|---|
 | Burglar takes the box | Powered-off appliance | LUKS; passphrase never on device |
 | Backup provider breach | Snapshots | restic client-side encryption; key only at home |
-| Internet attacker | Nothing to connect to | Zero inbound ports; tailnet only |
+| Internet attacker | Nothing to connect to, until sharing is published | Zero inbound ports; tailnet only. With `harbor public enable` (§10.6) there is exactly one path: the doorman, on its own tailnet node, holding only the bundles already being handed out — no KEK, no database, no route that enumerates |
 | Malicious PDF via email | Code exec in the OCR worker | Worker is network-less, read-only, non-root |
 | DB dump or backup snapshot | Mail credentials among the rows | `mail_connections.secret_enc` is KEK-encrypted like a DEK; key only at home |
 | Stolen family laptop | A session | TOTP required, sessions revocable, re-auth for sensitive actions |
@@ -17,7 +17,9 @@
 
 **Explicit non-goals:** a compromised *running* server (holds plaintext by design); a
 malicious owner account; the LLM provider (sees OCR text — accepted); a compromised
-Tailscale account. No E2EE.
+Tailscale account; **a recipient who keeps what you shared with them** — once a document has been
+downloaded it is theirs, and expiry limits further fetches, not what has already left (§10.9).
+No E2EE.
 
 A **connected inbox (§7) widens the first of those**: a live compromise reaches not just the
 filed documents but the mailbox behind them, and Gmail's app password carries SMTP send as

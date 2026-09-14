@@ -1,4 +1,6 @@
 import type { NextConfig } from "next";
+import { PHASE_DEVELOPMENT_SERVER } from "next/constants";
+import { securityHeaders } from "./src/lib/security-headers";
 
 /**
  * Where the API lives from the Next server's point of view (compose: http://api:4000).
@@ -9,7 +11,7 @@ import type { NextConfig } from "next";
  */
 const API_INTERNAL_URL = process.env.API_INTERNAL_URL ?? "http://localhost:4000";
 
-const nextConfig: NextConfig = {
+const buildConfig = (dev: boolean): NextConfig => ({
   // Required by infra/docker/web.Dockerfile: self-contained server.js + minimal node_modules.
   output: "standalone",
   transpilePackages: ["@harbor/shared"],
@@ -18,10 +20,21 @@ const nextConfig: NextConfig = {
   async rewrites() {
     return [{ source: "/api/:path*", destination: `${API_INTERNAL_URL}/:path*` }];
   },
+  // Spec §3.2: applied to everything the app serves, including the /api rewrite, so an API
+  // response opened directly in a tab is under the same policy as a page.
+  async headers() {
+    return [{ source: "/:path*", headers: securityHeaders(dev) }];
+  },
   experimental: {
     // proxy.ts never matches /api/*, but keep the buffered-body ceiling above the API's 200 MB limit.
     proxyClientMaxBodySize: "220mb",
   },
-};
+});
 
-export default nextConfig;
+/**
+ * Function form so the phase is known: only the dev server's policy allows `eval` and a websocket,
+ * and it is the phase that says which server this is, not an ambient NODE_ENV.
+ */
+const config = (phase: string): NextConfig => buildConfig(phase === PHASE_DEVELOPMENT_SERVER);
+
+export default config;

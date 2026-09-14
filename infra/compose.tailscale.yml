@@ -46,6 +46,37 @@ services:
     security_opt: ["no-new-privileges:true"]
     depends_on: [web]
 
+  # The share node (spec §10.6). Its own machine in the tailnet, so the doorman answers on its own
+  # hostname at 443 — a separate origin from the app, and the only port a recipient behind a
+  # corporate firewall can be relied on to reach.
+  #
+  # Only this node ever gets Funnel. The app's node above keeps `AllowFunnel: {}` empty for good,
+  # so no mistake here can publish the vault. Started by `harbor public enable`, which is what the
+  # profile is for: an install that never shares never grows a second node.
+  tailscale-share:
+    profiles: ["public"]
+    image: tailscale/tailscale:v1.102.3
+    hostname: ${TAILSCALE_SHARE_HOSTNAME:-harbor-share}
+    environment:
+      # No auth key by default: `harbor public enable` prints the login URL this container emits
+      # and waits, so nothing has to be created in the admin console and pasted here. A key is
+      # still honoured for scripted installs.
+      TS_AUTHKEY: ${TS_SHARE_AUTHKEY:-}
+      TS_STATE_DIR: /var/lib/tailscale
+      TS_USERSPACE: "true"
+      TS_SERVE_CONFIG: /config/serve.json
+      TS_ACCEPT_DNS: "false"
+      TS_EXTRA_ARGS: ${TS_EXTRA_ARGS:---accept-routes=false}
+    volumes:
+      # Its own identity, kept across upgrades: losing it means a new node, a new name, and every
+      # live share link dead.
+      - "${HARBOR_DATA_DIR:-../data}/tailscale-share:/var/lib/tailscale"
+      - "./tailscale-share-serve.json:/config/serve.json:ro"
+    networks: [edge]
+    restart: unless-stopped
+    security_opt: ["no-new-privileges:true"]
+    depends_on: [share]
+
   web:
     # The whole point: no host port. Reachable only through the tailscale container above.
     #
