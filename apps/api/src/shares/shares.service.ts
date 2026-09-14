@@ -10,7 +10,8 @@ import {
   shareStatus,
   type ShareAccessEvent,
 } from "@harbor/shared";
-import { randomBytes } from "node:crypto";
+import { randomBytes, createCipheriv, pbkdf2 as pbkdf2Cb } from "node:crypto";
+import { promisify } from "node:util";
 import { open, rm } from "node:fs/promises";
 import { AuditService } from "../audit/audit.service";
 import type { Env } from "../config/env";
@@ -18,6 +19,7 @@ import { CryptoService } from "../crypto/crypto.service";
 import { DB } from "../db/db.module";
 import { BlobStore } from "../storage/blob-store.service";
 import { StoredZipWriter, hashSharePassword, sealBundle } from "@harbor/bundle";
+import { BucketSink } from "./bucket-sink";
 import { DoormanSink, tokenDirName } from "./share-sink";
 import { Inject } from "@nestjs/common";
 
@@ -38,16 +40,15 @@ export class SharesService {
     private readonly crypto: CryptoService,
     private readonly blobs: BlobStore,
     private readonly doorman: DoormanSink,
+    private readonly bucket: BucketSink,
     private readonly audit: AuditService,
     private readonly config: ConfigService<Env, true>,
   ) {}
 
   async create(input: CreateShareInput, userId: string, ip: string | null) {
     const caps = SINK_CAPABILITIES[input.delivery];
-    if (input.delivery === "bucket") {
-      // The s3 sink is specified (§10.10) but not built; refusing plainly beats sealing a bundle
-      // we have nowhere to put.
-      throw new BadRequestException("Sharing from your own storage is not set up yet. Serve it from Harbor instead.");
+    if (input.delivery === "bucket" && !this.bucket.configured) {
+      throw new BadRequestException("No storage is set up for sharing yet. Serve it from Harbor instead, or add a share bucket in your configuration.");
     }
 
     const files = await this.filesFor(input.documentIds);
@@ -125,14 +126,38 @@ export class SharesService {
         })),
       );
 
-      await this.doorman.putBundle(share.id, sealedTemp, shareKey);
+      // 4. Hand the sealed bundle to the sink. Everything above this line was identical for both,
+      //    which is the whole reason delivery can be chosen per share.
+      const filename = `${slugForFile(input.label)}.zip`;
+      let pageUrl: string | null = null;
+      if (input.delivery === "bucket") {
+        const published = await this.bucket.publish({
+          shareId: share.id,
+          sealedPath: sealedTemp,
+          filename,
+          fileCount: files.length,
+          message: input.message ?? null,
+          expiresAt,
+          expiresInSeconds: input.expiryHours * 3600,
+        });
+        pageUrl = published.pageUrl;
+        await this.db.update(shares).set({ objectKey: published.objectKey }).where(eq(shares.id, share.id));
+      } else {
+        await this.doorman.putBundle(share.id, sealedTemp, shareKey);
+      }
 
-      // 4. One token per recipient. The plaintext is returned once and never stored.
+      // 5. One token per recipient. The plaintext is returned once and never stored.
       const minted: { linkId: string; recipientLabel: string; url: string }[] = [];
       for (const recipient of input.recipients) {
         const token = this.crypto.randomToken(32);
         const tokenHash = this.crypto.hashToken(token);
-        const passwordHash = recipient.password ? await hashSharePassword(recipient.password) : null;
+        /**
+         * On `doorman` the password is checked by a server, behind a rate limit, so a hash is
+         * stored. On `bucket` there is no server to ask: the password instead *wraps the key* in
+         * the fragment, so nothing about it is stored here at all (§10.10).
+         */
+        const passwordHash =
+          input.delivery === "doorman" && recipient.password ? await hashSharePassword(recipient.password) : null;
         const [link] = await this.db
           .insert(shareLinks)
           .values({
@@ -145,18 +170,29 @@ export class SharesService {
           })
           .returning();
 
-        await this.doorman.putPolicy(tokenDirName(token), {
-          shareId: share.id,
-          filename: `${slugForFile(input.label)}.zip`,
-          expiresAt: expiresAt.toISOString(),
-          maxDownloads: link.maxDownloads,
-          passwordHash,
-          message: input.message ?? null,
-          fileCount: files.length,
-          sealedBytes,
-        });
+        let url: string;
+        if (input.delivery === "bucket") {
+          const fragment = recipient.password
+            ? `w=${await wrapKeyWithPassword(shareKey, recipient.password)}`
+            : `k=${shareKey.toString("base64url")}`;
+          // The fragment is never transmitted, which is what keeps the store unable to read what
+          // it is holding.
+          url = `${pageUrl}#${fragment}`;
+        } else {
+          await this.doorman.putPolicy(tokenDirName(token), {
+            shareId: share.id,
+            filename,
+            expiresAt: expiresAt.toISOString(),
+            maxDownloads: link.maxDownloads,
+            passwordHash,
+            message: input.message ?? null,
+            fileCount: files.length,
+            sealedBytes,
+          });
+          url = this.linkUrl(token);
+        }
 
-        minted.push({ linkId: link.id, recipientLabel: recipient.label, url: this.linkUrl(token) });
+        minted.push({ linkId: link.id, recipientLabel: recipient.label, url });
       }
 
       await this.audit.record({
@@ -313,12 +349,16 @@ export class SharesService {
 
   /** Bundle, key and every policy that points at it. */
   private async purgeBundle(shareId: string): Promise<void> {
+    const [share] = await this.db.select({ delivery: shares.delivery, objectKey: shares.objectKey }).from(shares).where(eq(shares.id, shareId));
     const links = await this.db.select({ tokenHash: shareLinks.tokenHash }).from(shareLinks).where(eq(shareLinks.shareId, shareId));
     for (const l of links) {
       await this.doorman.deletePolicy(l.tokenHash);
       await this.doorman.deleteState(l.tokenHash);
     }
     await this.doorman.deleteBundle(shareId);
+    // A `bucket` share is withdrawn by deleting the objects: the link stops resolving because the
+    // bytes are gone. The key in the fragment never expires, so this is the only thing that ends it.
+    if (share?.delivery === "bucket" && share.objectKey) await this.bucket.remove(share.objectKey);
   }
 
   private async filesFor(documentIds: string[]) {
@@ -355,6 +395,27 @@ export class SharesService {
     const base = this.config.get("SHARE_ORIGIN", { infer: true });
     return `${String(base).replace(/\/$/, "")}/s/${token}`;
   }
+}
+
+const pbkdf2 = promisify(pbkdf2Cb);
+
+/**
+ * Wrap a share key under a password, for a `bucket` link's fragment (§10.10).
+ *
+ * PBKDF2-SHA256 at 600,000 iterations, because the *unwrapping* happens in a browser and Web
+ * Crypto offers no argon2 — shipping a WebAssembly argon2 to the one page that must have no
+ * third-party code would be the worse trade. Matching parameters live in `landing-page.ts`, and
+ * neither side can change them alone.
+ *
+ * Output is `salt.iv.wrapped`, base64url, small enough to live in a URL.
+ */
+export async function wrapKeyWithPassword(key: Buffer, password: string): Promise<string> {
+  const salt = randomBytes(16);
+  const iv = randomBytes(12);
+  const derived = await pbkdf2(password, salt, 600_000, 32, "sha256");
+  const cipher = createCipheriv("aes-256-gcm", derived, iv);
+  const wrapped = Buffer.concat([cipher.update(key), cipher.final(), cipher.getAuthTag()]);
+  return [salt, iv, wrapped].map((b) => b.toString("base64url")).join(".");
 }
 
 /** A filename the recipient will read, from a label the owner wrote. */

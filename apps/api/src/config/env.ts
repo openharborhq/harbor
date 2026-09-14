@@ -23,6 +23,21 @@ export const Env = z.object({
    * a corporate firewall can reach that port and no other.
    */
   SHARE_ORIGIN: z.string().url().default("http://localhost:4010"),
+  /**
+   * The owner's own object store, for `bucket` delivery (spec §10.10). Absent means that sink is
+   * simply not offered — an install that only serves shares through the doorman needs none of it.
+   *
+   * A **separate bucket from the restic one**, by decision: a lifecycle rule that is right for
+   * share objects is wrong for backup data. It stays private — presigned URLs and the same-origin
+   * page layout mean no public-read policy and no CORS rules are ever needed.
+   */
+  SHARE_BUCKET_ENDPOINT: z.string().url().optional(),
+  /** Empty when the bucket is already part of the endpoint host (virtual-hosted addressing). */
+  SHARE_BUCKET: z.string().optional(),
+  SHARE_BUCKET_REGION: z.string().default("us-east-1"),
+  SHARE_BUCKET_KEY_ID: z.string().optional(),
+  SHARE_BUCKET_SECRET: z.string().optional(),
+  SHARE_BUCKET_PREFIX: z.string().default("shares"),
   OCR_CONCURRENCY: z.coerce.number().int().min(1).default(2),
   /** tesseract language packs installed in the worker image, "+"-joined. */
   OCR_LANGUAGES: z.string().regex(/^[a-z_]+(\+[a-z_]+)*$/).default("deu+eng"),

@@ -31,10 +31,20 @@ immediately before it. That is why the upgrade refuses to run without one.
   afterwards does not change what an outstanding link hands out, and withdrawing a share destroys
   the archive and its key together. Anything already downloaded is, of course, with the recipient.
 
-  **Nothing is reachable from outside yet.** The links are served by a new `harbor-share`
-  container, which for now listens only on the box itself — `harbor public enable`, and with it a
-  link your accountant can actually open, comes next. See
-  [§10](docs/spec/10-sharing.md) for the whole design.
+  **Two ways to deliver a share, chosen per share.** *By Harbor* serves the link from the box
+  itself, over a new `harbor-share` container on its own tailnet name — `harbor public enable`
+  turns that on, tells you what it means, and walks you through the two settings Tailscale needs.
+  It supports every control, and the link is dead while the box is asleep or waiting on
+  `harbor unlock`. *From your own storage* pushes the sealed archive to a bucket of yours instead,
+  so the link works even when Harbor is off and nothing is reachable from outside at all — at the
+  cost of one-download limits, and a 7-day ceiling on expiry that comes from how signed URLs work.
+  Your recipient's browser does the decryption; the store only ever holds bytes it cannot read.
+
+  See [§10](docs/spec/10-sharing.md) for the whole design, including what each delivery gives up.
+- **The app now sends security headers** — a content security policy, HSTS, framing and referrer
+  rules — which it never had. Nothing about using Harbor changes; it was a gap that mattered once
+  anything on the box could face the internet, and `harbor public enable` refuses to run without
+  them.
 - **Worth knowing:** this release adds a `share` service to the stack and two directories under
   your data volume, `shares/` and `share-state/`. Share archives are deliberately **not** in your
   backups — they are short-lived copies of documents that are already backed up, and keeping a

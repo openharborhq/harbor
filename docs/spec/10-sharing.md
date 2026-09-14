@@ -393,14 +393,27 @@ Three rules that are not optional:
   unpadded size separates a passport scan from a year of tax paperwork perfectly well.
 - **The password wraps the key, it does not gate a download.** With no server to ask, a password
   is only meaningful as crypto: the fragment carries the per-share key *wrapped* under a key
-  derived from the password (argon2id, parameters carried in the page), and the recipient types
-  it to decrypt. This is offline-brute-forceable by anyone holding the ciphertext, unlike the
-  doorman's rate-limited check, so the parameters are deliberately expensive and the UI says
-  "choose something they will not guess", not "protected by a password".
-- **Stream the decryption.** Chunked AEAD, not one buffer — a 200 MB bundle must not be
-  assembled in memory. Mobile Safari is the target to test against, and the browser floor is
-  stated on the share screen because the recipient is by definition someone the owner cannot
-  troubleshoot for.
+  derived from the password, and the recipient types it to decrypt. This is
+  offline-brute-forceable by anyone holding the ciphertext, unlike the doorman's rate-limited
+  check, so the UI says "choose something they will not guess", not "protected by a password".
+
+  **PBKDF2-SHA256 at 600,000 iterations, not argon2id** (settled in implementation, 2026-09-14).
+  The unwrapping happens in a browser, and Web Crypto has no argon2; supplying one means shipping
+  a WebAssembly build to the single page that is supposed to carry no third-party code, which is
+  the worse trade. It is weaker per guess, which is exactly why the wording above promises less.
+  The parameters are a contract between the sealing code and the page, and a test asserts it.
+- **Stream the decryption.** Chunked AEAD, not one buffer — Web Crypto's one-shot `decrypt` would
+  otherwise need a whole 200 MB bundle in memory *and* produce its plaintext all at once.
+
+  One limit is the browser's, not ours: handing the finished file over still means assembling a
+  Blob, unless `showSaveFilePicker` exists (Chromium), in which case each chunk is written
+  straight to the file the recipient chose and nothing accumulates. Mobile Safari is the target
+  to test against, and the browser floor is stated on the share screen because the recipient is by
+  definition someone the owner cannot troubleshoot for.
+
+  The bundle stores `iv || tag || ciphertext`, which is Node's layout; Web Crypto expects the tag
+  **appended** to the ciphertext. The page swaps them. This is written down because getting it
+  wrong fails as an undifferentiated "did not decrypt".
 
 ### Which stores can be a sink, and why it is not every backup backend
 

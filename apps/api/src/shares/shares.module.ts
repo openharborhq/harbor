@@ -1,6 +1,7 @@
 import { Module } from "@nestjs/common";
 import { SharesController } from "./shares.controller";
 import { SharesService } from "./shares.service";
+import { BucketSink } from "./bucket-sink";
 import { DoormanSink } from "./share-sink";
 import { ShareEventsService } from "./share-events.service";
 
@@ -10,7 +11,7 @@ import { ShareEventsService } from "./share-events.service";
  */
 @Module({
   controllers: [SharesController],
-  providers: [SharesService, DoormanSink, ShareEventsService],
+  providers: [SharesService, DoormanSink, BucketSink, ShareEventsService],
   exports: [SharesService],
 })
 export class SharesModule {}

@@ -195,7 +195,10 @@ Convention: `[ ]` open, `[x]` done and left in place until its milestone doc abs
         container**, never the API; a relay the box pushes to stays deferred (§10.10), and the
         bundle format is kept sink-agnostic so that stays a delivery change. Sharing is free and
         in the repo — not a paid add-on, decided 2026-09-08 and argued in §10.10.
-        - [ ] **Hardening first, and it gates the rest.** Security headers, CSP, HSTS. §3 has
+        - [x] **Hardening first, and it gates the rest** (built 2026-09-14). Security headers,
+              CSP, HSTS. One thing still owed: `script-src` allows `'unsafe-inline'` because Next
+              emits inline bootstrap scripts — a per-request nonce in middleware would close it,
+              and browsers ignore `'unsafe-inline'` once a nonce is present. §3 has
               none of them today, and `harbor public enable` does not ship until the doorman has
               them. Worth doing whether or not Funnel is ever turned on.
         - [x] **Seal and store** (built 2026-09-14). `shares`, `share_files`, `share_links`, `share_access_log`;
@@ -204,8 +207,9 @@ Convention: `[ ]` open, `[x]` done and left in place until its milestone doc abs
               (decided 2026-09-14); write
               bundle, key and `policy.json` to `/data/shares/<sha256(token)>/`. Exclude bundles
               from restic. Purge on expiry or revoke, on the existing scheduler.
-        - [~] **The doorman container, on its own tailnet node** (§10.6, decided 2026-09-14).
-              *Container built and tested 2026-09-14; the tailnet node and Funnel are not done.*
+        - [x] **The doorman container, on its own tailnet node** (built 2026-09-14; §10.6).
+              *Never yet run on the appliance: `harbor public enable` and the share node exist in
+              compose and in the CLI, and neither has been exercised against a real tailnet.*
               Its own `tailscaled` and state volume, so Funnel serves it at
               `harbor-share.<tailnet>.ts.net` **on 443** — a separate origin from the app, and a
               port that recipients behind a corporate firewall can actually reach. The funnel
@@ -226,10 +230,10 @@ Convention: `[ ]` open, `[x]` done and left in place until its milestone doc abs
               trail and a revoke button. **Individual documents only** (decided 2026-09-14):
               an item cannot go in the basket, not even as a shortcut that expands — everything
               a share hands out is named one document at a time.
-        - [ ] **`harbor public enable` / `disable`**, printing what it means and requiring a
+        - [x] **`harbor public enable` / `disable`** (built 2026-09-14), printing what it means and requiring a
               deliberate confirmation, and the §3.1 threat-model rewrite (§10.9) alongside it —
               "nothing to connect to" stops being true the moment this ships.
-        - [ ] **The second sink: the owner's own bucket** (§10.10, agreed 2026-09-14). `shares`
+        - [x] **The second sink: the owner's own bucket** (built 2026-09-14; §10.10). `shares`
               gains `delivery` (`doorman|bucket`); the seal is byte-identical and only the next
               step differs — PUT to the object store Harbor already needs for backups, a static
               landing page uploaded once, token and key in the URL fragment, decryption in the
@@ -238,19 +242,20 @@ Convention: `[ ]` open, `[x]` done and left in place until its milestone doc abs
               non-optional rules: pad bundles to size buckets, password *wraps the key* rather
               than gating a request (argon2id, expensive), and stream the decryption chunked.
               Default sink is `doorman` when Funnel is on, `bucket` otherwise.
-        - [ ] **One `s3` sink, not one per provider** (§10.10, agreed 2026-09-14). A `ShareSink`
+        - [x] **One `s3` sink, not one per provider** (built 2026-09-14; SigV4 hand-written and
+              pinned to AWS's published test vector). A `ShareSink`
               is `put` / `presign` / `delete`; B2, R2, Wasabi, MinIO, Storj and S3 all speak the
               S3 API, so they are **settings presets, not code paths** — the §5 precedent. Verify
               presigning and content-type against each preset before listing it. **SFTP, local
               disk and restic REST cannot be sinks at all**: no anonymous HTTPS GET. That is not
               a gap to close — those installs share through the doorman, and the settings page
               has to say so instead of offering a sink that silently fails.
-        - [ ] **A second bucket, private, separate from restic.** No public-read policy and no
+        - [x] **A second bucket, private, separate from restic** (built 2026-09-14). No public-read policy and no
               CORS rules needed: bundle and per-share `index.html` go in one bucket so the page
               fetches same-origin, and the link is the presigned URL of that page with the key in
               the fragment. Consequence to surface in the UI: **presigned URLs cap at 7 days**,
               so 30-day expiry is doorman-only.
-        - [ ] **The Funnel preflight, which is most of that command** (§10.6). Funnel needs no
+        - [x] **The Funnel preflight, which is most of that command** (built 2026-09-14; §10.6). Funnel needs no
               firewall change and no port forwarding — it is an outbound connection, and it works
               behind CGNAT. The friction is account-side and once per tailnet: HTTPS certificates
               on, and a `funnel` node attribute in the ACL policy file, which is JSON in a web
