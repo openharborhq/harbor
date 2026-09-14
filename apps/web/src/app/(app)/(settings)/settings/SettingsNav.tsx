@@ -4,8 +4,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 /**
- * The seven sections, in the order they are drawn: who you are (Account, Users, Devices), then
- * what the vault talks to (Email Ingest, Integrations, Backup), then what it is (Version).
+ * The sections, in the order they are drawn: who you are (Account, Users, Devices), then what the
+ * vault talks to (Email Ingest, Integrations, Sharing, Backup), then what it is (Version).
  */
 const SECTIONS = [
   { href: "/settings", label: "Account" },
@@ -13,6 +13,7 @@ const SECTIONS = [
   { href: "/settings/devices", label: "Devices" },
   { href: "/settings/mail", label: "Email Ingest" },
   { href: "/settings/integrations", label: "Integrations" },
+  { href: "/settings/sharing", label: "Sharing" },
   { href: "/settings/backup", label: "Backup" },
   { href: "/settings/version", label: "Version" },
 ] as const;

@@ -1,7 +1,6 @@
 import { Injectable, Logger } from "@nestjs/common";
-import { ConfigService } from "@nestjs/config";
 import { readFile } from "node:fs/promises";
-import type { Env } from "../config/env";
+import { ShareBucketSettingsService } from "../settings/share-bucket-settings.service";
 import type { ShareSink } from "./share-sink";
 import { MAX_PRESIGN_SECONDS, presignGet, signDelete, signPut, type S3Credentials } from "./sigv4";
 import { landingPage } from "./landing-page";
@@ -28,23 +27,15 @@ import { landingPage } from "./landing-page";
 export class BucketSink implements ShareSink {
   readonly kind = "bucket" as const;
   private readonly log = new Logger(BucketSink.name);
-  private readonly creds: S3Credentials | null;
-  private readonly prefix: string;
 
-  constructor(config: ConfigService<Env, true>) {
-    const endpoint = config.get("SHARE_BUCKET_ENDPOINT", { infer: true });
-    const bucket = config.get("SHARE_BUCKET", { infer: true });
-    const accessKeyId = config.get("SHARE_BUCKET_KEY_ID", { infer: true });
-    const secretAccessKey = config.get("SHARE_BUCKET_SECRET", { infer: true });
-    this.prefix = config.get("SHARE_BUCKET_PREFIX", { infer: true });
-    this.creds =
-      endpoint && accessKeyId && secretAccessKey
-        ? { endpoint, bucket: bucket ?? "", accessKeyId, secretAccessKey, region: config.get("SHARE_BUCKET_REGION", { infer: true }) }
-        : null;
-  }
+  constructor(private readonly settings: ShareBucketSettingsService) {}
 
-  get configured(): boolean {
-    return this.creds !== null;
+  /**
+   * Resolved per call, not at boot: an owner who saves a bucket in Settings expects to use it
+   * without anyone restarting a container.
+   */
+  async configured(): Promise<boolean> {
+    return (await this.settings.resolve()).creds !== null;
   }
 
   /**
@@ -63,12 +54,13 @@ export class BucketSink implements ShareSink {
     expiresAt: Date;
     expiresInSeconds: number;
   }): Promise<{ objectKey: string; pageUrl: string }> {
-    const creds = this.requireCreds();
+    const { creds: maybe, prefix } = await this.settings.resolve();
+    const creds = this.require(maybe);
     if (opts.expiresInSeconds > MAX_PRESIGN_SECONDS) {
       throw new Error("A link served from your own storage cannot last longer than 7 days.");
     }
 
-    const objectKey = `${this.prefix}/${opts.shareId}`;
+    const objectKey = `${prefix}/${opts.shareId}`;
     const bundleKey = `${objectKey}/bundle`;
     const pageKey = `${objectKey}/index.html`;
 
@@ -96,7 +88,7 @@ export class BucketSink implements ShareSink {
 
   /** Withdrawing a share from the store. The link stops resolving because the bytes are gone. */
   async remove(objectKey: string): Promise<void> {
-    const creds = this.requireCreds();
+    const creds = this.require((await this.settings.resolve()).creds);
     for (const key of [`${objectKey}/bundle`, `${objectKey}/index.html`]) {
       try {
         await this.send("DELETE", signDelete(creds, key), undefined, `delete ${key}`);
@@ -108,11 +100,9 @@ export class BucketSink implements ShareSink {
     }
   }
 
-  private requireCreds(): S3Credentials {
-    if (!this.creds) {
-      throw new Error("No share bucket is configured. Set SHARE_BUCKET_ENDPOINT, SHARE_BUCKET_KEY_ID and SHARE_BUCKET_SECRET.");
-    }
-    return this.creds;
+  private require(creds: S3Credentials | null): S3Credentials {
+    if (!creds) throw new Error("No storage is set up for sharing. Add a bucket in Settings → Sharing.");
+    return creds;
   }
 
   private async send(

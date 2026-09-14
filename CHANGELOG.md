@@ -31,14 +31,16 @@ immediately before it. That is why the upgrade refuses to run without one.
   afterwards does not change what an outstanding link hands out, and withdrawing a share destroys
   the archive and its key together. Anything already downloaded is, of course, with the recipient.
 
-  **Two ways to deliver a share, chosen per share.** *By Harbor* serves the link from the box
-  itself, over a new `harbor-share` container on its own tailnet name — `harbor public enable`
-  turns that on, tells you what it means, and walks you through the two settings Tailscale needs.
-  It supports every control, and the link is dead while the box is asleep or waiting on
-  `harbor unlock`. *From your own storage* pushes the sealed archive to a bucket of yours instead,
-  so the link works even when Harbor is off and nothing is reachable from outside at all — at the
-  cost of one-download limits, and a 7-day ceiling on expiry that comes from how signed URLs work.
-  Your recipient's browser does the decryption; the store only ever holds bytes it cannot read.
+  **Two ways to deliver a share, chosen once in Settings → Sharing.** *Harbor itself* serves the
+  link from the box, over a new `harbor-share` container on its own tailnet name —
+  `harbor public enable` turns that on, tells you what it means, and walks you through the two
+  settings Tailscale needs. It supports every control, and the link is dead while the box is
+  asleep or waiting on `harbor unlock`. *Your own storage* pushes the sealed archive to a bucket
+  of yours instead, so the link works even when Harbor is off and nothing on your box is reachable
+  from outside at all — at the cost of one-download limits, and a 7-day ceiling on expiry that
+  comes from how signed links work. Your recipient's browser does the decryption; the storage only
+  ever holds bytes it cannot read. **Test** writes a file, reads it back through a link and deletes
+  it, so you find out now rather than from your accountant.
 
   See [§10](docs/spec/10-sharing.md) for the whole design, including what each delivery gives up.
 - **The app now sends security headers** — a content security policy, HSTS, framing and referrer

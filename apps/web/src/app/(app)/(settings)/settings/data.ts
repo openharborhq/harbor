@@ -1,5 +1,16 @@
 import { cache } from "react";
-import type { BackupStatus, InviteInfo, MailConnectionView, OwnerInfo, ReleaseNotes, SessionInfo, SuggestionSettings, VersionInfo } from "@harbor/shared";
+import type {
+  BackupStatus,
+  InviteInfo,
+  MailConnectionView,
+  OwnerInfo,
+  ReleaseNotes,
+  SessionInfo,
+  ShareBucketSettings,
+  ShareDeliverySettings,
+  SuggestionSettings,
+  VersionInfo,
+} from "@harbor/shared";
 import { apiFetch } from "@/lib/api-server";
 
 /**
@@ -21,6 +32,17 @@ export const getBackup = cache(() =>
 export const getSuggestions = cache(() =>
   apiFetch<SuggestionSettings>("/settings/suggestions").catch(
     () => ({ provider: "none", model: "", baseUrl: null, apiKeySet: false, sendPeople: true, readerLanguage: "en", fromEnvironment: true }) as SuggestionSettings,
+  ),
+);
+export const getShareDelivery = cache(() =>
+  apiFetch<ShareDeliverySettings>("/settings/share-delivery").catch(
+    () => ({ delivery: "doorman", ready: true, problem: null }) satisfies ShareDeliverySettings,
+  ),
+);
+export const getShareBucket = cache(() =>
+  apiFetch<ShareBucketSettings>("/settings/share-bucket").catch(
+    () =>
+      ({ endpoint: null, bucket: null, region: "us-east-1", keyId: null, secretSet: false, prefix: "shares", fromEnvironment: true, usable: false }) satisfies ShareBucketSettings,
   ),
 );
 export const getVersion = cache(() =>

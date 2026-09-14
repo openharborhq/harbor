@@ -76,4 +76,21 @@ export const SETTING = {
   suggestApiKey: "suggest.apiKey",
   suggestSendPeople: "suggest.sendPeople",
   suggestReaderLanguage: "suggest.readerLanguage",
+  /**
+   * The share bucket (spec §10.10). Stored here rather than left to the environment for the same
+   * reason the suggestion provider is: an owner who can create a bucket in a web console should
+   * not then have to edit a file over ssh and restart a container to use it.
+   */
+  /**
+   * How shares are delivered, for every share. Deliberately not a per-share choice: picking a sink
+   * carries a setup requirement (a bucket, its credentials), and that is a decision made once in
+   * Settings, not one put in front of someone who is trying to send four documents.
+   */
+  shareDelivery: "share.delivery",
+  shareBucketEndpoint: "share.bucket.endpoint",
+  shareBucketName: "share.bucket.name",
+  shareBucketRegion: "share.bucket.region",
+  shareBucketKeyId: "share.bucket.keyId",
+  shareBucketSecret: "share.bucket.secret",
+  shareBucketPrefix: "share.bucket.prefix",
 } as const;

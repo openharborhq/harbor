@@ -19,6 +19,7 @@ import { CryptoService } from "../crypto/crypto.service";
 import { DB } from "../db/db.module";
 import { BlobStore } from "../storage/blob-store.service";
 import { StoredZipWriter, hashSharePassword, sealBundle } from "@harbor/bundle";
+import { ShareBucketSettingsService } from "../settings/share-bucket-settings.service";
 import { BucketSink } from "./bucket-sink";
 import { DoormanSink, tokenDirName } from "./share-sink";
 import { Inject } from "@nestjs/common";
@@ -41,14 +42,31 @@ export class SharesService {
     private readonly blobs: BlobStore,
     private readonly doorman: DoormanSink,
     private readonly bucket: BucketSink,
+    private readonly settings: ShareBucketSettingsService,
     private readonly audit: AuditService,
     private readonly config: ConfigService<Env, true>,
   ) {}
 
   async create(input: CreateShareInput, userId: string, ip: string | null) {
-    const caps = SINK_CAPABILITIES[input.delivery];
-    if (input.delivery === "bucket" && !this.bucket.configured) {
-      throw new BadRequestException("No storage is set up for sharing yet. Serve it from Harbor instead, or add a share bucket in your configuration.");
+    /**
+     * Which sink serves this share is a setting, not something the person sending it chooses
+     * (2026-09-14). Picking one carries a setup requirement with it, so it is decided once in
+     * Settings; the review screen only states what the choice means.
+     */
+    const { delivery, ready, problem } = await this.settings.delivery();
+    if (!ready) throw new BadRequestException(problem ?? "Sharing is not set up yet.");
+    const caps = SINK_CAPABILITIES[delivery];
+
+    // Capabilities differ per sink, and the client cannot be trusted to have honoured them.
+    if (input.expiryHours > caps.maxExpiryHours) {
+      throw new BadRequestException(
+        delivery === "bucket"
+          ? "Links from your own storage last at most 7 days."
+          : "That is not one of the expiry options.",
+      );
+    }
+    if (!caps.maxDownloads && input.recipients.some((r) => r.maxDownloads !== undefined)) {
+      throw new BadRequestException("A download limit needs Harbor to serve the link — your storage cannot count downloads.");
     }
 
     const files = await this.filesFor(input.documentIds);
@@ -101,7 +119,7 @@ export class SharesService {
         .values({
           label: input.label,
           message: input.message ?? null,
-          delivery: input.delivery,
+          delivery,
           paddedSize: padTo,
           byteSize: plaintextBytes,
           fileCount: files.length,
@@ -130,7 +148,7 @@ export class SharesService {
       //    which is the whole reason delivery can be chosen per share.
       const filename = `${slugForFile(input.label)}.zip`;
       let pageUrl: string | null = null;
-      if (input.delivery === "bucket") {
+      if (delivery === "bucket") {
         const published = await this.bucket.publish({
           shareId: share.id,
           sealedPath: sealedTemp,
@@ -157,7 +175,7 @@ export class SharesService {
          * the fragment, so nothing about it is stored here at all (§10.10).
          */
         const passwordHash =
-          input.delivery === "doorman" && recipient.password ? await hashSharePassword(recipient.password) : null;
+          delivery === "doorman" && recipient.password ? await hashSharePassword(recipient.password) : null;
         const [link] = await this.db
           .insert(shareLinks)
           .values({
@@ -171,7 +189,7 @@ export class SharesService {
           .returning();
 
         let url: string;
-        if (input.delivery === "bucket") {
+        if (delivery === "bucket") {
           const fragment = recipient.password
             ? `w=${await wrapKeyWithPassword(shareKey, recipient.password)}`
             : `k=${shareKey.toString("base64url")}`;
@@ -200,7 +218,7 @@ export class SharesService {
         action: "share.create",
         entityType: "share",
         entityId: share.id,
-        metadata: { fileCount: files.length, recipients: input.recipients.length, delivery: input.delivery, expiresAt },
+        metadata: { fileCount: files.length, recipients: input.recipients.length, delivery, expiresAt },
         ip,
       });
 

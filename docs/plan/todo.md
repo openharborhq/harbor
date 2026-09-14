@@ -250,6 +250,11 @@ Convention: `[ ]` open, `[x]` done and left in place until its milestone doc abs
               disk and restic REST cannot be sinks at all**: no anonymous HTTPS GET. That is not
               a gap to close — those installs share through the doorman, and the settings page
               has to say so instead of offering a sink that silently fails.
+        - [x] **Settings → Sharing** (built 2026-09-14). The delivery choice is a **setting, not a
+              per-share one** — Kai's correction, and the right one: picking a sink carries a setup
+              requirement, so it belongs where the setup is, not in front of someone sending four
+              documents. Each option states its consequence and only the selected one opens its
+              fields; Test writes, reads back through a signed link, and deletes.
         - [x] **A second bucket, private, separate from restic** (built 2026-09-14). No public-read policy and no
               CORS rules needed: bundle and per-share `index.html` go in one bucket so the page
               fetches same-origin, and the link is the presigned URL of that page with the key in

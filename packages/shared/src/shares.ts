@@ -102,40 +102,35 @@ export type ShareRecipientInput = z.infer<typeof ShareRecipientInput>;
  * documents filed under it (§10.5). Sharing "the car" and sharing four documents are different
  * promises, and the difference is invisible at the moment of sending.
  */
-export const CreateShareInput = z
-  .object({
-    label: z.string().trim().min(1, "Name the share so you can find it later").max(200),
-    message: z.string().trim().max(1000).optional(),
-    documentIds: z.array(z.uuid()).min(1, "A share needs at least one document").max(50),
-    delivery: ShareDelivery,
-    expiryHours: z.number().int().positive(),
-    recipients: z.array(ShareRecipientInput).min(1, "A share needs at least one recipient").max(20),
-  })
-  .superRefine((input, ctx) => {
-    const caps = SINK_CAPABILITIES[input.delivery];
-    if (input.expiryHours > caps.maxExpiryHours) {
-      ctx.addIssue({
-        code: "custom",
-        path: ["expiryHours"],
-        message:
-          input.delivery === "bucket"
-            ? "Links from your storage last at most 7 days. Serve it from Harbor for longer."
-            : "Pick one of the offered expiries.",
-      });
-    }
-    if (!caps.maxDownloads) {
-      input.recipients.forEach((r, i) => {
-        if (r.maxDownloads !== undefined) {
-          ctx.addIssue({
-            code: "custom",
-            path: ["recipients", i, "maxDownloads"],
-            message: "A download limit needs Harbor to serve the link — your storage cannot count downloads.",
-          });
-        }
-      });
-    }
-  });
+/**
+ * Note what is **not** here: which sink serves the share.
+ *
+ * That is resolved on the server from a setting, and was deliberately taken out of this input
+ * (2026-09-14). Choosing a delivery carries a setup requirement — a bucket and its credentials —
+ * so it belongs in Settings, once, and not in front of someone who is trying to send four
+ * documents. What the review screen does with it is state the consequence in a line.
+ */
+export const CreateShareInput = z.object({
+  label: z.string().trim().min(1, "Name the share so you can find it later").max(200),
+  message: z.string().trim().max(1000).optional(),
+  documentIds: z.array(z.uuid()).min(1, "A share needs at least one document").max(50),
+  expiryHours: z.number().int().positive(),
+  recipients: z.array(ShareRecipientInput).min(1, "A share needs at least one recipient").max(20),
+});
 export type CreateShareInput = z.infer<typeof CreateShareInput>;
+
+/** What the review screen needs to know before it draws its controls. */
+export const ShareDeliverySettings = z.object({
+  delivery: ShareDelivery,
+  /** False when `bucket` is chosen but no usable bucket is configured; sharing is then blocked. */
+  ready: z.boolean(),
+  /** Why it is not ready, in the owner's terms. */
+  problem: z.string().nullable(),
+});
+export type ShareDeliverySettings = z.infer<typeof ShareDeliverySettings>;
+
+export const SetShareDelivery = z.object({ delivery: ShareDelivery });
+export type SetShareDelivery = z.infer<typeof SetShareDelivery>;
 
 /** What the doorman reports. `denied` carries a reason the fetcher was never told (§10.6). */
 export const ShareAccessEvent = z.enum(["viewed", "password_failed", "download_started", "download_completed", "denied"]);

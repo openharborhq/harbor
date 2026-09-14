@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
-import { SINK_CAPABILITIES, SINK_CONSEQUENCE, expiryOptionsFor, type ShareDelivery } from "@harbor/shared";
+import { useEffect, useState } from "react";
+import { SINK_CAPABILITIES, SINK_CONSEQUENCE, expiryOptionsFor, type ShareDeliverySettings } from "@harbor/shared";
 import { useShareBasket } from "@/components/share/ShareBasket";
 import { api } from "@/lib/api-client";
 
@@ -30,7 +30,12 @@ export function ReviewShare() {
   const basket = useShareBasket();
   const [label, setLabel] = useState("");
   const [message, setMessage] = useState("");
-  const [delivery, setDelivery] = useState<ShareDelivery>("doorman");
+  /**
+   * Delivery is a setting, not a choice made here (§10.10). The screen reads it so it can draw the
+   * right controls and say what they mean — nobody sending four documents should be asked to pick
+   * an architecture, least of all one that carries a setup requirement.
+   */
+  const [sink, setSink] = useState<ShareDeliverySettings | null>(null);
   const [expiryHours, setExpiryHours] = useState(168);
   const [recipients, setRecipients] = useState<Recipient[]>([{ label: "", password: "", limitOnce: false }]);
   const [busy, setBusy] = useState(false);
@@ -38,15 +43,20 @@ export function ReviewShare() {
   const [created, setCreated] = useState<CreatedLink[] | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
 
+  const delivery = sink?.delivery ?? "doorman";
   const caps = SINK_CAPABILITIES[delivery];
   const options = expiryOptionsFor(delivery);
 
-  function setDeliveryAndClamp(next: ShareDelivery) {
-    setDelivery(next);
-    const max = SINK_CAPABILITIES[next].maxExpiryHours;
-    if (expiryHours > max) setExpiryHours(max);
-    if (!SINK_CAPABILITIES[next].maxDownloads) setRecipients((prev) => prev.map((r) => ({ ...r, limitOnce: false })));
-  }
+  useEffect(() => {
+    api<ShareDeliverySettings>("/settings/share-delivery")
+      .then((s) => {
+        setSink(s);
+        // Clamp to what this sink can actually keep, so the form never offers a dead link.
+        const max = SINK_CAPABILITIES[s.delivery].maxExpiryHours;
+        setExpiryHours((hours) => Math.min(hours, max));
+      })
+      .catch(() => setSink({ delivery: "doorman", ready: true, problem: null }));
+  }, []);
 
   async function submit() {
     setBusy(true);
@@ -58,7 +68,6 @@ export function ReviewShare() {
           label: label.trim() || `${basket.documents.length} documents`,
           message: message.trim() || undefined,
           documentIds: basket.documents.map((d) => d.id),
-          delivery,
           expiryHours,
           recipients: recipients
             .filter((r) => r.label.trim())
@@ -158,7 +167,26 @@ export function ReviewShare() {
         </p>
       </section>
 
+      {sink && !sink.ready && (
+        <p className="rounded-lg border border-warn/40 bg-warn-soft px-4 py-3 text-body">
+          {sink.problem} Set one up in <Link href="/settings/sharing" className="font-semibold text-accent">Settings → Sharing</Link>,
+          or switch back to having Harbor serve the links.
+        </p>
+      )}
+
       <section className="flex flex-col gap-4 rounded-card border border-border bg-ground p-5">
+        {/*
+          Stated, never chosen here: which sink serves the link is a setting, because picking one
+          comes with setup. What belongs on this screen is the consequence, in the owner's terms.
+        */}
+        <p className="text-small text-muted">
+          {delivery === "doorman" ? "Served by Harbor. " : "Pushed to your own storage. "}
+          {SINK_CONSEQUENCE[delivery]}{" "}
+          <Link href="/settings/sharing" className="text-accent">
+            Change
+          </Link>
+        </p>
+
         <div>
           <label htmlFor="share-label" className="label mb-1.5 block">
             What is this
@@ -186,32 +214,6 @@ export function ReviewShare() {
           />
         </div>
 
-        <fieldset>
-          <legend className="label mb-1.5">How it is served</legend>
-          <div className="flex flex-col gap-2">
-            {(["doorman", "bucket"] as ShareDelivery[]).map((option) => (
-              <label
-                key={option}
-                className={`flex cursor-pointer gap-3 rounded-lg border p-3 ${
-                  delivery === option ? "border-accent bg-accent-soft" : "border-border"
-                }`}
-              >
-                <input
-                  type="radio"
-                  name="delivery"
-                  checked={delivery === option}
-                  onChange={() => setDeliveryAndClamp(option)}
-                  className="mt-1"
-                />
-                <span className="min-w-0">
-                  <span className="block text-row font-semibold">{option === "doorman" ? "By Harbor" : "From your own storage"}</span>
-                  <span className="block text-small text-muted">{SINK_CONSEQUENCE[option]}</span>
-                </span>
-              </label>
-            ))}
-          </div>
-        </fieldset>
-
         <div>
           <label htmlFor="share-expiry" className="label mb-1.5 block">
             Available for
@@ -230,8 +232,7 @@ export function ReviewShare() {
           </select>
           {caps.maxExpiryHours < 720 && (
             <p className="mt-1.5 text-small text-muted">
-              Links from your own storage last at most 7 days — that is the longest a signed URL can be valid. Serve it by
-              Harbor for longer.
+              Seven days is the longest a signed link can last. Change how shares are delivered in Settings if you need longer.
             </p>
           )}
         </div>
@@ -303,7 +304,7 @@ export function ReviewShare() {
       <div className="flex items-center gap-3 pb-24">
         <button
           type="button"
-          disabled={busy || !recipients.some((r) => r.label.trim())}
+          disabled={busy || !recipients.some((r) => r.label.trim()) || (sink !== null && !sink.ready)}
           onClick={() => void submit()}
           className="inline-flex h-10 items-center rounded-md bg-accent px-5 text-body font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
         >

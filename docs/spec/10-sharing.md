@@ -415,6 +415,18 @@ Three rules that are not optional:
   **appended** to the ciphertext. The page swaps them. This is written down because getting it
   wrong fails as an undifferentiated "did not decrypt".
 
+### Setting it up
+
+One page, `Settings → Sharing`: the choice, and — when it is `bucket` — an address, a bucket name,
+a region, a key id and a secret, with presets that fill the first two in. The secret is sealed
+under the KEK like a mailbox password, and is reported only as present or absent.
+
+**Test does what a share does**, in the order a share does it: writes a small object, reads it
+back **through a signed link**, and deletes it. A credential check alone would pass on a bucket
+that cannot serve a presigned GET — the one capability that makes a store a sink — and the owner
+would find that out from their accountant. A failed delete fails the test too, because a share
+that cannot be deleted cannot be withdrawn.
+
 ### Which stores can be a sink, and why it is not every backup backend
 
 Backups and sharing need different things from a remote. restic needs *write and read blobs,
@@ -481,14 +493,26 @@ to" stays literally true. Serving a large bundle stops depending on a home upstr
 traffic lands on a store designed for it. And trap 1 disappears: a link previewer cannot burn a
 one-time link when the key was never sent to any server.
 
-### Which sink is the default
+### Which sink, and who chooses
 
-`doorman` when Funnel is enabled, `bucket` when a share bucket is configured and Funnel is not,
-and neither is available until one of the two is — a fresh install can create shares only once it
-has somewhere to put them, and the share screen says which is missing. The review screen (§10.5)
-states the consequence in one line rather than naming an architecture: *"Works even if your
-Harbor is offline. Cannot be limited to a single download, and lasts at most 7 days."*
-Choosing per share is the point: the answer should come from use, not from this document.
+**A setting, not a per-share choice** (decided 2026-09-14, replacing the per-share design above).
+It was briefly a pair of radio buttons on the review screen. That is the wrong place for it: the
+two sinks differ in what they *require* — one needs a bucket and its credentials — and putting a
+prerequisite in front of someone who is halfway through sending four documents means they meet it
+at the worst possible moment, or pick the other option for the wrong reason.
+
+So the choice lives in **Settings → Sharing**, once, next to the fields it needs, with each option
+stating its own consequence and only the selected one opening its form (the pattern §4 already
+uses for the suggestion provider). `doorman` is the default because it needs no setup: an install
+that has been configured for nothing at all can still share.
+
+The review screen (§10.5) **states** the consequence in one line rather than offering it — *"Works
+even if your Harbor is offline. Cannot be limited to a single download, and lasts at most 7
+days."* — with a link to change it. Choosing `bucket` without a usable bucket is reported as *not
+ready* and blocks creating a share, rather than quietly falling back to the doorman: a share that
+went out by a different route than the owner chose would be worse than one that refuses.
+
+The delivery is therefore resolved on the server and is **not** part of the create-share request.
 
 ### Sharing stays free
 
