@@ -3,13 +3,18 @@
 import { useShareBasket } from "./ShareBasket";
 
 /**
- * The add affordance that sits on a document row, an item's records table and a search result
- * (spec §10.5). One control, two states — in the basket or not — because "add" and "remove" as
- * separate buttons would mean deciding which to show before knowing the answer.
+ * The add affordance on a document row, an item's records table and a search result (§10.5).
+ *
+ * Icon only, at the weight of the row it sits in. It began as a pill with an uppercase label,
+ * which shouted across a table whose other columns are 13px muted text — an action nobody is
+ * looking for while scanning a list should not be the loudest thing in the row. One control with
+ * two states, because "add" and "remove" as separate buttons would mean deciding which to draw
+ * before knowing the answer.
  */
 export function ShareButton({ id, title, compact = false }: { id: string; title: string; compact?: boolean }) {
   const basket = useShareBasket();
   const inBasket = basket.has(id);
+  const label = inBasket ? `Remove ${title} from the share` : `Add ${title} to a share`;
 
   return (
     <button
@@ -21,19 +26,22 @@ export function ShareButton({ id, title, compact = false }: { id: string; title:
         basket.toggle({ id, title });
       }}
       aria-pressed={inBasket}
+      aria-label={label}
       title={inBasket ? "In the share basket" : "Add to a share"}
-      className={`inline-flex shrink-0 items-center gap-1.5 rounded-pill border text-label font-bold uppercase tracking-label transition-colors ${
-        compact ? "h-6 px-2" : "h-7 px-2.5"
-      } ${
-        inBasket
-          ? "border-accent bg-accent-soft text-accent"
-          : "border-border bg-ground text-muted hover:border-border-strong hover:text-text"
-      }`}
+      className={`inline-flex shrink-0 items-center justify-center rounded-md transition-colors ${
+        compact ? "size-6" : "size-7"
+      } ${inBasket ? "bg-accent-soft text-accent" : "text-muted hover:bg-surface hover:text-text"}`}
     >
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="size-3.5">
-        {inBasket ? <path d="m5 12.5 4.5 4.5L19 7.5" /> : <path d="M12 5v14M5 12h14" />}
-      </svg>
-      {inBasket ? "Added" : "Share"}
+      {inBasket ? (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className="size-[15px]" aria-hidden="true">
+          <path d="m5 12.5 4.5 4.5L19 7.5" />
+        </svg>
+      ) : (
+        /* An outbound tray: the same mark the sidebar's Shared item uses, so the two read as one idea. */
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="size-[15px]" aria-hidden="true">
+          <path d="M4 13v6a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-6M12 3v12M8 7l4-4 4 4" />
+        </svg>
+      )}
     </button>
   );
 }
