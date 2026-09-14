@@ -260,6 +260,14 @@ Convention: `[ ]` open, `[x]` done and left in place until its milestone doc abs
               fetches same-origin, and the link is the presigned URL of that page with the key in
               the fragment. Consequence to surface in the UI: **presigned URLs cap at 7 days**,
               so 30-day expiry is doorman-only.
+        - [x] **An upgrade that can deliver a stack change** (built 2026-09-14, found while asking
+              where `harbor public enable` would actually run). The CLI moved out of `install.sh`
+              into `infra/harbor-cli.sh`, and `harbor upgrade` now re-fetches the infra files and
+              rewrites the CLI for the tag it is moving to, honouring `HARBOR_KEEP_LOCAL`. Before
+              this, no release could add a service or a subcommand to an installed box — which had
+              not bitten only because every release so far changed code inside the images.
+              `scripts/harbor-local.sh` writes the same CLI for this checkout, so the appliance
+              commands can be tried without an appliance.
         - [x] **The Funnel preflight, which is most of that command** (built 2026-09-14; §10.6). Funnel needs no
               firewall change and no port forwarding — it is an outbound connection, and it works
               behind CGNAT. The friction is account-side and once per tailnet: HTTPS certificates

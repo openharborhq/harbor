@@ -43,6 +43,15 @@ immediately before it. That is why the upgrade refuses to run without one.
   it, so you find out now rather than from your accountant.
 
   See [§10](docs/spec/10-sharing.md) for the whole design, including what each delivery gives up.
+- **An upgrade can now change the stack, not just the code inside it.** `harbor upgrade` has only
+  ever pulled images: the compose files and the `harbor` command itself were written once, at
+  install, and never touched again — so a release that added a service or a subcommand could not
+  reach a box that was already running. It now refreshes both for the version it is moving to,
+  before restarting anything. If you have edited your compose files by hand, set
+  `HARBOR_KEEP_LOCAL=1` and it will keep them and tell you which it skipped.
+
+  This is why sharing needs an upgrade rather than only a pull: it adds a `share` service and a
+  `harbor public` command.
 - **The app now sends security headers** — a content security policy, HSTS, framing and referrer
   rules — which it never had. Nothing about using Harbor changes; it was a gap that mattered once
   anything on the box could face the internet, and `harbor public enable` refuses to run without

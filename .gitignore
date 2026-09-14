@@ -11,3 +11,6 @@ coverage/
 /data/
 .DS_Store
 *.tsbuildinfo
+
+# Written by scripts/harbor-local.sh — this checkout's copy of the appliance CLI.
+/harbor
