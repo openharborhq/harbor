@@ -90,12 +90,28 @@ export function ReviewShare({
         }),
       });
       setCreated(result.links);
+      // The documents come off every list the moment the share exists: leaving them ticked invites
+      // a second share of the same paperwork to someone else by accident.
       basket.clear();
     } catch (err) {
       setError((err as Error).message);
     } finally {
       setBusy(false);
     }
+  }
+
+  /**
+   * Finishing with the links drops them.
+   *
+   * They are bearer credentials — anyone holding one can fetch the documents — and they exist in
+   * readable form in exactly two places: the recipient's hands and this component's state. Closing
+   * unmounts it anyway, but a dialog left open in a background tab should not be the third place,
+   * so they are cleared on the way out rather than as a side effect of React tearing down.
+   */
+  function done() {
+    setCreated(null);
+    setCopied(null);
+    onClose();
   }
 
   /* ---------------------------------------------------------------- *
@@ -135,10 +151,10 @@ export function ReviewShare({
           </ul>
         </div>
         <Footer>
-          <Link href="/shares" onClick={onClose} className="text-row text-accent hover:underline">
+          <Link href="/shares" onClick={done} className="text-row text-accent hover:underline">
             See all shares
           </Link>
-          <button type="button" onClick={onClose} className="ml-auto h-9 rounded-md bg-accent px-5 text-row font-semibold text-white hover:opacity-90">
+          <button type="button" onClick={done} className="ml-auto h-9 rounded-md bg-accent px-5 text-row font-semibold text-white hover:opacity-90">
             Done
           </button>
         </Footer>
