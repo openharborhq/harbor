@@ -2,8 +2,8 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { SINK_CAPABILITIES, SINK_CONSEQUENCE, expiryOptionsFor, type ShareDeliverySettings } from "@harbor/shared";
-import { useShareBasket } from "./ShareBasket";
+import { SINK_CAPABILITIES, expiryOptionsFor, type ShareDeliverySettings } from "@harbor/shared";
+import { useShareBasket, type BasketDocument } from "./ShareBasket";
 import { api } from "@/lib/api-client";
 
 interface Recipient {
@@ -26,15 +26,24 @@ interface CreatedLink {
  * rest is a name and a duration. So the contents collapse to a line you can open, the share's own
  * fields are two controls, and recipients get the room.
  *
- * Three things it is obliged to say out loud, because each is a promise the vault cannot keep
- * quietly: a recipient's name is a label and not verified identity; what the chosen delivery
- * cannot do and why; and that copying the link is the send, because the box mails nothing. Each
- * sits next to the control it qualifies rather than in a paragraph nobody reads.
+ * One thing it is still obliged to say out loud, because the vault cannot keep it quietly: a
+ * recipient's name is a label and not verified identity. It sits under the field it qualifies.
+ *
+ * What the chosen delivery cannot promise used to sit at the foot of the form and has gone —
+ * Settings is where that is chosen and explained, and repeating it on every send made a sentence
+ * nobody read twice. The controls the sink cannot support are still simply absent.
  */
-export function ReviewShare({ onClose }: { onClose: () => void }) {
+export function ReviewShare({
+  onClose,
+  preview,
+  onPreview,
+}: {
+  onClose: () => void;
+  preview: BasketDocument | null;
+  onPreview: (doc: BasketDocument | null) => void;
+}) {
   const basket = useShareBasket();
   const [label, setLabel] = useState("");
-  const [showFiles, setShowFiles] = useState(false);
   /**
    * Delivery is a setting, not a choice made here (§10.10). The step reads it so it can draw the
    * right controls and say what they mean — nobody sending four documents should be asked to pick
@@ -162,57 +171,57 @@ export function ReviewShare({ onClose }: { onClose: () => void }) {
     <>
       <div className="min-h-0 flex-1 overflow-y-auto">
         {/*
-          The contents, as one line. They were chosen on the page behind this and are the least
-          open question here; a full list at the top pushed the only real decision below the fold.
+          A fixed-height list, not a growing one. Two documents or twenty, the fields below start
+          in the same place and the footer never moves — and the rows scroll in their own box
+          rather than pushing the form down.
         */}
-        <div className="border-b border-border px-6 py-3.5">
-          <button
-            type="button"
-            onClick={() => setShowFiles((v) => !v)}
-            aria-expanded={showFiles}
-            className="flex w-full items-center gap-2.5 text-left"
-          >
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="size-4 shrink-0 text-muted" aria-hidden="true">
-              <path d="M4 13v6a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-6M12 3v12M8 7l4-4 4 4" />
-            </svg>
-            <span className="flex-1 text-row font-semibold">
+        <div className="border-b border-border px-6 py-4">
+          <div className="mb-2 flex items-baseline justify-between">
+            <h3 className="text-row font-semibold">
               {n} document{n === 1 ? "" : "s"}
-            </span>
-            <span className="text-small text-muted">{showFiles ? "Hide" : "Show"}</span>
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              className={`size-3.5 shrink-0 text-muted transition-transform ${showFiles ? "rotate-180" : ""}`}
-              aria-hidden="true"
-            >
-              <path d="m6 9 6 6 6-6" />
-            </svg>
-          </button>
-          {showFiles && (
-            <>
-              <ul className="mt-2 flex flex-col divide-y divide-border border-t border-border">
-                {basket.documents.map((doc) => (
-                  <li key={doc.id} className="flex items-center gap-3 py-2">
-                    <span className="min-w-0 flex-1 truncate text-small">{doc.title}</span>
-                    <button
-                      type="button"
-                      onClick={() => basket.remove(doc.id)}
-                      className="shrink-0 rounded-md px-1.5 py-0.5 text-small text-muted transition-colors hover:text-danger"
+            </h3>
+            <span className="text-small text-muted">Click one to see it</span>
+          </div>
+          <ul className="h-[152px] overflow-y-auto rounded-lg border border-border">
+            {basket.documents.map((doc) => {
+              const active = preview?.id === doc.id;
+              return (
+                <li key={doc.id} className={`flex items-center gap-2.5 border-b border-border px-2.5 py-2 last:border-b-0 ${active ? "bg-accent-soft" : ""}`}>
+                  <button
+                    type="button"
+                    onClick={() => onPreview(doc)}
+                    aria-pressed={active}
+                    className="flex min-w-0 flex-1 items-center gap-2.5 text-left"
+                  >
+                    <svg
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.6"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      className={`size-[18px] shrink-0 ${active ? "text-accent" : "text-muted"}`}
+                      aria-hidden="true"
                     >
-                      Remove
-                    </button>
-                  </li>
-                ))}
-              </ul>
-              <p className="mt-2.5 text-small text-muted">
-                A snapshot: replacing one of these later will not change what the link hands out.
-              </p>
-            </>
-          )}
+                      <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8l-5-5Z" />
+                      <path d="M14 3v5h5M9 13h6M9 17h4" />
+                    </svg>
+                    <span className={`min-w-0 flex-1 truncate text-small ${active ? "font-semibold text-accent" : ""}`}>{doc.title}</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => basket.remove(doc.id)}
+                    aria-label={`Remove ${doc.title} from this share`}
+                    className="flex size-6 shrink-0 items-center justify-center rounded-md text-muted transition-colors hover:bg-ground hover:text-danger"
+                  >
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" className="size-3.5" aria-hidden="true">
+                      <path d="M6 6l12 12M18 6L6 18" />
+                    </svg>
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
         </div>
 
         <div className="flex flex-col gap-5 px-6 py-5">
@@ -225,7 +234,7 @@ export function ReviewShare({ onClose }: { onClose: () => void }) {
                 id="share-label"
                 value={label}
                 onChange={(e) => setLabel(e.target.value)}
-                placeholder="2025 taxes for the Steuerberater"
+                placeholder="2025 tax documents"
                 className="h-9 w-full rounded-md border border-border bg-ground px-3 text-row placeholder:text-muted/70"
               />
               <p className="mt-1.5 text-small text-muted">For your own list — recipients never see it.</p>
@@ -264,7 +273,7 @@ export function ReviewShare({ onClose }: { onClose: () => void }) {
                     <input
                       value={recipient.label}
                       onChange={(e) => setRecipients((prev) => prev.map((r, j) => (j === i ? { ...r, label: e.target.value } : r)))}
-                      placeholder="Herr Brand, Steuerberater"
+                      placeholder="Accountant"
                       aria-label={`Recipient ${i + 1}`}
                       className="h-9 min-w-0 flex-1 rounded-md border border-border bg-ground px-3 text-row placeholder:text-muted/70"
                     />
@@ -318,21 +327,12 @@ export function ReviewShare({ onClose }: { onClose: () => void }) {
             </button>
           </div>
 
-          {/* What this delivery can and cannot promise, stated where it applies. */}
-          <p className="border-t border-border pt-4 text-small text-muted">
-            {SINK_CONSEQUENCE[delivery]}{" "}
-            <Link href="/settings/sharing" onClick={onClose} className="text-accent hover:underline">
-              Change
-            </Link>
-          </p>
-
           {sink && !sink.ready && <p className="rounded-md bg-warn-soft px-3 py-2 text-small text-warn">{sink.problem}</p>}
           {error && <p className="text-small text-danger">{error}</p>}
         </div>
       </div>
 
       <Footer>
-        <span className="hidden text-small text-muted sm:block">Nothing is sent — you copy each link.</span>
         <button type="button" onClick={onClose} className="ml-auto h-9 rounded-md px-3 text-row font-semibold text-muted hover:text-text">
           Cancel
         </button>
