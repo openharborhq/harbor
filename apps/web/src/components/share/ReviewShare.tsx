@@ -150,7 +150,7 @@ export function ReviewShare({
     return (
       <>
         <div className="min-h-0 flex-1 overflow-y-auto px-6 py-8 text-center">
-          <p className="text-body text-muted">The basket is empty. Add documents from a search, an item, or the inbox.</p>
+          <p className="text-body text-muted">Nothing selected. Tick documents in any list — a search, an item, the inbox — to share them.</p>
         </div>
         <Footer>
           <button type="button" onClick={onClose} className="ml-auto h-9 rounded-md border border-border px-4 text-row font-semibold">
@@ -213,9 +213,23 @@ export function ReviewShare({
           rather than pushing the form down.
         */}
         <div className="border-b border-border px-6 py-4">
-          <h3 className="mb-2 text-row font-semibold">
-            {n} document{n === 1 ? "" : "s"}
-          </h3>
+          <div className="mb-2 flex items-baseline justify-between gap-3">
+            <h3 className="text-row font-semibold">
+              {n} document{n === 1 ? "" : "s"}
+            </h3>
+            {/*
+              Starting over without unticking a dozen boxes one at a time. No confirmation: it
+              clears a selection, not anything of yours — and the documents are all still a tick
+              away on the page behind.
+            */}
+            <button
+              type="button"
+              onClick={basket.clear}
+              className="shrink-0 rounded-md px-1.5 py-0.5 text-small text-muted transition-colors hover:text-danger"
+            >
+              Clear all
+            </button>
+          </div>
           <ul className="h-[152px] overflow-y-auto rounded-lg border border-border">
             {basket.documents.map((doc) => {
               const active = preview?.id === doc.id;
