@@ -149,9 +149,13 @@ records the bundle's deletion on expiry or revoke — the row and its audit trai
 links. The accountant's and the landlord's differ, so the audit trail says which of them
 opened it, and revoking one does not break the other.
 
-Be honest in the UI that a recipient name is **a label, not verified identity**. Harbor sends
-no mail, so it has no channel to prove who is on the other end. The password is what turns a
-forwarded link into a dead link, and you tell it to them by phone.
+A recipient name is **a label, not verified identity** — Harbor sends no mail, so it has no
+channel to prove who is on the other end. This section asked for the share dialog to say so, and
+**it no longer does** (decided 2026-09-14): the dialog was carrying five explanatory sentences,
+and a caveat read once and thereafter skipped is not honesty, it is furniture. The fact still
+holds, and belongs where someone meets it once — the shares list and this document — rather than
+on every send. The password is what turns a forwarded link into a dead link, and you tell it to
+them by phone.
 
 **Copying the link is the send.** The box mails nothing, exactly as invitations already work.
 That precedent is right and this feature does not break it.

@@ -26,12 +26,11 @@ interface CreatedLink {
  * rest is a name and a duration. So the contents collapse to a line you can open, the share's own
  * fields are two controls, and recipients get the room.
  *
- * One thing it is still obliged to say out loud, because the vault cannot keep it quietly: a
- * recipient's name is a label and not verified identity. It sits under the field it qualifies.
- *
- * What the chosen delivery cannot promise used to sit at the foot of the form and has gone —
- * Settings is where that is chosen and explained, and repeating it on every send made a sentence
- * nobody read twice. The controls the sink cannot support are still simply absent.
+ * The explanatory text is gone, at Kai's direction (2026-09-14): what the name is for, that the
+ * list is a snapshot, that a row can be clicked, what the delivery cannot promise, and that a
+ * recipient's name is a label rather than verified identity. §10.4 asked for that last one to be
+ * said here; the spec now records that it is not, and why. The structure carries what it can — one
+ * link per recipient is visible in the list, and a control a sink cannot support is simply absent.
  */
 export function ReviewShare({
   onClose,
@@ -261,13 +260,7 @@ export function ReviewShare({
 
         <div className="px-6 py-5">
           <div>
-            <div className="flex items-baseline justify-between gap-3">
-              <h3 className="text-row font-semibold">Who it is for</h3>
-              <span className="text-small text-muted">One link each</span>
-            </div>
-            <p className="mt-1 text-small text-muted">
-              The name is your label — Harbor sends no mail, so it cannot check who is at the other end.
-            </p>
+            <h3 className="text-row font-semibold">Recipients</h3>
 
             <ul className="mt-3 flex flex-col gap-2.5">
               {recipients.map((recipient, i) => (
