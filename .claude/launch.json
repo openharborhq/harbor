@@ -4,14 +4,44 @@
     {
       "name": "web",
       "runtimeExecutable": "pnpm",
-      "runtimeArgs": ["--filter", "@harbor/web", "dev"],
+      "runtimeArgs": [
+        "--filter",
+        "@harbor/web",
+        "dev"
+      ],
       "port": 3000
     },
     {
       "name": "api",
       "runtimeExecutable": "pnpm",
-      "runtimeArgs": ["--filter", "@harbor/api", "start:dev"],
+      "runtimeArgs": [
+        "--filter",
+        "@harbor/api",
+        "start:dev"
+      ],
       "port": 4000
+    },
+    {
+      "name": "harbor-website",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": [
+        "--dir",
+        "../harbor-website",
+        "dev",
+        "--port",
+        "3100"
+      ],
+      "port": 3100
+    },
+    {
+      "name": "share",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": [
+        "--filter",
+        "@harbor/share",
+        "dev"
+      ],
+      "port": 4010
     }
   ]
 }

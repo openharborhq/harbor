@@ -169,6 +169,97 @@ Convention: `[ ]` open, `[x]` done and left in place until its milestone doc abs
        summed-up one. And **a release note is not a receipt** — leaving small work uncounted is
        the point, not a failure to credit it.
 
+9. [ ] **Extensions — Phase 0, the foundation** (agreed 2026-09-12; design in
+       [§9](../spec/09-extensions.md)). The direction: people evolve their own install with an
+       internal agent that compiles shared *recipes* into extensions, behind a manifest, a
+       sandbox, acceptance examples and a person's approval — never third-party code loaded
+       into core. Phase 0 is the substrate everything else stands on, and it is useful on its
+       own before any agent exists.
+       - [ ] **Integration tokens with scopes.** Absorbs the device-token item under *Later*:
+             created in Settings, shown once, stored hashed, revocable, `last_used_at`, audit
+             entry. Scopes to start: `upload`, `documents:read`, `tasks:write`, `events:read`.
+             `SessionGuard` accepts `Authorization: Bearer` on routes that carry a scope. The
+             scanner station is the first client.
+       - [ ] **Event outbox.** A table plus Redis stream: `document.received`,
+             `document.filed`, `task.due`, `backup.finished`, `mail.connection.ailing`. Payload
+             schemas in `@harbor/shared`.
+       - [ ] **One signed outbound webhook** as the first sink, configured in Settings. That is
+             the whole notification story: ntfy, Apprise or n8n fan out from there. No
+             notification plugin system, by decision.
+       - [ ] Surface versioning: a `surface` constant, and an *Extension surface* heading in
+             `CHANGELOG.md` for anything that changes it.
+
+10. [ ] **Sharing — handing documents to an outsider** (design agreed 2026-09-08, spec written
+        2026-09-14: [§10](../spec/10-sharing.md)). The one feature that needs a public surface.
+        Delivery decided: **Tailscale Funnel pointed at a separate `harbor-share` doorman
+        container**, never the API; a relay the box pushes to stays deferred (§10.10), and the
+        bundle format is kept sink-agnostic so that stays a delivery change. Sharing is free and
+        in the repo — not a paid add-on, decided 2026-09-08 and argued in §10.10.
+        - [ ] **Hardening first, and it gates the rest.** Security headers, CSP, HSTS. §3 has
+              none of them today, and `harbor public enable` does not ship until the doorman has
+              them. Worth doing whether or not Funnel is ever turned on.
+        - [x] **Seal and store** (built 2026-09-14). `shares`, `share_files`, `share_links`, `share_access_log`;
+              re-encrypt the chosen `document_file` versions under a fresh per-share key — **one
+              zip, stored not deflated, sealed whole** so the filenames are inside the ciphertext
+              (decided 2026-09-14); write
+              bundle, key and `policy.json` to `/data/shares/<sha256(token)>/`. Exclude bundles
+              from restic. Purge on expiry or revoke, on the existing scheduler.
+        - [~] **The doorman container, on its own tailnet node** (§10.6, decided 2026-09-14).
+              *Container built and tested 2026-09-14; the tailnet node and Funnel are not done.*
+              Its own `tailscaled` and state volume, so Funnel serves it at
+              `harbor-share.<tailnet>.ts.net` **on 443** — a separate origin from the app, and a
+              port that recipients behind a corporate firewall can actually reach. The funnel
+              attribute is granted to that node alone; the app's node keeps `AllowFunnel: {}`
+              empty for good. No Postgres, no KEK, no cookies, one route family, a
+              read-only mount of the share directory and one writable state directory. Setup
+              consequences (§10.6): the node joins by **printed login URL, not an auth key**;
+              a second machine appears in the admin console and the owner is told *before* it
+              does; links are built from the node's **actual** cert domain, since a name
+              collision silently renames it; its state volume is backed up, because losing the
+              identity kills every live link. Landing
+              page on GET, burn on POST — link previewers make that load-bearing (§10.7).
+        - [x] **A worker that ingests `events.jsonl`** into `share_access_log` (built 2026-09-14,
+              as an interval inside the API rather than a sixth container). The doorman gets
+              no way to call the API; the vault reads its log.
+        - [x] **The basket and the review screen** in the app (built 2026-09-14), with an add affordance on document
+              rows, item pages and search results, plus a share detail page showing the audit
+              trail and a revoke button. **Individual documents only** (decided 2026-09-14):
+              an item cannot go in the basket, not even as a shortcut that expands — everything
+              a share hands out is named one document at a time.
+        - [ ] **`harbor public enable` / `disable`**, printing what it means and requiring a
+              deliberate confirmation, and the §3.1 threat-model rewrite (§10.9) alongside it —
+              "nothing to connect to" stops being true the moment this ships.
+        - [ ] **The second sink: the owner's own bucket** (§10.10, agreed 2026-09-14). `shares`
+              gains `delivery` (`doorman|bucket`); the seal is byte-identical and only the next
+              step differs — PUT to the object store Harbor already needs for backups, a static
+              landing page uploaded once, token and key in the URL fragment, decryption in the
+              recipient's browser. Buys availability when the box is asleep, needs no Funnel and
+              no §3.1 rewrite. Costs one-time downloads, which need a stateful server. Three
+              non-optional rules: pad bundles to size buckets, password *wraps the key* rather
+              than gating a request (argon2id, expensive), and stream the decryption chunked.
+              Default sink is `doorman` when Funnel is on, `bucket` otherwise.
+        - [ ] **One `s3` sink, not one per provider** (§10.10, agreed 2026-09-14). A `ShareSink`
+              is `put` / `presign` / `delete`; B2, R2, Wasabi, MinIO, Storj and S3 all speak the
+              S3 API, so they are **settings presets, not code paths** — the §5 precedent. Verify
+              presigning and content-type against each preset before listing it. **SFTP, local
+              disk and restic REST cannot be sinks at all**: no anonymous HTTPS GET. That is not
+              a gap to close — those installs share through the doorman, and the settings page
+              has to say so instead of offering a sink that silently fails.
+        - [ ] **A second bucket, private, separate from restic.** No public-read policy and no
+              CORS rules needed: bundle and per-share `index.html` go in one bucket so the page
+              fetches same-origin, and the link is the presigned URL of that page with the key in
+              the fragment. Consequence to surface in the UI: **presigned URLs cap at 7 days**,
+              so 30-day expiry is doorman-only.
+        - [ ] **The Funnel preflight, which is most of that command** (§10.6). Funnel needs no
+              firewall change and no port forwarding — it is an outbound connection, and it works
+              behind CGNAT. The friction is account-side and once per tailnet: HTTPS certificates
+              on, and a `funnel` node attribute in the ACL policy file, which is JSON in a web
+              console. The command checks each precondition and names the one that is missing,
+              surfaces the admin-console URL `tailscale funnel` prints (it pre-fills the policy
+              change) with a line of plain English, waits and re-checks instead of exiting, then
+              writes the serve config and prints the share hostname. This is the difference
+              between shippable and not for a non-technical owner.
+
 ## Waiting on Kai
 
 - [ ] **Protectli deploy** — M1 step 11. Runbook at `docs/deploy.md`, never once executed.
@@ -178,12 +269,32 @@ Convention: `[ ]` open, `[x]` done and left in place until its milestone doc abs
 
 ## Later
 
-- [ ] **Device token for uploads.** Created in Settings, shown once, stored hashed, upload-only
+- [ ] **Device token for uploads** — folded into *Extensions — Phase 0* above (integration tokens with scopes); kept here until that lands. Created in Settings, shown once, stored hashed, upload-only
   scope, revocable, `last_used_at`, audit entry. `SessionGuard` accepts `Authorization: Bearer`
   for routes marked upload-capable, so a device can use `GET /documents/duplicates` and
   `POST /documents` exactly as the browser does. Roughly one table, one form, one guard branch.
   Wanted by Kai's scanner station, which is his own integration rather than part of Harbor — but
   the token is a Harbor feature and any device would use it.
+- [ ] **Extensions — Phases 1 to 4** ([§9](../spec/09-extensions.md)), in order, each after
+  the previous has proved its point: **1** `ext_records`, custom fields, the item-section slot,
+  the WebAssembly runner (Extism) with one hand-written transform for the meter-reading case,
+  the Harbor catalog and the in-house spec renderer (json-render's format, our code);
+  **2** the recipe format, the Extensions settings page, provenance, verify-on-upgrade — test
+  it with a fake upgrade; **3** the compiler, the internal agent, declarative tier first, then
+  transforms; **4** connector sidecars behind `MailSource`-over-HTTP, JMAP or Microsoft Graph
+  as the proof, and a public recipes repo. Phase 1's open decisions: the WebAssembly toolchain
+  for TypeScript, the exact catalog, memory for the runner on the Protectli.
+- [ ] **External-facing MCP server** — deferred until the internal agent has mileage. The
+  conditions it must meet are written down in §9 *Deferred*; do not re-derive them.
+- [ ] **Website — a "See how it works" page** (agreed 2026-09-13). The hero's second button
+  points at `#features` further down the same page; give it somewhere to go. The centrepiece is
+  a schematic drawn in the hand-drawn vocabulary the site already has
+  (`harbor-website`, `src/components/visuals/sketch.ts`): the Protectli-like box from
+  `VaultIllustration` in the middle, with a labelled line to each thing that plugs into it —
+  the email providers, a scanner, file upload from a phone or a laptop, Backblaze B2 and the
+  other backup targets, and a secure expiring link out to the accountant. Says in one drawing
+  what the feature list needs six blocks for: everything meets at one box in the house, and only
+  two lines leave it. Lives in the website repo, not this one.
 - [ ] Folder drops on the Add page (`webkitGetAsEntry` traversal).
 - [ ] A real iPhone HEIC end to end through the worker.
 - [ ] Large-file behaviour: progress on a 100-page scan, the 200 MB ceiling.

@@ -54,14 +54,23 @@ export interface SharePolicy {
 export class DoormanSink implements ShareSink, OnModuleInit {
   readonly kind = "doorman" as const;
   readonly root: string;
+  /**
+   * Separate from `root`, and deliberately so: the doorman mounts the share directory **read-only**
+   * and must have exactly one path it can write. That path is its own, and the vault only ever
+   * reads it.
+   */
+  readonly stateRoot: string;
 
   constructor(config: ConfigService<Env, true>) {
-    this.root = path.join(config.get("HARBOR_DATA_DIR", { infer: true }), "shares");
+    const data = config.get("HARBOR_DATA_DIR", { infer: true });
+    this.root = path.join(data, "shares");
+    this.stateRoot = path.join(data, "share-state");
   }
 
   async onModuleInit(): Promise<void> {
     await mkdir(path.join(this.root, "bundles"), { recursive: true, mode: 0o700 });
     await mkdir(path.join(this.root, "links"), { recursive: true, mode: 0o700 });
+    await mkdir(this.stateRoot, { recursive: true, mode: 0o700 });
   }
 
   bundleDir(shareId: string): string {
@@ -102,9 +111,17 @@ export class DoormanSink implements ShareSink, OnModuleInit {
     await rm(this.bundleDir(shareId), { recursive: true, force: true });
   }
 
-  /** The doorman's own state, read to fold download counts back into the database. */
-  stateDir(shareLinkId: string): string {
-    return path.join(this.root, "state", shareLinkId);
+  /**
+   * The doorman's own state for one link, keyed by the same token hash it looks policies up by.
+   * Read to fold download counts back into the database; never written from here.
+   */
+  stateDir(tokenHash: string): string {
+    return path.join(this.stateRoot, tokenHash);
+  }
+
+  /** State for every link of a share is discarded with it. */
+  async deleteState(tokenHash: string): Promise<void> {
+    await rm(this.stateDir(tokenHash), { recursive: true, force: true });
   }
 }
 

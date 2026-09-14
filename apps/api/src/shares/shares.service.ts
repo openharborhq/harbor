@@ -314,7 +314,10 @@ export class SharesService {
   /** Bundle, key and every policy that points at it. */
   private async purgeBundle(shareId: string): Promise<void> {
     const links = await this.db.select({ tokenHash: shareLinks.tokenHash }).from(shareLinks).where(eq(shareLinks.shareId, shareId));
-    for (const l of links) await this.doorman.deletePolicy(l.tokenHash);
+    for (const l of links) {
+      await this.doorman.deletePolicy(l.tokenHash);
+      await this.doorman.deleteState(l.tokenHash);
+    }
     await this.doorman.deleteBundle(shareId);
   }
 

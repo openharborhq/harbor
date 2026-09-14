@@ -14,6 +14,32 @@ migrations, on purpose, because a half-reversed schema is worse than a restore. 
 wrong, follow [`docs/restore.md`](docs/restore.md) with the backup `harbor upgrade` took
 immediately before it. That is why the upgrade refuses to run without one.
 
+## Unreleased
+
+- **You can hand documents to someone outside the house.** Gather documents from a search, an
+  item or the inbox into a basket at the bottom of the screen, then review and mint **one link
+  per recipient** — so the record says whether the accountant opened it or the landlord did, and
+  withdrawing one does not break the other. Each link can carry a password (tell them by phone)
+  and a limit of one download, and every link expires. Harbor sends nothing: you copy each link
+  and pass it on yourself, exactly as invitations already work.
+
+  The links are shown **once**, when the share is made, because Harbor stores them hashed the way
+  it stores sessions and cannot read them back.
+
+  A share is a snapshot sealed at the moment you make it: the documents are packed into one
+  archive and encrypted under a key that exists for that share alone. Replacing a document
+  afterwards does not change what an outstanding link hands out, and withdrawing a share destroys
+  the archive and its key together. Anything already downloaded is, of course, with the recipient.
+
+  **Nothing is reachable from outside yet.** The links are served by a new `harbor-share`
+  container, which for now listens only on the box itself — `harbor public enable`, and with it a
+  link your accountant can actually open, comes next. See
+  [§10](docs/spec/10-sharing.md) for the whole design.
+- **Worth knowing:** this release adds a `share` service to the stack and two directories under
+  your data volume, `shares/` and `share-state/`. Share archives are deliberately **not** in your
+  backups — they are short-lived copies of documents that are already backed up, and keeping a
+  second copy of them for months would work against the point of the expiry.
+
 ## v0.6.1 — 2026-09-12
 
 - **PDFs attached from Gmail are filed again.** Gmail's web client marks every file it attaches

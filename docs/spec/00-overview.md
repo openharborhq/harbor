@@ -15,6 +15,8 @@ Status: **design complete, pre-implementation.** UI designed in Paper
 - **Suggest** a title, category, items and dates for each new document (pluggable provider).
 - **Remind** about expiring documents — passports, policies, registrations — and about
   what still has to be *done*: bills to pay, forms to return, deadlines to meet (§8).
+- **Share** a handful of documents with an outsider — accountant, insurer, landlord — over a
+  link that expires, can need a password, and records who fetched what (§10).
 - **Protect** everything at rest and offsite, with a tested restore path.
 
 ## Decisions (locked)
@@ -49,3 +51,6 @@ None blocking. (Resolved 2026-09-06: dedicated Protectli; passphrase at boot; AG
 5. [LLM integration](05-llm-integration.md)
 6. [Items — people and things](06-items.md)
 7. [Email connections](07-email-connections.md)
+8. [Tasks — obligations](08-obligations.md)
+9. [Extensions — evolving Harbor without touching core](09-extensions.md)
+10. [Sharing — handing documents to an outsider](10-sharing.md)

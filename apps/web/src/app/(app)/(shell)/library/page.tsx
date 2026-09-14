@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { ACTIVE_ITEM_KINDS, ITEM_KIND_LABEL, type Category, type DocumentSummary, type Item, type SearchResponse } from "@harbor/shared";
+import { ShareButton } from "@/components/share/ShareButton";
 import { Snippet } from "@/components/Snippet";
 import { DocThumb } from "@/components/DocThumb";
 import { StatusPill } from "@/components/StatusPill";
@@ -152,6 +153,7 @@ export default async function LibraryPage(props: PageProps<"/library">) {
                   <span className="w-32 shrink-0 text-small text-muted">{d.expiresAt ? `exp. ${formatDate(d.expiresAt)}` : ""}</span>
                   <span className="w-20 shrink-0 text-small text-muted">{formatRelative(d.createdAt)}</span>
                   <StatusPill status={d.file.processingStatus} />
+                  <ShareButton id={d.id} title={d.title} compact />
                 </li>
               ))}
             </ul>
@@ -236,6 +238,7 @@ async function SearchResults({ q }: { q: string }) {
                   <Link href={`/documents/${h.documentId}`} className="text-row font-semibold hover:text-accent">
                     {h.title}
                   </Link>
+                  <ShareButton id={h.documentId} title={h.title} compact />
                   <span className="text-small text-muted">
                     {h.categoryPath ?? "Inbox"} · {h.documentDate ? formatDate(h.documentDate) : "no date yet"}
                   </span>

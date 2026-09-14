@@ -1,3 +1,6 @@
+import { BasketBar } from "@/components/share/BasketBar";
+import { ShareBasketProvider } from "@/components/share/ShareBasket";
+import { NavDrawer } from "@/components/shell/NavDrawer";
 import { Sidebar } from "@/components/shell/Sidebar";
 import type { Category, InboxCount, RecentDocument, TaskCount } from "@harbor/shared";
 import { apiFetch, currentUser } from "@/lib/api-server";
@@ -17,9 +20,14 @@ export default async function ShellLayout({ children }: LayoutProps<"/">) {
     apiFetch<TaskCount>("/tasks/count").catch(() => NO_TASKS),
   ]);
   return (
-    <div className="flex min-h-screen">
-      <Sidebar user={user} categories={categories} recent={recent} inbox={inbox} tasks={tasks} />
-      <div className="flex min-w-0 flex-1 flex-col">{children}</div>
-    </div>
+    <ShareBasketProvider>
+      <NavDrawer>
+        <div className="flex min-h-screen">
+          <Sidebar user={user} categories={categories} recent={recent} inbox={inbox} tasks={tasks} />
+          <div className="flex min-w-0 flex-1 flex-col">{children}</div>
+        </div>
+      </NavDrawer>
+      <BasketBar />
+    </ShareBasketProvider>
   );
 }

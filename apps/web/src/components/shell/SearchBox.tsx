@@ -29,7 +29,7 @@ export function SearchBox({ query = "" }: { query?: string }) {
   }
 
   return (
-    <form onSubmit={submit} className="flex h-[34px] w-[457px] items-center gap-2.5 rounded-md border border-border bg-ground px-3 focus-within:border-accent">
+    <form onSubmit={submit} className="flex h-[34px] w-full min-w-0 max-w-[457px] items-center gap-2.5 rounded-md border border-border bg-ground px-3 focus-within:border-accent">
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="shrink-0 text-muted">
         <circle cx="11" cy="11" r="7" />
         <path d="m20 20-3.5-3.5" />

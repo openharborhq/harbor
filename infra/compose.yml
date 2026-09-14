@@ -153,7 +153,15 @@ services:
       HARBOR_KEK_FILE: /run/secrets/kek
       API_PORT: "4000"
       WEB_ORIGIN: ${WEB_ORIGIN:-http://localhost:3000}
-    volumes: ["${HARBOR_DATA_DIR:-../data}/blobs:/data/blobs", "${HARBOR_DATA_DIR:-../data}/tmp:/data/tmp"]
+      # The doorman's own origin, which share links are built from. Never WEB_ORIGIN: the app and
+      # the doorman must not share one, or the session cookie travels to the public path (§10.6).
+      SHARE_ORIGIN: ${SHARE_ORIGIN:-http://localhost:4010}
+    # /data/shares is where a sealed bundle lands; the doorman mounts the same path read-only.
+    volumes:
+      - "${HARBOR_DATA_DIR:-../data}/blobs:/data/blobs"
+      - "${HARBOR_DATA_DIR:-../data}/tmp:/data/tmp"
+      - "${HARBOR_DATA_DIR:-../data}/shares:/data/shares"
+      - "${HARBOR_DATA_DIR:-../data}/share-state:/data/share-state"
     secrets: [kek]
     networks: [internal, edge]
     restart: unless-stopped
@@ -169,6 +177,32 @@ services:
     networks: [edge]
     ports: ["127.0.0.1:3000:3000"]
     depends_on: [api]
+
+  # The doorman (spec §10.2, §10.6). The only container a stranger's browser can reach, and the
+  # least capable one in the stack: no database, no Redis, no KEK, no secrets at all. It sees one
+  # directory read-only and writes to one other. Its port stays on loopback here — publishing it
+  # is what `harbor public enable` does, through Funnel on the share node, never a host port.
+  share:
+    build: { context: .., dockerfile: infra/docker/share.Dockerfile }
+    environment:
+      SHARE_PORT: 4010
+      SHARE_DIR: /data/shares
+      SHARE_STATE_DIR: /data/share-state
+    volumes:
+      - "${HARBOR_DATA_DIR:-../data}/shares:/data/shares:ro"
+      - "${HARBOR_DATA_DIR:-../data}/share-state:/data/share-state"
+    ports: ["127.0.0.1:${HARBOR_SHARE_PORT:-4010}:4010"]
+    networks: [edge]
+    restart: unless-stopped
+    read_only: true
+    tmpfs: ["/tmp"]
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"fetch('http://127.0.0.1:4010/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\""]
+      interval: 30s
+      timeout: 5s
+      retries: 3
 
 secrets:
   kek:

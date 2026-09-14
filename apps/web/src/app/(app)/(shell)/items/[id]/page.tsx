@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ITEM_KIND_LABEL, itemSubtitle, type DocumentSummary, type Item, type KeyDocumentSlot } from "@harbor/shared";
 import { DocThumb } from "@/components/DocThumb";
+import { ShareButton } from "@/components/share/ShareButton";
 import { StatusPill } from "@/components/StatusPill";
 import { BackLink } from "@/components/BackLink";
 import { TopBar } from "@/components/shell/TopBar";
@@ -118,6 +119,7 @@ export default async function ItemPage(props: PageProps<"/items/[id]">) {
                 <span className="w-28 shrink-0 text-small text-muted">{d.expiresAt ? `exp. ${formatDate(d.expiresAt)}` : ""}</span>
                 <span className="w-20 shrink-0 text-small text-muted">{formatRelative(d.createdAt)}</span>
                 <StatusPill status={d.file.processingStatus} />
+                <ShareButton id={d.id} title={d.title} compact />
               </li>
             ))}
           </ul>
