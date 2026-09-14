@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { ACTIVE_ITEM_KINDS, ITEM_KIND_LABEL, type Category, type DocumentSummary, type Item, type SearchResponse } from "@harbor/shared";
-import { ShareButton } from "@/components/share/ShareButton";
+import { ShareCheckbox } from "@/components/share/ShareCheckbox";
 import { Snippet } from "@/components/Snippet";
 import { DocThumb } from "@/components/DocThumb";
-import { StatusPill } from "@/components/StatusPill";
+import { ListStatusPill } from "@/components/StatusPill";
 import { TopBar } from "@/components/shell/TopBar";
 import { apiFetch } from "@/lib/api-server";
 import { formatDate, formatRelative } from "@/lib/format";
@@ -141,6 +141,7 @@ export default async function LibraryPage(props: PageProps<"/library">) {
             <ul className="flex flex-col">
               {docs.map((d) => (
                 <li key={d.id} className="flex h-14 items-center gap-4 border-t border-border last:border-b">
+                  <ShareCheckbox id={d.id} title={d.title} />
                   <DocThumb documentId={d.id} hasThumbnail={d.file.hasThumbnail} version={d.file.version} width={30} height={38} className="rounded-sm" />
                   <Link href={`/documents/${d.id}`} className="w-[340px] truncate text-row font-semibold hover:text-accent">
                     {d.title}
@@ -152,8 +153,7 @@ export default async function LibraryPage(props: PageProps<"/library">) {
                   <span className="w-24 shrink-0 text-small text-muted">{d.documentDate ? formatDate(d.documentDate) : ""}</span>
                   <span className="w-32 shrink-0 text-small text-muted">{d.expiresAt ? `exp. ${formatDate(d.expiresAt)}` : ""}</span>
                   <span className="w-20 shrink-0 text-small text-muted">{formatRelative(d.createdAt)}</span>
-                  <StatusPill status={d.file.processingStatus} />
-                  <ShareButton id={d.id} title={d.title} compact />
+                  <ListStatusPill status={d.file.processingStatus} />
                 </li>
               ))}
             </ul>
@@ -233,12 +233,14 @@ async function SearchResults({ q }: { q: string }) {
         <ul className="flex flex-col">
           {result.hits.map((h) => (
             <li key={h.documentId} className="flex items-start gap-4 border-t border-border py-4 last:border-b">
+              <span className="mt-1 flex h-[22px] items-center">
+                <ShareCheckbox id={h.documentId} title={h.title} />
+              </span>
               <div className="flex min-w-0 flex-1 flex-col gap-1.5">
                 <div className="flex items-baseline gap-2.5">
                   <Link href={`/documents/${h.documentId}`} className="text-row font-semibold hover:text-accent">
                     {h.title}
                   </Link>
-                  <ShareButton id={h.documentId} title={h.title} compact />
                   <span className="text-small text-muted">
                     {h.categoryPath ?? "Inbox"} · {h.documentDate ? formatDate(h.documentDate) : "no date yet"}
                   </span>

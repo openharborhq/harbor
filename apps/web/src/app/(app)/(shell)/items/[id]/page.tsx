@@ -3,8 +3,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ITEM_KIND_LABEL, itemSubtitle, type DocumentSummary, type Item, type KeyDocumentSlot } from "@harbor/shared";
 import { DocThumb } from "@/components/DocThumb";
-import { ShareButton } from "@/components/share/ShareButton";
-import { StatusPill } from "@/components/StatusPill";
+import { ShareCheckbox } from "@/components/share/ShareCheckbox";
+import { ListStatusPill } from "@/components/StatusPill";
 import { BackLink } from "@/components/BackLink";
 import { TopBar } from "@/components/shell/TopBar";
 import { ApiError, apiFetch } from "@/lib/api-server";
@@ -110,6 +110,7 @@ export default async function ItemPage(props: PageProps<"/items/[id]">) {
           <ul className="flex flex-col">
             {shown.map((d) => (
               <li key={d.id} className="flex h-14 items-center gap-4 border-t border-border last:border-b">
+                <ShareCheckbox id={d.id} title={d.title} />
                 <DocThumb documentId={d.id} hasThumbnail={d.file.hasThumbnail} version={d.file.version} width={30} height={38} className="rounded-sm" />
                 <Link href={`/documents/${d.id}`} className="w-[380px] truncate text-row font-semibold hover:text-accent">
                   {d.title}
@@ -118,8 +119,7 @@ export default async function ItemPage(props: PageProps<"/items/[id]">) {
                 <span className="w-28 shrink-0 text-small text-muted">{d.documentDate ? formatDate(d.documentDate) : "—"}</span>
                 <span className="w-28 shrink-0 text-small text-muted">{d.expiresAt ? `exp. ${formatDate(d.expiresAt)}` : ""}</span>
                 <span className="w-20 shrink-0 text-small text-muted">{formatRelative(d.createdAt)}</span>
-                <StatusPill status={d.file.processingStatus} />
-                <ShareButton id={d.id} title={d.title} compact />
+                <ListStatusPill status={d.file.processingStatus} />
               </li>
             ))}
           </ul>

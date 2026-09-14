@@ -1,4 +1,3 @@
-import { BasketBar } from "@/components/share/BasketBar";
 import { ShareBasketProvider } from "@/components/share/ShareBasket";
 import { NavDrawer } from "@/components/shell/NavDrawer";
 import { Sidebar } from "@/components/shell/Sidebar";
@@ -24,10 +23,16 @@ export default async function ShellLayout({ children }: LayoutProps<"/">) {
       <NavDrawer>
         <div className="flex min-h-screen">
           <Sidebar user={user} categories={categories} recent={recent} inbox={inbox} tasks={tasks} />
-          <div className="flex min-w-0 flex-1 flex-col">{children}</div>
+          {/*
+            One centred column for every page, header included. The pages already capped at 1192px
+            — the locked content width — but none of them centred, so on a wide screen the whole
+            app sat against the sidebar with the gutter all on one side.
+          */}
+          <div className="flex min-w-0 flex-1 flex-col">
+            <div className="mx-auto flex w-full max-w-content flex-1 flex-col">{children}</div>
+          </div>
         </div>
       </NavDrawer>
-      <BasketBar />
     </ShareBasketProvider>
   );
 }
