@@ -290,7 +290,7 @@ export function ReviewShare({
                     <input
                       value={recipient.password}
                       onChange={(e) => setRecipients((prev) => prev.map((r, j) => (j === i ? { ...r, password: e.target.value } : r)))}
-                      placeholder="Password — optional, tell them by phone"
+                      placeholder="Password (optional)"
                       aria-label={`Password for recipient ${i + 1}`}
                       type="password"
                       autoComplete="off"
@@ -303,7 +303,12 @@ export function ReviewShare({
                           checked={recipient.limitOnce}
                           onChange={(e) => setRecipients((prev) => prev.map((r, j) => (j === i ? { ...r, limitOnce: e.target.checked } : r)))}
                         />
-                        Once only
+                        {/*
+                          Named for what it limits. "Once only", sitting beside a password field,
+                          read as if the password were single-use — it is the finished download
+                          that is counted, and opening the link costs nothing.
+                        */}
+                        One download only
                       </label>
                     )}
                   </div>

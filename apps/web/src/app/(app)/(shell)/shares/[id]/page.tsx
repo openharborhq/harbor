@@ -99,7 +99,7 @@ export default async function SharePage(props: PageProps<"/shares/[id]">) {
                   <span className="block truncate text-row font-semibold">{link.recipientLabel}</span>
                   <span className="block text-small text-muted">
                     {link.hasPassword ? "Password required" : "No password"}
-                    {link.maxDownloads ? ` · limit ${link.maxDownloads}` : ""}
+                    {link.maxDownloads ? ` · ${link.maxDownloads} download${link.maxDownloads === 1 ? "" : "s"} allowed` : ""}
                   </span>
                 </span>
                 <span className="w-[150px] shrink-0 text-small text-muted">
