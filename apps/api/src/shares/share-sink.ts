@@ -1,7 +1,7 @@
 import { Injectable, OnModuleInit } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { createHash } from "node:crypto";
-import { mkdir, rename, rm, writeFile } from "node:fs/promises";
+import { mkdir, rename, rm, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
 import type { Env } from "../config/env";
 
@@ -71,6 +71,28 @@ export class DoormanSink implements ShareSink, OnModuleInit {
     await mkdir(path.join(this.root, "bundles"), { recursive: true, mode: 0o700 });
     await mkdir(path.join(this.root, "links"), { recursive: true, mode: 0o700 });
     await mkdir(this.stateRoot, { recursive: true, mode: 0o700 });
+  }
+
+  /**
+   * Refuse to seal a share into a directory that is not the data volume.
+   *
+   * The failure this exists for: a box that took new images without refreshing its compose files —
+   * possible on any install made before `harbor upgrade` learned to do that — has no `/data/shares`
+   * mount. The API container is not read-only, so the writes *succeed*, into its own ephemeral
+   * layer. Shares would appear to be created, their links would point at a doorman that does not
+   * exist, and the bundles would vanish on the next restart. Silence is the worst outcome here.
+   *
+   * The test is whether the share directory is on the same filesystem as the blob store, which is
+   * unambiguously the data volume: a bind mount and a container layer never share a device.
+   */
+  async assertOnDataVolume(blobsDir: string): Promise<void> {
+    const [blobs, shares] = await Promise.all([stat(blobsDir), stat(this.root)]);
+    if (blobs.dev !== shares.dev) {
+      throw new Error(
+        "Sharing is not set up on this appliance: /data/shares is not part of the data volume, so a share would be lost on the next restart. " +
+          "This happens when new images arrive without the compose files that go with them — run `harbor upgrade` again, or re-run install.sh over this install.",
+      );
+    }
   }
 
   bundleDir(shareId: string): string {

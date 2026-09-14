@@ -131,6 +131,13 @@ A share never relocates a document; it builds a separate sealed copy and hands t
 the copy sits is the only thing delivery changes: `/data/shares/` on the box for `doorman`, the
 share bucket for `bucket` — and with `doorman` delivery **no bucket is involved at all**.
 
+**A share refuses to be sealed into a directory that is not the data volume.** The API container is
+not read-only, so on a box carrying new images with an older stack — no `/data/shares` mount — the
+writes would succeed into its ephemeral layer, the links would point at a doorman that does not
+exist, and the bundles would vanish on the next restart. The check is whether the share directory
+shares a filesystem with the blob store, which is unambiguously the volume; a bind mount and a
+container layer never share a device.
+
 Bundles are **derived data and excluded from restic** (§3.4). They are a second plaintext-
 equivalent copy of documents that are already backed up, under a key with a short life; adding
 them to the envelope would lengthen exactly the exposure the design shortens. `purged_at`

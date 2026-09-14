@@ -52,6 +52,19 @@ immediately before it. That is why the upgrade refuses to run without one.
 
   This is why sharing needs an upgrade rather than only a pull: it adds a `share` service and a
   `harbor public` command.
+
+  **One manual step, once, on a box installed before this release.** The `harbor` command on your
+  appliance predates the change, so it cannot refresh itself — the first upgrade to this version
+  brings the new images but leaves the old stack around them. Re-run the installer over your
+  existing install to pick both up:
+
+      curl -fsSLO https://raw.githubusercontent.com/openharborhq/harbor/main/install.sh
+      HARBOR_DATA_DIR=/data sh install.sh
+
+  It keeps your data, your keys and your configuration — it fetches the compose files and rewrites
+  the `harbor` command. Every upgrade after this one does it for you. Until you have done it,
+  Harbor will refuse to create a share and say so, rather than making one that would be lost on the
+  next restart.
 - **The app now sends security headers** — a content security policy, HSTS, framing and referrer
   rules — which it never had. Nothing about using Harbor changes; it was a gap that mattered once
   anything on the box could face the internet, and `harbor public enable` refuses to run without

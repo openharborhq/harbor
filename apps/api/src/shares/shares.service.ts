@@ -69,6 +69,15 @@ export class SharesService {
       throw new BadRequestException("A download limit needs Harbor to serve the link — your storage cannot count downloads.");
     }
 
+    // Cheap, and the alternative is a share that looks created and is already gone (§10.2).
+    if (delivery === "doorman") {
+      try {
+        await this.doorman.assertOnDataVolume(this.blobs.blobsDir);
+      } catch (err) {
+        throw new BadRequestException((err as Error).message);
+      }
+    }
+
     const files = await this.filesFor(input.documentIds);
     const names = bundleFilenames(files.map((f) => ({ title: f.title, originalFilename: f.originalFilename })));
     const expiresAt = new Date(Date.now() + input.expiryHours * 3600_000);
