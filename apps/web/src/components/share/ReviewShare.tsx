@@ -171,17 +171,52 @@ export function ReviewShare({
     <>
       <div className="min-h-0 flex-1 overflow-y-auto">
         {/*
+          Name and duration first: they describe the share itself, and answering them before
+          scrolling a list is the order someone actually thinks in.
+        */}
+        <div className="border-b border-border px-6 py-4">
+          <div className="flex flex-col gap-4 sm:flex-row">
+            <div className="min-w-0 flex-1">
+              <label htmlFor="share-label" className="label mb-1.5 block">
+                Name
+              </label>
+              <input
+                id="share-label"
+                value={label}
+                onChange={(e) => setLabel(e.target.value)}
+                placeholder="2025 tax documents"
+                className="h-9 w-full rounded-md border border-border bg-ground px-3 text-row placeholder:text-muted/70"
+              />
+            </div>
+            <div className="shrink-0">
+              <label htmlFor="share-expiry" className="label mb-1.5 block">
+                Available for
+              </label>
+              <select
+                id="share-expiry"
+                value={expiryHours}
+                onChange={(e) => setExpiryHours(Number(e.target.value))}
+                className="h-9 w-full rounded-md border border-border bg-ground px-3 text-row sm:w-[130px]"
+              >
+                {options.map((o) => (
+                  <option key={o.hours} value={o.hours}>
+                    {o.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+        </div>
+
+        {/*
           A fixed-height list, not a growing one. Two documents or twenty, the fields below start
           in the same place and the footer never moves — and the rows scroll in their own box
           rather than pushing the form down.
         */}
         <div className="border-b border-border px-6 py-4">
-          <div className="mb-2 flex items-baseline justify-between">
-            <h3 className="text-row font-semibold">
-              {n} document{n === 1 ? "" : "s"}
-            </h3>
-            <span className="text-small text-muted">Click one to see it</span>
-          </div>
+          <h3 className="mb-2 text-row font-semibold">
+            {n} document{n === 1 ? "" : "s"}
+          </h3>
           <ul className="h-[152px] overflow-y-auto rounded-lg border border-border">
             {basket.documents.map((doc) => {
               const active = preview?.id === doc.id;
@@ -224,39 +259,7 @@ export function ReviewShare({
           </ul>
         </div>
 
-        <div className="flex flex-col gap-5 px-6 py-5">
-          <div className="flex flex-col gap-4 sm:flex-row">
-            <div className="min-w-0 flex-1">
-              <label htmlFor="share-label" className="label mb-1.5 block">
-                Name
-              </label>
-              <input
-                id="share-label"
-                value={label}
-                onChange={(e) => setLabel(e.target.value)}
-                placeholder="2025 tax documents"
-                className="h-9 w-full rounded-md border border-border bg-ground px-3 text-row placeholder:text-muted/70"
-              />
-              <p className="mt-1.5 text-small text-muted">For your own list — recipients never see it.</p>
-            </div>
-            <div className="shrink-0">
-              <label htmlFor="share-expiry" className="label mb-1.5 block">
-                Available for
-              </label>
-              <select
-                id="share-expiry"
-                value={expiryHours}
-                onChange={(e) => setExpiryHours(Number(e.target.value))}
-                className="h-9 w-full rounded-md border border-border bg-ground px-3 text-row sm:w-[130px]"
-              >
-                {options.map((o) => (
-                  <option key={o.hours} value={o.hours}>
-                    {o.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
+        <div className="px-6 py-5">
           <div>
             <div className="flex items-baseline justify-between gap-3">
               <h3 className="text-row font-semibold">Who it is for</h3>
