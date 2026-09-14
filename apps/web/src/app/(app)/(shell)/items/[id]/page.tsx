@@ -93,14 +93,7 @@ export default async function ItemPage(props: PageProps<"/items/[id]">) {
         <section className="flex flex-col gap-4">
           <div className="flex items-baseline justify-between">
             <h2 className="text-section font-bold tracking-snug">All records</h2>
-            <div className="flex gap-1.5">
-              <Chip href={`/items/${item.id}`} active={!filter} label={`All ${documents.length}`} />
-              {[...counts.entries()]
-                .sort((a, b) => b[1] - a[1])
-                .map(([name, n]) => (
-                  <Chip key={name} href={`/items/${item.id}?category=${encodeURIComponent(name)}`} active={filter === name} label={`${name} ${n}`} />
-                ))}
-            </div>
+            <CategoryChips itemId={item.id} total={documents.length} counts={counts} active={filter} />
           </div>
           {shown.length === 0 && (
             <p className="border-t border-border pt-4 text-body text-muted">
@@ -158,6 +151,41 @@ function headline(item: Item): string {
   }
   bits.push(`${item.documentCount} record${item.documentCount === 1 ? "" : "s"}`);
   return bits.filter(Boolean).join(" · ");
+}
+
+/**
+ * Category chips over the records table.
+ *
+ * Off by default. On an item with a handful of records they were a row of controls above a list
+ * short enough to read whole — restating in chips what the table already says in a column, and
+ * taking the eye before the records did. The filter still works by URL, and the rail on Library
+ * does the same job where it is worth doing, so this keeps the capability without spending the
+ * space on it: pass `show` to bring them back.
+ */
+function CategoryChips({
+  itemId,
+  total,
+  counts,
+  active,
+  show = false,
+}: {
+  itemId: string;
+  total: number;
+  counts: Map<string, number>;
+  active: string;
+  show?: boolean;
+}) {
+  if (!show) return null;
+  return (
+    <div className="flex gap-1.5">
+      <Chip href={`/items/${itemId}`} active={!active} label={`All ${total}`} />
+      {[...counts.entries()]
+        .sort((a, b) => b[1] - a[1])
+        .map(([name, n]) => (
+          <Chip key={name} href={`/items/${itemId}?category=${encodeURIComponent(name)}`} active={active === name} label={`${name} ${n}`} />
+        ))}
+    </div>
+  );
 }
 
 function Chip({ href, active, label }: { href: string; active: boolean; label: string }) {
