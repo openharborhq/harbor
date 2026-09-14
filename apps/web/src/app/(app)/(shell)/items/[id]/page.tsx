@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ITEM_KIND_LABEL, itemSubtitle, type DocumentSummary, type Item, type KeyDocumentSlot } from "@harbor/shared";
-import { DocThumb } from "@/components/DocThumb";
 import { ShareCheckbox } from "@/components/share/ShareCheckbox";
 import { ListStatusPill } from "@/components/StatusPill";
 import { BackLink } from "@/components/BackLink";
@@ -104,7 +103,6 @@ export default async function ItemPage(props: PageProps<"/items/[id]">) {
             {shown.map((d) => (
               <li key={d.id} className="flex h-14 items-center gap-4 border-t border-border last:border-b">
                 <ShareCheckbox id={d.id} title={d.title} />
-                <DocThumb documentId={d.id} hasThumbnail={d.file.hasThumbnail} version={d.file.version} width={30} height={38} className="rounded-sm" />
                 <Link href={`/documents/${d.id}`} className="w-[380px] truncate text-row font-semibold hover:text-accent">
                   {d.title}
                 </Link>

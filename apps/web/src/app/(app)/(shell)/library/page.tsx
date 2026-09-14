@@ -3,7 +3,6 @@ import Link from "next/link";
 import { ACTIVE_ITEM_KINDS, ITEM_KIND_LABEL, type Category, type DocumentSummary, type Item, type SearchResponse } from "@harbor/shared";
 import { ShareCheckbox } from "@/components/share/ShareCheckbox";
 import { Snippet } from "@/components/Snippet";
-import { DocThumb } from "@/components/DocThumb";
 import { ListStatusPill } from "@/components/StatusPill";
 import { TopBar } from "@/components/shell/TopBar";
 import { apiFetch } from "@/lib/api-server";
@@ -142,7 +141,6 @@ export default async function LibraryPage(props: PageProps<"/library">) {
               {docs.map((d) => (
                 <li key={d.id} className="flex h-14 items-center gap-4 border-t border-border last:border-b">
                   <ShareCheckbox id={d.id} title={d.title} />
-                  <DocThumb documentId={d.id} hasThumbnail={d.file.hasThumbnail} version={d.file.version} width={30} height={38} className="rounded-sm" />
                   <Link href={`/documents/${d.id}`} className="w-[340px] truncate text-row font-semibold hover:text-accent">
                     {d.title}
                   </Link>
