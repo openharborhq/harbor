@@ -26,6 +26,7 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.80.0",
+    "@harbor/bundle": "workspace:*",
     "@harbor/db": "workspace:*",
     "@harbor/shared": "workspace:*",
     "@nestjs/common": "^11.0.0",

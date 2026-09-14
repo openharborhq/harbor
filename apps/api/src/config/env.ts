@@ -14,6 +14,15 @@ export const Env = z.object({
     .enum(["true", "false"])
     .default("true")
     .transform((v) => v === "true"),
+  /**
+   * The doorman's own public origin, which share links are built from (spec §10.6).
+   *
+   * Deliberately not derived from WEB_ORIGIN: the app and the doorman must never share an origin,
+   * or the vault's session cookie travels to the public path. In production this is the share
+   * node's own name — https://harbor-share.<tailnet>.ts.net — on 443, because a recipient behind
+   * a corporate firewall can reach that port and no other.
+   */
+  SHARE_ORIGIN: z.string().url().default("http://localhost:4010"),
   OCR_CONCURRENCY: z.coerce.number().int().min(1).default(2),
   /** tesseract language packs installed in the worker image, "+"-joined. */
   OCR_LANGUAGES: z.string().regex(/^[a-z_]+(\+[a-z_]+)*$/).default("deu+eng"),

@@ -9,3 +9,4 @@ export * from "./mail";
 export * from "./backups";
 export * from "./settings";
 export * from "./tasks";
+export * from "./shares";

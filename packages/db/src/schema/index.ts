@@ -7,3 +7,4 @@ export * from "./audit";
 export * from "./backups";
 export * from "./settings";
 export * from "./tasks";
+export * from "./shares";
