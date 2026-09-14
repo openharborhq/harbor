@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { SINK_CAPABILITIES, SINK_CONSEQUENCE, expiryOptionsFor, type ShareDeliverySettings } from "@harbor/shared";
-import { useShareBasket } from "@/components/share/ShareBasket";
+import { useShareBasket } from "./ShareBasket";
 import { api } from "@/lib/api-client";
 
 interface Recipient {
@@ -19,14 +19,15 @@ interface CreatedLink {
 }
 
 /**
- * The review screen (spec §10.5): the last place a share is still editable, and the only place
- * its links are ever readable.
+ * The body of the review step (spec §10.5): the last place a share is still editable, and the only
+ * place its links are ever readable. Rendered inside `ShareModal`, over the page the basket was
+ * filled from.
  *
  * Three things it is obliged to say out loud, because each is a promise the vault cannot keep
  * quietly: a recipient's name is a label and not verified identity; what a sink cannot do and
  * why; and that copying the link is the send, because the box mails nothing.
  */
-export function ReviewShare() {
+export function ReviewShare({ onClose }: { onClose: () => void }) {
   const basket = useShareBasket();
   const [label, setLabel] = useState("");
   const [message, setMessage] = useState("");
@@ -90,8 +91,8 @@ export function ReviewShare() {
   if (created) {
     return (
       <div className="flex flex-col gap-5">
-        <div className="rounded-card border border-border bg-ground p-6">
-          <h2 className="text-section font-semibold tracking-snug">Copy each link now</h2>
+        <div>
+          <h2 className="text-row font-semibold">Copy each link now</h2>
           <p className="mt-1 max-w-[62ch] text-body text-muted">
             These are shown once. Harbor stores them hashed, the way it stores sessions, so there is no way to read them
             again later — and the box sends no mail, so passing them on is yours to do.
@@ -119,9 +120,16 @@ export function ReviewShare() {
             ))}
           </ul>
         </div>
-        <div>
-          <Link href="/shares" className="inline-flex h-9 items-center rounded-md border border-border bg-ground px-4 text-row font-semibold">
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={onClose}
+            className="inline-flex h-9 items-center rounded-md bg-accent px-4 text-row font-semibold text-white"
+          >
             Done
+          </button>
+          <Link href="/shares" onClick={onClose} className="text-row text-accent">
+            See all shares
           </Link>
         </div>
       </div>
@@ -130,22 +138,19 @@ export function ReviewShare() {
 
   if (basket.ready && basket.documents.length === 0) {
     return (
-      <div className="rounded-card border border-border bg-ground p-8 text-center">
-        <h2 className="text-section font-semibold tracking-snug">Nothing in the basket</h2>
-        <p className="mx-auto mt-2 max-w-[52ch] text-body text-muted">
-          Add documents from anywhere they are listed — a search, an item, the inbox — and they gather here.
-        </p>
-        <Link href="/library" className="mt-5 inline-flex h-9 items-center rounded-md bg-accent px-4 text-row font-semibold text-white">
-          Find documents
-        </Link>
+      <div className="py-4 text-center">
+        <p className="text-body text-muted">The basket is empty. Add documents from a search, an item, or the inbox.</p>
+        <button type="button" onClick={onClose} className="mt-4 h-9 rounded-md border border-border px-4 text-row font-semibold">
+          Close
+        </button>
       </div>
     );
   }
 
   return (
-    <div className="flex max-w-[720px] flex-col gap-5">
-      <section className="rounded-card border border-border bg-ground p-5">
-        <h2 className="text-section font-semibold tracking-snug">
+    <div className="flex flex-col gap-5">
+      <section>
+        <h2 className="text-row font-semibold">
           {basket.documents.length} document{basket.documents.length === 1 ? "" : "s"}
         </h2>
         <ul className="mt-3 flex flex-col divide-y divide-border">
@@ -174,7 +179,7 @@ export function ReviewShare() {
         </p>
       )}
 
-      <section className="flex flex-col gap-4 rounded-card border border-border bg-ground p-5">
+      <section className="flex flex-col gap-4 border-t border-border pt-5">
         {/*
           Stated, never chosen here: which sink serves the link is a setting, because picking one
           comes with setup. What belongs on this screen is the consequence, in the owner's terms.
@@ -238,8 +243,8 @@ export function ReviewShare() {
         </div>
       </section>
 
-      <section className="rounded-card border border-border bg-ground p-5">
-        <h2 className="text-section font-semibold tracking-snug">Who it is for</h2>
+      <section className="border-t border-border pt-5">
+        <h2 className="text-row font-semibold">Who it is for</h2>
         <p className="mt-1 max-w-[62ch] text-small text-muted">
           One link each, so you can see who opened it and withdraw one without breaking the other. The name is a label you
           chose — Harbor sends no mail, so it cannot check who is at the other end.
@@ -301,7 +306,7 @@ export function ReviewShare() {
 
       {error && <p className="text-body text-danger">{error}</p>}
 
-      <div className="flex items-center gap-3 pb-24">
+      <div className="flex flex-wrap items-center gap-3">
         <button
           type="button"
           disabled={busy || !recipients.some((r) => r.label.trim()) || (sink !== null && !sink.ready)}
