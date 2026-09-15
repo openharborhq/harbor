@@ -105,13 +105,33 @@ export function SharingForm({ delivery, bucket }: { delivery: ShareDeliverySetti
                 : "Every control works, including a one-download limit and links that last 30 days. A link is dead while your Harbor is asleep, restarting, or waiting to be unlocked."
             }
           >
+            {/*
+              The whole instruction, here, rather than a link to the deploy guide.
+              This is where someone decides how shares go out, and sending them away to read prose
+              and come back is how the decision gets abandoned. It is also the one step of sharing
+              that the browser cannot take for them: publishing happens on the box, and the api
+              container has no docker socket and no route to the share node's tailscaled — on
+              purpose, and not a gap worth closing for this.
+            */}
             {!delivery.doormanPublished && (
               <div className="mt-4 border-t border-border pt-4">
                 <Note title="Not reachable from outside this box yet">
-                  The doorman answers on this machine only, so a link made now reaches nobody. Run{" "}
-                  <code className="rounded-sm bg-surface px-1 py-0.5 font-mono text-small">harbor public enable</code> over ssh:
-                  it puts the doorman — and only the doorman — on its own tailnet name at 443, asks you to approve the new
-                  machine, and leaves the vault itself private. Links made before then start working when it is done.
+                  <p>
+                    The doorman answers on this machine only, so a link made now would reach nobody. One command on the box
+                    finishes it:
+                  </p>
+                  <pre className="mt-2.5 overflow-x-auto rounded-md border border-border bg-ground px-3 py-2 font-mono text-small text-text">
+                    sudo harbor public enable
+                  </pre>
+                  <p className="mt-2.5">
+                    It puts the doorman — and only the doorman — on a tailnet name of its own at 443, and hands you a link to
+                    approve that one machine. The vault keeps no public name and never gets one; that is a separate setting
+                    the vault refuses for good. Links made before this start working the moment it finishes.
+                  </p>
+                  <p className="mt-2.5">
+                    Nothing here can do it for you: publishing to the internet happens on the box, and this page deliberately
+                    has no way to reach it.
+                  </p>
                 </Note>
               </div>
             )}
