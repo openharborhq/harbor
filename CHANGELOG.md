@@ -17,6 +17,27 @@ migrations, on purpose, because a half-reversed schema is worse than a restore. 
 wrong, follow [`docs/restore.md`](docs/restore.md) with the backup `harbor upgrade` took
 immediately before it. That is why the upgrade refuses to run without one.
 
+## v0.7.6 — 2026-09-15
+
+- **Fixed: `harbor public enable` reported success on a share node no recipient could reach.** Funnel
+  is granted by a node attribute in the tailnet's policy file, and nothing on the node itself knows
+  whether that grant exists — it requests ingress, takes an HTTPS certificate, and
+  `tailscale funnel status` prints *Funnel on* either way, while the control plane publishes no
+  public DNS record and the name resolves only inside the tailnet. That command was what the check
+  ran, so it was checking nothing. The grant is read from the node's capability map instead, and a
+  tailnet that has not given it is told exactly what to add to its policy file.
+
+  The remediation it used to print could never have run, and had stopped working regardless: it
+  called `tailscale funnel 443 on`, a syntax since removed from the Tailscale CLI.
+
+- **Changed: `harbor public status` separates running from reachable.** A share node whose tailnet
+  has not granted Funnel is up, holds a certificate, and serves nobody. Status said `public: on`,
+  which is the line an operator checks to answer "are my links working".
+
+**Worth knowing:** if share links work for you and not for the people you send them to, this is
+almost certainly why. `harbor public status` on this release says so, and `harbor public enable`
+prints the policy change.
+
 ## v0.7.5 — 2026-09-15
 
 - **Fixed: `harbor public enable` could not read the name its share node had taken.** The domain was

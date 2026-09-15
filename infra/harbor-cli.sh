@@ -187,15 +187,27 @@ case "${1:-help}" in
         _domain=$(share_domain)
         echo "Share node is on the tailnet as: ${_domain:-unknown}"
 
-        # Step 2: Funnel is off by default for a tailnet. When it is not permitted, the CLI
-        # refuses and prints an admin-console URL that pre-fills the policy change. Show that URL
-        # verbatim rather than leaving anyone to find the ACL editor.
-        if ! dcp exec -T tailscale-share tailscale funnel status >/dev/null 2>&1; then
+        # Step 2: Funnel is off by default for a tailnet, and is granted by a node attribute in
+        # the policy file. Nothing on the node knows whether that grant exists — it sets
+        # Hostinfo.IngressEnabled, the serve config says AllowFunnel, and `tailscale funnel status`
+        # prints "Funnel on" — while the control plane publishes no public DNS record for the name
+        # and it resolves for nobody outside the tailnet. Checking that command was therefore
+        # checking nothing: `harbor public enable` reported a share node that no recipient could
+        # reach, and the failure only surfaced on a phone off the tailnet (2026-09-15).
+        #
+        # The grant is what to look at, and it arrives in the node's capability map. The old
+        # remediation is gone with it: it ran `tailscale funnel 443 on`, a syntax removed from the
+        # CLI, so the one thing printed for the operator was an error about the CLI having changed.
+        if ! printf '%s' "$(dcp exec -T tailscale-share tailscale status --json 2>/dev/null)" | tr -d ' \n' | grep -q '"funnel":'; then
           echo
-          echo "Funnel is not enabled for this tailnet yet. Tailscale says:"
-          dcp exec -T tailscale-share tailscale funnel 443 on 2>&1 | sed 's/^/    /'
+          echo "Funnel is not granted to this tailnet, so ${_domain:-the share node} resolves only"
+          echo "inside it. Add this to the policy file, then run 'harbor public enable' again:"
           echo
-          echo "  Follow the link above, approve it, then run 'harbor public enable' again."
+          echo '    "nodeAttrs": ['
+          echo '      {"target": ["autogroup:member"], "attr": ["funnel"]},'
+          echo '    ],'
+          echo
+          echo "  https://login.tailscale.com/admin/acls/file"
           echo "  (HTTPS certificates must also be on: admin console -> DNS -> HTTPS Certificates.)"
           exit 1
         fi
@@ -229,7 +241,17 @@ case "${1:-help}" in
       status)
         if dcp ps --services --filter status=running 2>/dev/null | grep -q '^tailscale-share$'; then
           _domain=$(share_domain)
-          echo "public: on  (https://${_domain:-unknown})"
+          # Running is not the same as reachable, and this said "on" for both. A node whose tailnet
+          # has not granted Funnel is up, has a certificate, and publishes no public DNS record —
+          # so the status every operator would check to answer "are my links working" agreed with
+          # them right up until a recipient tried one (2026-09-15).
+          if printf '%s' "$(dcp exec -T tailscale-share tailscale status --json 2>/dev/null)" | tr -d ' \n' | grep -q '"funnel":'; then
+            echo "public: on  (https://${_domain:-unknown})"
+          else
+            echo "public: not reachable — the share node is up, but this tailnet has not granted it Funnel,"
+            echo "so ${_domain:-its name} resolves only inside the tailnet."
+            echo "'harbor public enable' prints the policy change that fixes it."
+          fi
         else
           echo "public: off — share links are not reachable from outside this machine"
           echo "'harbor public enable' to turn it on."
