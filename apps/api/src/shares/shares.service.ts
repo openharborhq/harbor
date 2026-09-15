@@ -72,6 +72,7 @@ export class SharesService {
     // Cheap, and the alternative is a share that looks created and is already gone (§10.2).
     if (delivery === "doorman") {
       try {
+        await this.doorman.assertWritable();
         await this.doorman.assertOnDataVolume(this.blobs.blobsDir);
       } catch (err) {
         throw new BadRequestException((err as Error).message);

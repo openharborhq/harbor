@@ -17,6 +17,16 @@ migrations, on purpose, because a half-reversed schema is worse than a restore. 
 wrong, follow [`docs/restore.md`](docs/restore.md) with the backup `harbor upgrade` took
 immediately before it. That is why the upgrade refuses to run without one.
 
+## v0.7.2 — 2026-09-15
+
+- **Fixed: the API would not start on a volume without the new share directories.** Sharing creates
+  `shares/` and `share-state/` under the data volume, and the API tried to make them as it booted.
+  Where they did not already exist with the right owner — any volume prepared before v0.7.0 — that
+  failed with a permission error and took the whole vault down with it: no documents, no inbox, no
+  mail, because an optional feature could not make a folder. Sharing now fails on its own and says
+  what to do, and everything else starts regardless. `check-data-volume.sh` creates both directories
+  from now on, so a re-run of the installer sets them up.
+
 ## v0.7.1 — 2026-09-15
 
 - **Fixed: the v0.7.0 images for `api`, `worker` and `backup` never built.** Sharing added a

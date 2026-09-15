@@ -29,15 +29,15 @@ if ! lsblk -n -o TYPE "$DEV" 2>/dev/null | grep -q "^crypt$" && \
   fi
 fi
 
-for sub in blobs tmp dumps backup postgres redis secrets; do
+for sub in blobs tmp dumps backup postgres redis secrets shares share-state; do
   mkdir -p "$DATA/$sub"
 done
-chmod 700 "$DATA/blobs" "$DATA/tmp" "$DATA/dumps" "$DATA/secrets"
+chmod 700 "$DATA/blobs" "$DATA/tmp" "$DATA/dumps" "$DATA/secrets" "$DATA/shares" "$DATA/share-state"
 # The app containers run as uid 1000 (node) and the bind mounts keep host ownership: created by
 # root, these directories would be unwritable inside the containers on Linux. (Docker Desktop on a
 # Mac maps ownership away, which is why a dev machine never sees it.) Postgres and Redis manage
 # their own directories.
-chown 1000:1000 "$DATA/blobs" "$DATA/tmp" "$DATA/dumps" "$DATA/backup"
+chown 1000:1000 "$DATA/blobs" "$DATA/tmp" "$DATA/dumps" "$DATA/backup" "$DATA/shares" "$DATA/share-state"
 
 # The master key (spec §3.3). Generated here so that `up` is the next step and the browser does
 # the rest; it must be printed for the break-glass envelope before the box holds anything.

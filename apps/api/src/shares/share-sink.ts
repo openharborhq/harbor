@@ -1,4 +1,4 @@
-import { Injectable, OnModuleInit } from "@nestjs/common";
+import { Injectable, Logger, OnModuleInit } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { createHash } from "node:crypto";
 import { mkdir, rename, rm, stat, writeFile } from "node:fs/promises";
@@ -52,6 +52,7 @@ export interface SharePolicy {
  */
 @Injectable()
 export class DoormanSink implements ShareSink, OnModuleInit {
+  private readonly log = new Logger(DoormanSink.name);
   readonly kind = "doorman" as const;
   readonly root: string;
   /**
@@ -67,10 +68,40 @@ export class DoormanSink implements ShareSink, OnModuleInit {
     this.stateRoot = path.join(data, "share-state");
   }
 
+  /**
+   * Best effort, and never fatal.
+   *
+   * These directories are bind mounts. On a volume prepared by `check-data-volume.sh` they exist
+   * and belong to the right user; on one where Docker created them itself they belong to root, and
+   * `mkdir` from a container running as `node` fails with EACCES. That used to throw here, which
+   * took the whole API down at boot — the vault refusing to start because an optional feature
+   * could not make a folder. Sharing is the only thing that needs these, so sharing is the only
+   * thing that should fail without them.
+   */
   async onModuleInit(): Promise<void> {
+    try {
+      await this.ensureDirs();
+    } catch (err) {
+      this.log.warn(`Sharing is unavailable: ${(err as Error).message}. Everything else is unaffected.`);
+    }
+  }
+
+  private async ensureDirs(): Promise<void> {
     await mkdir(path.join(this.root, "bundles"), { recursive: true, mode: 0o700 });
     await mkdir(path.join(this.root, "links"), { recursive: true, mode: 0o700 });
     await mkdir(this.stateRoot, { recursive: true, mode: 0o700 });
+  }
+
+  /** Called before a share is sealed, so the failure lands on that request and says what to do. */
+  async assertWritable(): Promise<void> {
+    try {
+      await this.ensureDirs();
+    } catch (err) {
+      throw new Error(
+        `Sharing cannot write to ${this.root} (${(err as Error).message}). The data volume is missing its share directories, ` +
+          "or they belong to another user — re-run install.sh over this install, which creates them.",
+      );
+    }
   }
 
   /**

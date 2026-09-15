@@ -75,11 +75,11 @@ jobs:
         run: |
           set -euo pipefail
           DATA="$RUNNER_TEMP/harbor-data"
-          mkdir -p "$DATA"/{blobs,tmp,dumps,backup,postgres,redis,secrets}
+          mkdir -p "$DATA"/{blobs,tmp,dumps,backup,postgres,redis,secrets,shares,share-state}
           umask 077
           head -c 32 /dev/urandom | base64 > "$DATA/secrets/kek"
           head -c 32 /dev/urandom | base64 > "$DATA/secrets/restic-password"
-          sudo chown -R 1000:1000 "$DATA"/{blobs,tmp,dumps,backup,secrets}
+          sudo chown -R 1000:1000 "$DATA"/{blobs,tmp,dumps,backup,secrets,shares,share-state}
           cat > "$RUNNER_TEMP/smoke.env" <<EOF
           HARBOR_DATA_DIR=$DATA
           HARBOR_IMAGE_PREFIX=ghcr.io/${{ github.repository_owner }}/harbor
