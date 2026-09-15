@@ -17,6 +17,24 @@ migrations, on purpose, because a half-reversed schema is worse than a restore. 
 wrong, follow [`docs/restore.md`](docs/restore.md) with the backup `harbor upgrade` took
 immediately before it. That is why the upgrade refuses to run without one.
 
+## v0.7.8 — 2026-09-15
+
+- **Added: `harbor upgrade` removes the images it supersedes.** An appliance gains most of a
+  gigabyte per release and nothing ever took the old ones away. A box with a 29 GB disk filled up,
+  and the first anyone knew of it was an upgrade failing mid-pull on "no space left on device" —
+  which is a poor moment to learn that a vault needs housekeeping nobody was going to do. The
+  release being installed and the one being left are kept, so going back is still a tag change
+  rather than a re-download. `HARBOR_KEEP_IMAGES=1` turns it off.
+
+- **Added: `harbor prune`**, for a box that filled up before an upgrade could tidy it — which is
+  the only way anyone discovers this is needed. Keeps the configured release, removes every
+  Harbor image the box has moved past, and prints what the disk looks like afterwards.
+
+- **Changed: the sharing settings carry the whole publishing instruction**, rather than one
+  sentence and a command name. It is the one step of sharing a browser cannot take for you —
+  publishing happens on the box, and this page has no route to it by design — so the panel says
+  that plainly instead of leaving "why is there no button" to be guessed at.
+
 ## v0.7.7 — 2026-09-15
 
 - **Changed: `harbor public enable` hands over the approval link and waits, instead of printing an

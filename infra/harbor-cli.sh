@@ -18,6 +18,30 @@ set -eu
 cd "@HARBOR_DIR@"
 dc() { docker compose -p "@HARBOR_PROJECT@" --env-file "@ENV_FILE@" @FILES@ "$@"; }
 
+# Harbor images for every tag but the ones named, removed.
+#
+# An appliance is not a workstation: this box has a 29 GB eMMC and gains most of a gigabyte per
+# release, and nothing ever took the old ones away. It filled up after nine releases in a day, and
+# the first symptom was an upgrade failing mid-pull on "no space left on device" (2026-09-15).
+# Nobody is going to ssh into a household vault to run `docker image prune`, so the upgrade that
+# creates the garbage is what should collect it.
+#
+# Never fatal, and never the running tag or the one just left: an upgrade that cleaned up too
+# eagerly would turn a bad release into a re-download over whatever connection the house has.
+prune_images() {
+  _keep1="$1"; _keep2="${2:-$1}"
+  _pre=$(grep '^HARBOR_IMAGE_PREFIX=' "@ENV_FILE@" 2>/dev/null | cut -d= -f2-)
+  _pre="${_pre:-ghcr.io/openharborhq/harbor}"
+  _old=$(docker images --format '{{.Repository}}:{{.Tag}}' 2>/dev/null \
+    | grep "^${_pre}-" | grep -v ':<none>$' | grep -v ":${_keep1}\$" | grep -v ":${_keep2}\$" || true)
+  if [ -z "$_old" ]; then
+    echo "  no superseded images to remove"
+    return 0
+  fi
+  echo "  removing $(echo "$_old" | wc -l | tr -d ' ') superseded images (keeping $_keep1, $_keep2)"
+  echo "$_old" | xargs docker rmi >/dev/null 2>&1 || true
+}
+
 case "${1:-help}" in
   status)  dc ps ;;
   logs)    shift; dc logs -f --tail=100 "$@" ;;
@@ -116,8 +140,19 @@ case "${1:-help}" in
       [ -n "$ids" ] && sudo docker update --restart=no $ids >/dev/null 2>&1 || true
     fi
     echo "upgraded: $_before -> $_after"
+    # HARBOR_KEEP_IMAGES for anyone who wants every tag they have ever run kept, the same shape as
+    # HARBOR_KEEP_LOCAL above.
+    if [ -z "${HARBOR_KEEP_IMAGES:-}" ]; then prune_images "$_want" "$_have"; fi
     echo "'harbor status' to see it, 'harbor logs api' if anything looks wrong."
     echo "To go back: restore the backup this took first (docs/restore.md). Migrations do not reverse."
+    ;;
+  prune)
+    # For a box that filled up before an upgrade could tidy it, which is the only way anyone finds
+    # out this is needed. Keeps what is configured and what is running; everything else goes.
+    _tag=$(grep '^HARBOR_IMAGE_TAG=' "@ENV_FILE@" | cut -d= -f2-)
+    echo "Keeping $_tag. Everything Harbor has superseded:"
+    prune_images "$_tag"
+    df -h "@HARBOR_DIR@" | tail -1
     ;;
   public)
     # The share node lives in its own overlay, added only for this subcommand — an install that
@@ -351,6 +386,7 @@ harbor — this vault, on this machine
   harbor restore-test    prove the backup can be read back
   harbor break-glass     print the keys for the envelope
   harbor config          edit the configuration
+  harbor prune           remove images from releases this box has moved past
   harbor public [on|off] publish share links on their own tailnet name (off by default)
   harbor unlock          unlock the encrypted volume and start the vault
   harbor lock            stop it and close the volume
