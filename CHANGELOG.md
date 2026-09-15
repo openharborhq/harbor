@@ -17,65 +17,64 @@ migrations, on purpose, because a half-reversed schema is worse than a restore. 
 wrong, follow [`docs/restore.md`](docs/restore.md) with the backup `harbor upgrade` took
 immediately before it. That is why the upgrade refuses to run without one.
 
-## Unreleased
+## v0.7.0 — 2026-09-15
 
-- **You can hand documents to someone outside the house.** Gather documents from a search, an
-  item or the inbox into a basket at the bottom of the screen, then review and mint **one link
-  per recipient** — so the record says whether the accountant opened it or the landlord did, and
-  withdrawing one does not break the other. Each link can carry a password (tell them by phone)
-  and a limit of one download, and every link expires. Harbor sends nothing: you copy each link
-  and pass it on yourself, exactly as invitations already work.
+- **New feature: document sharing.** Share files from the box itself or from a bucket, with a link
+  per recipient. Documents ticked in any list — a search, an item, the inbox — collect behind a
+  **Share** button in the header. A share carries a name, an expiry, and one link for each
+  recipient, so the record shows which of them opened it, and withdrawing one leaves the others
+  working. A link can require a password and can be limited to a single download. Harbor sends
+  nothing: each link is copied and passed on by hand, exactly as invitations already are.
 
-  The links are shown **once**, when the share is made, because Harbor stores them hashed the way
-  it stores sessions and cannot read them back.
+  Links appear **once**, when the share is made. Harbor stores them hashed, the way it stores
+  sessions, and cannot show them again.
 
-  A share is a snapshot sealed at the moment you make it: the documents are packed into one
+  A share is a snapshot, sealed at the moment of creation: the chosen documents are packed into one
   archive and encrypted under a key that exists for that share alone. Replacing a document
   afterwards does not change what an outstanding link hands out, and withdrawing a share destroys
-  the archive and its key together. Anything already downloaded is, of course, with the recipient.
+  the archive and its key together. What a recipient has already downloaded stays with them.
 
-  **Two ways to deliver a share, chosen once in Settings → Sharing.** *Harbor itself* serves the
-  link from the box, over a new `harbor-share` container on its own tailnet name —
-  `harbor public enable` turns that on, tells you what it means, and walks you through the two
-  settings Tailscale needs. It supports every control, and the link is dead while the box is
-  asleep or waiting on `harbor unlock`. *Your own storage* pushes the sealed archive to a bucket
-  of yours instead, so the link works even when Harbor is off and nothing on your box is reachable
-  from outside at all — at the cost of one-download limits, and a 7-day ceiling on expiry that
-  comes from how signed links work. Your recipient's browser does the decryption; the storage only
-  ever holds bytes it cannot read. **Test** writes a file, reads it back through a link and deletes
-  it, so you find out now rather than from your accountant.
-
-  See [§10](docs/spec/10-sharing.md) for the whole design, including what each delivery gives up.
-- **An upgrade can now change the stack, not just the code inside it.** `harbor upgrade` has only
-  ever pulled images: the compose files and the `harbor` command itself were written once, at
-  install, and never touched again — so a release that added a service or a subcommand could not
-  reach a box that was already running. It now refreshes both for the version it is moving to,
-  before restarting anything. If you have edited your compose files by hand, set
-  `HARBOR_KEEP_LOCAL=1` and it will keep them and tell you which it skipped.
-
-  This is why sharing needs an upgrade rather than only a pull: it adds a `share` service and a
-  `harbor public` command.
-
-  **One manual step, once, on a box installed before this release.** The `harbor` command on your
-  appliance predates the change, so it cannot refresh itself — the first upgrade to this version
-  brings the new images but leaves the old stack around them. Re-run the installer over your
-  existing install to pick both up:
+  **Two ways to deliver, chosen once in Settings → Sharing.** *Harbor itself* serves links from the
+  box, over a new `harbor-share` container on its own tailnet name — `harbor public enable` turns
+  that on and walks through the two settings Tailscale needs. Every control works, and a link is
+  dead while the box is asleep. *Your own storage* pushes the sealed archive to a bucket instead, so
+  links keep working when Harbor is off and nothing on the box is reachable from outside — at the
+  cost of one-download limits, and a 7-day ceiling on expiry. The recipient's browser does the
+  decrypting; the storage holds only bytes it cannot read. **Test** writes a file, reads it back
+  through a link and deletes it, so a misconfigured bucket surfaces immediately rather than at the
+  far end. See [§10](docs/spec/10-sharing.md) for the design.
+- **Changed: documents open over the page instead of replacing it.** A click raises a viewer over
+  the list — the document on the left at whatever size the window allows, its details on the right,
+  and **Escape** returns to the list as it was. A link or a refresh still opens the full page.
+- **Changed: `harbor upgrade` refreshes the stack, not just the images.** The compose files and the
+  `harbor` command were written once at install and never touched, so a release adding a service or
+  a subcommand could not reach a running box. Both are refreshed now for the version being moved
+  to. `HARBOR_KEEP_LOCAL=1` preserves hand-edited compose files and reports which were skipped.
+- **Added: security headers.** A content security policy, HSTS, framing and referrer rules, which
+  the app never had. Nothing about ordinary use changes; it was a gap that mattered once anything on
+  the box could face the internet, and `harbor public enable` refuses to run without them.
+- **Changed: an item's Edit and Remove photo moved into a ⋯ menu** beside its name. Removing a photo
+  now asks first.
+- **Changed: lists dropped the Ready column and the thumbnails.** Both said the same thing on every
+  row.
+- **Changed: the page header stays put while the page scrolls**, and page content is centred rather
+  than pressed against the sidebar.
+- **Worth knowing:** this release adds a `share` service and two directories under the data volume,
+  `shares/` and `share-state/`. Share archives are deliberately **not** included in backups — they
+  are short-lived copies of documents already backed up.
+- **Worth knowing: one manual step, once, on a box installed before this release.** The `harbor`
+  command on an existing appliance predates the change above and cannot refresh itself, so the first
+  upgrade brings new images but leaves the old stack around them. Re-running the installer over the
+  existing install picks both up:
 
       curl -fsSLO https://raw.githubusercontent.com/openharborhq/harbor/main/install.sh
       HARBOR_DATA_DIR=/data sh install.sh
 
-  It keeps your data, your keys and your configuration — it fetches the compose files and rewrites
-  the `harbor` command. Every upgrade after this one does it for you. Until you have done it,
-  Harbor will refuse to create a share and say so, rather than making one that would be lost on the
-  next restart.
-- **The app now sends security headers** — a content security policy, HSTS, framing and referrer
-  rules — which it never had. Nothing about using Harbor changes; it was a gap that mattered once
-  anything on the box could face the internet, and `harbor public enable` refuses to run without
-  them.
-- **Worth knowing:** this release adds a `share` service to the stack and two directories under
-  your data volume, `shares/` and `share-state/`. Share archives are deliberately **not** in your
-  backups — they are short-lived copies of documents that are already backed up, and keeping a
-  second copy of them for months would work against the point of the expiry.
+  Data, keys and configuration are kept. Every upgrade after this one does it automatically. Until
+  then, Harbor refuses to create a share and says so, rather than making one that would be lost on
+  the next restart.
+- Plus a round of interface work: the share review is a dialog rather than a page, documents preview
+  inside it, and a good deal of tidying to type, spacing and wording throughout.
 
 ## v0.6.1 — 2026-09-12
 
