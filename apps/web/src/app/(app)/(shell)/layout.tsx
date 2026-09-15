@@ -7,8 +7,13 @@ import { apiFetch, currentUser } from "@/lib/api-server";
 const NO_INBOX: InboxCount = { needsReview: 0, notPaperwork: 0 };
 const NO_TASKS: TaskCount = { pressing: 0, open: 0, unpaid: [] };
 
-/** The vault as it is normally used: the sidebar, and a page beside it. */
-export default async function ShellLayout({ children }: LayoutProps<"/">) {
+/**
+ * The vault as it is normally used: the sidebar, and a page beside it.
+ *
+ * Plus a `@modal` slot, which a document opened from a list fills — the list stays mounted and
+ * visible behind it, and closing returns to it exactly as it was.
+ */
+export default async function ShellLayout({ children, modal }: LayoutProps<"/">) {
   const user = await currentUser();
   if (!user) return null; // (app) has already redirected; this is only for the type.
   // Neither is worth failing the whole shell over.
@@ -33,6 +38,8 @@ export default async function ShellLayout({ children }: LayoutProps<"/">) {
           </div>
         </div>
       </NavDrawer>
+      {/* The @modal slot: null on every page but a document opened from a list. */}
+      {modal}
     </ShareBasketProvider>
   );
 }

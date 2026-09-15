@@ -4,18 +4,27 @@ import { useRouter } from "next/navigation";
 import { useEffect, type ReactNode } from "react";
 
 /**
- * A document, over the whole window (spec §4).
+ * The frame around a document being read (spec §4).
  *
- * Reading a document is a different mode from filing them: the preview wants every pixel, and the
- * sidebar and search that surround a list are not what anyone is looking at. So it takes the
- * screen — no app chrome, one way out, Escape.
+ * Reading is a different mode from filing: the preview wants the pixels, and the sidebar and
+ * search that surround a list are not what anyone is looking at. So it takes almost everything —
+ * no app chrome, one way out, Escape.
  *
- * It is a real route rather than an intercepted one, and that is deliberate. Interception would
- * keep the list mounted underneath, which buys nothing when the layer is opaque and full-screen,
- * and costs a routing arrangement whose behaviour differs between a click and a refresh. This way
- * the URL is the document either way: shareable, refreshable, and back closes it.
+ * Two variants, because the same view is reached two ways. Opened from a list it is a **modal**,
+ * inset far enough to leave the app visible around it, so closing feels like putting something
+ * down rather than navigating. Reached by a link, a bookmark or a refresh there is no list behind
+ * it to preserve, so it is a **page** and takes the window; framing emptiness would be worse than
+ * filling it.
  */
-export function DocumentOverlay({ header, children }: { header?: ReactNode; children: ReactNode }) {
+export function DocumentFrame({
+  variant,
+  header,
+  children,
+}: {
+  variant: "page" | "modal";
+  header?: ReactNode;
+  children: ReactNode;
+}) {
   const router = useRouter();
 
   useEffect(() => {
@@ -48,8 +57,20 @@ export function DocumentOverlay({ header, children }: { header?: ReactNode; chil
     else router.push("/library");
   }
 
+  /** Only a press that begins on the backdrop, so a drag out of the document does not close it. */
+  function backdrop(e: React.MouseEvent) {
+    if (e.target === e.currentTarget) close();
+  }
+
+  const frame =
+    variant === "modal"
+      ? // Inset: enough of the app shows around it to say what you are on top of.
+        "absolute inset-4 rounded-card border border-border shadow-[0_24px_64px_rgba(13,22,34,0.28)] lg:inset-8"
+      : "absolute inset-0";
+
   return (
-    <div className="fixed inset-0 z-40 flex flex-col bg-ground">
+    <div className={variant === "modal" ? "fixed inset-0 z-40 bg-text/40" : "fixed inset-0 z-40"} onMouseDown={variant === "modal" ? backdrop : undefined}>
+      <div className={`${frame} flex flex-col overflow-hidden bg-ground`}>
       {/*
         The title band is the header rather than the top of the left pane: it belongs to both
         panes, and putting it inside one of them would either shrink the preview or scroll away
@@ -73,6 +94,7 @@ export function DocumentOverlay({ header, children }: { header?: ReactNode; chil
         reading the last page of a PDF never drags the details out of view.
       */}
       <div className="flex min-h-0 flex-1">{children}</div>
+      </div>
     </div>
   );
 }
