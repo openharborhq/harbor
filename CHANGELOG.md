@@ -17,6 +17,16 @@ migrations, on purpose, because a half-reversed schema is worse than a restore. 
 wrong, follow [`docs/restore.md`](docs/restore.md) with the backup `harbor upgrade` took
 immediately before it. That is why the upgrade refuses to run without one.
 
+## v0.7.7 — 2026-09-15
+
+- **Changed: `harbor public enable` hands over the approval link and waits, instead of printing an
+  instruction.** A tailnet that has not granted Funnel now gets Tailscale's own one-click page for
+  that node, which fills in the policy change; the command then waits for the approval to land and
+  carries on by itself. The attribute is printed too, for anyone who would rather edit the policy
+  file. This is what spec §10.6 asked for and the implementation had never done — the ACL editor is
+  JSON in a web console, and finding it is the whole difficulty of the feature for the person this
+  is built for.
+
 ## v0.7.6 — 2026-09-15
 
 - **Fixed: `harbor public enable` reported success on a share node no recipient could reach.** Funnel

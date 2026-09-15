@@ -138,6 +138,12 @@ case "${1:-help}" in
       [ -n "$_d" ] || _d=$(printf '%s' "$_json" | grep -o '"DNSName": *"[^"]*"' | head -1 | sed 's/.*"\([^"]*\)"$/\1/; s/\.$//')
       printf '%s' "$_d"
     }
+    # Whether the tailnet's policy file grants this node Funnel — the one thing that decides
+    # whether its name resolves for anyone outside the tailnet. Nothing local reflects it: the
+    # node requests ingress and the serve config says AllowFunnel regardless.
+    funnel_granted() {
+      dcp exec -T tailscale-share tailscale status --json 2>/dev/null | tr -d ' \n' | grep -q '"funnel":'
+    }
     # Spec §10.6. Turning Funnel on is the one deliberate step that puts anything on the public
     # internet, so it is a command with a confirmation rather than a setting — and the checking is
     # the command's job, not the operator's. Funnel needs no firewall change and no forwarded
@@ -198,18 +204,55 @@ case "${1:-help}" in
         # The grant is what to look at, and it arrives in the node's capability map. The old
         # remediation is gone with it: it ran `tailscale funnel 443 on`, a syntax removed from the
         # CLI, so the one thing printed for the operator was an error about the CLI having changed.
-        if ! printf '%s' "$(dcp exec -T tailscale-share tailscale status --json 2>/dev/null)" | tr -d ' \n' | grep -q '"funnel":'; then
+        if ! funnel_granted; then
+          # Tailscale has a one-click page that pre-fills this policy change for one node, keyed
+          # by its stable ID. The link is built here rather than asked for: `tailscale funnel
+          # <port>` prints it, but it is a *mutating* command — on the second call it had claimed
+          # 443 and answered "listener already exists" instead, so as a probe it is both unreliable
+          # and capable of disturbing a serve config that works (2026-09-15).
+          #
+          # Both routes are printed. The link is one click; the attribute is documented and will
+          # outlive whatever the console's URLs look like next year.
+          _node=$(dcp exec -T tailscale-share tailscale status --json 2>/dev/null \
+            | tr -d ' \n' | grep -o '"Self":{"ID":"[^"]*"' | sed 's/.*"\([^"]*\)"$/\1/')
           echo
           echo "Funnel is not granted to this tailnet, so ${_domain:-the share node} resolves only"
-          echo "inside it. Add this to the policy file, then run 'harbor public enable' again:"
+          echo "inside it and your recipients reach nothing."
           echo
+          # `if`, not `[ … ] && { … }`: this script runs under `set -e`, where a false test as the
+          # last command of a block takes the whole script down with it.
+          if [ -n "$_node" ]; then
+            echo "  Approve this one node:"
+            echo "    https://login.tailscale.com/f/funnel?node=$_node"
+            echo
+          fi
+          echo "  Or add the attribute yourself, at https://login.tailscale.com/admin/acls/file —"
+          echo "  a top-level key beside \"acls\", not inside it:"
           echo '    "nodeAttrs": ['
           echo '      {"target": ["autogroup:member"], "attr": ["funnel"]},'
           echo '    ],'
           echo
-          echo "  https://login.tailscale.com/admin/acls/file"
           echo "  (HTTPS certificates must also be on: admin console -> DNS -> HTTPS Certificates.)"
-          exit 1
+          echo
+          # Wait rather than exit — spec §10.6, the same shape as the login URL above. The person
+          # clicks, approves, and comes back to a command that has already noticed and carried on.
+          # Telling them to run it again is how a two-minute task becomes a support thread.
+          printf '  Waiting for you to approve it'
+          _tries=0
+          while [ $_tries -lt 60 ]; do
+            if funnel_granted; then break; fi
+            printf '.'
+            sleep 3
+            _tries=$((_tries + 1))
+          done
+          printf '\n'
+          if ! funnel_granted; then
+            echo
+            echo "Still not granted. Approve it, then run 'harbor public enable' again —"
+            echo "nothing here has been left half-done."
+            exit 1
+          fi
+          echo "  Granted."
         fi
 
         if [ -n "$_domain" ]; then
@@ -245,7 +288,7 @@ case "${1:-help}" in
           # has not granted Funnel is up, has a certificate, and publishes no public DNS record —
           # so the status every operator would check to answer "are my links working" agreed with
           # them right up until a recipient tried one (2026-09-15).
-          if printf '%s' "$(dcp exec -T tailscale-share tailscale status --json 2>/dev/null)" | tr -d ' \n' | grep -q '"funnel":'; then
+          if funnel_granted; then
             echo "public: on  (https://${_domain:-unknown})"
           else
             echo "public: not reachable — the share node is up, but this tailnet has not granted it Funnel,"
