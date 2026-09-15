@@ -17,6 +17,14 @@ migrations, on purpose, because a half-reversed schema is worse than a restore. 
 wrong, follow [`docs/restore.md`](docs/restore.md) with the backup `harbor upgrade` took
 immediately before it. That is why the upgrade refuses to run without one.
 
+## v0.7.5 — 2026-09-15
+
+- **Fixed: `harbor public enable` could not read the name its share node had taken.** The domain was
+  extracted from `tailscale status --json` with a line-based pattern, and that field spans lines —
+  so on a node that was published and serving Funnel correctly the name came back empty.
+  `harbor public status` reported `https://unknown`, and `harbor public enable` skipped recording
+  the origin, leaving links pointing at `localhost`.
+
 ## v0.7.4 — 2026-09-15
 
 - **Fixed: creating a share returned an internal server error on an appliance.** The sealed bundle
