@@ -9,6 +9,9 @@ Upgrading is `harbor upgrade` on the box: it takes a backup, refuses to continue
 fails, pulls the images for the tag in your configuration and restarts. To move between releases,
 change `HARBOR_IMAGE_TAG` with `harbor config` first.
 
+How entries are written — plain headlines, third person, what earns an entry at all — is in
+[`docs/writing.md`](docs/writing.md).
+
 **Rolling back is restoring a backup.** Database migrations only run forward — there are no down
 migrations, on purpose, because a half-reversed schema is worse than a restore. If a release goes
 wrong, follow [`docs/restore.md`](docs/restore.md) with the backup `harbor upgrade` took
