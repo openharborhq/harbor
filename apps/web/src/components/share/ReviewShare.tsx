@@ -69,7 +69,9 @@ export function ReviewShare({
         const max = SINK_CAPABILITIES[s.delivery].maxExpiryHours;
         setExpiryHours((hours) => Math.min(hours, max));
       })
-      .catch(() => setSink({ delivery: "doorman", ready: true, problem: null }));
+      // Unreachable settings should not stop a share being reviewed. Assumed published, so the
+      // fallback does not accuse a working install of a problem it cannot check.
+      .catch(() => setSink({ delivery: "doorman", ready: true, problem: null, doormanPublished: true, doormanOrigin: "" }));
   }, []);
 
   async function submit() {
@@ -364,6 +366,18 @@ export function ReviewShare({
           </div>
 
           {sink && !sink.ready && <p className="rounded-md bg-warn-soft px-3 py-2 text-small text-warn">{sink.problem}</p>}
+          {/*
+            Said here and not only in Settings: this is the screen where a link is about to be
+            handed to somebody, and a link that reaches nobody is worth knowing about before it is
+            sent rather than after. It warns rather than blocks — the bundle and the link are both
+            real, and `harbor public enable` makes them reachable without invalidating either.
+          */}
+          {sink && sink.delivery === "doorman" && !sink.doormanPublished && (
+            <p className="rounded-md bg-warn-soft px-3 py-2 text-small text-warn">
+              These links will not reach anyone outside this box until <code className="font-mono">harbor public enable</code> has been
+              run on it. Links made now start working when it is.
+            </p>
+          )}
           {error && <p className="text-small text-danger">{error}</p>}
         </div>
       </div>

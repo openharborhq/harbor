@@ -64,11 +64,41 @@ export class ShareBucketSettingsService {
   async delivery(): Promise<ShareDeliverySettings> {
     const stored = await this.settings.getMany([SETTING.shareDelivery]);
     const chosen = (stored.get(SETTING.shareDelivery) as ShareDelivery | undefined) ?? "doorman";
-    if (chosen !== "bucket") return { delivery: "doorman", ready: true, problem: null };
+    const doorman = this.doorman();
+    if (chosen !== "bucket") return { delivery: "doorman", ready: true, problem: null, ...doorman };
     const { creds } = await this.resolve();
     return creds
-      ? { delivery: "bucket", ready: true, problem: null }
-      : { delivery: "bucket", ready: false, problem: "Shares are set to go to your own storage, but no bucket is configured yet." };
+      ? { delivery: "bucket", ready: true, problem: null, ...doorman }
+      : {
+          delivery: "bucket",
+          ready: false,
+          problem: "Shares are set to go to your own storage, but no bucket is configured yet.",
+          ...doorman,
+        };
+  }
+
+  /**
+   * Whether the doorman is reachable from outside the box, read from the origin it serves on.
+   *
+   * `harbor public enable` is the only thing that writes `SHARE_ORIGIN` to a real name — it takes
+   * the hostname the share node actually got from the tailnet, which is not necessarily the one
+   * asked for. So the value still being the local default is an exact signal that the command has
+   * not been run, and needs no second setting to record it.
+   *
+   * A loopback host is the test rather than a pattern for tailnet names: someone who puts the
+   * doorman behind their own reverse proxy has published it just as truly, and should not be told
+   * otherwise.
+   */
+  private doorman(): { doormanPublished: boolean; doormanOrigin: string } {
+    const origin = this.config.get("SHARE_ORIGIN", { infer: true });
+    let host = "";
+    try {
+      host = new URL(origin).hostname;
+    } catch {
+      // The env schema parses this as a URL, so this cannot happen from configuration — but a
+      // settings screen is the wrong place to throw, and "not published" is the safe reading.
+    }
+    return { doormanPublished: host !== "" && !["localhost", "127.0.0.1", "0.0.0.0", "::1", "[::1]"].includes(host), doormanOrigin: origin };
   }
 
   async setDelivery(delivery: ShareDelivery): Promise<ShareDeliverySettings> {

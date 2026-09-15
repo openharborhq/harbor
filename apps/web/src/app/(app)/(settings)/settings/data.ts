@@ -36,7 +36,9 @@ export const getSuggestions = cache(() =>
 );
 export const getShareDelivery = cache(() =>
   apiFetch<ShareDeliverySettings>("/settings/share-delivery").catch(
-    () => ({ delivery: "doorman", ready: true, problem: null }) satisfies ShareDeliverySettings,
+    // Published, when the api cannot be asked: a settings page that could not reach the box should
+    // not tell its owner to go and fix something it never checked.
+    () => ({ delivery: "doorman", ready: true, problem: null, doormanPublished: true, doormanOrigin: "" }) satisfies ShareDeliverySettings,
   ),
 );
 export const getShareBucket = cache(() =>

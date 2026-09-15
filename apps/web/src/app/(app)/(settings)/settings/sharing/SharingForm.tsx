@@ -88,13 +88,34 @@ export function SharingForm({ delivery, bucket }: { delivery: ShareDeliverySetti
     <div className="flex flex-col gap-7">
       <Field label="Who serves your share links" hint="Every share goes the same way. Changing this does not affect links already sent.">
         <div className="flex flex-col gap-2">
+          {/*
+            The badge says what is true of this box, not what is true in general. It read "Nothing
+            to set up" on every install, while `harbor public enable` was in fact required before a
+            link reached anyone — the one sentence that said so was the last clause of the
+            paragraph below, which is where a badge contradicting it sends nobody (2026-09-15).
+          */}
           <Option
             selected={choice === "doorman"}
             onSelect={() => setChoice("doorman")}
             title="Harbor itself"
-            needs="Nothing to set up"
-            consequence="Every control works, including a one-download limit and links that last 30 days. A link is dead while your Harbor is asleep, restarting, or waiting to be unlocked — and it only reaches the outside world once you run harbor public enable."
-          />
+            needs={delivery.doormanPublished ? "Ready" : "One command on the box"}
+            consequence={
+              delivery.doormanPublished
+                ? `Every control works, including a one-download limit and links that last 30 days. Links are served from ${delivery.doormanOrigin}, and a link is dead while your Harbor is asleep, restarting, or waiting to be unlocked.`
+                : "Every control works, including a one-download limit and links that last 30 days. A link is dead while your Harbor is asleep, restarting, or waiting to be unlocked."
+            }
+          >
+            {!delivery.doormanPublished && (
+              <div className="mt-4 border-t border-border pt-4">
+                <Note title="Not reachable from outside this box yet">
+                  The doorman answers on this machine only, so a link made now reaches nobody. Run{" "}
+                  <code className="rounded-sm bg-surface px-1 py-0.5 font-mono text-small">harbor public enable</code> over ssh:
+                  it puts the doorman — and only the doorman — on its own tailnet name at 443, asks you to approve the new
+                  machine, and leaves the vault itself private. Links made before then start working when it is done.
+                </Note>
+              </div>
+            )}
+          </Option>
           <Option
             selected={choice === "bucket"}
             onSelect={() => setChoice("bucket")}

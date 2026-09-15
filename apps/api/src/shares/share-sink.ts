@@ -1,7 +1,7 @@
 import { Injectable, Logger, OnModuleInit } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
-import { createHash } from "node:crypto";
-import { mkdir, rename, rm, stat, writeFile } from "node:fs/promises";
+import { createHash, randomUUID } from "node:crypto";
+import { copyFile, mkdir, rename, rm, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
 import type { Env } from "../config/env";
 
@@ -138,11 +138,40 @@ export class DoormanSink implements ShareSink, OnModuleInit {
     return path.join(this.root, "links", tokenHash);
   }
 
+  /**
+   * Where to seal a bundle so that putting it away is a rename and not a copy.
+   *
+   * `/data/tmp` and `/data/shares` are the same filesystem but **different bind mounts**, and
+   * Linux refuses `rename(2)` across a mount boundary whatever is underneath — `EXDEV: cross-device
+   * link not permitted`, which is what every share on the appliance failed with (2026-09-15). The
+   * device check in `assertOnDataVolume` cannot catch it: both mounts report the same `st_dev`,
+   * because it is genuinely one volume.
+   *
+   * So the seal is written where it is going to live. A dotted name, and under `bundles/` rather
+   * than beside it: the doorman only ever reads `bundles/<uuid>/bundle`, so a half-written file
+   * here is invisible to it.
+   */
+  newStagingPath(): string {
+    return path.join(this.root, "bundles", `.staging-${randomUUID()}`);
+  }
+
   /** Move a finished bundle into place and drop the key beside it. */
   async putBundle(shareId: string, sealedTempPath: string, key: Buffer): Promise<void> {
     const dir = this.bundleDir(shareId);
     await mkdir(dir, { recursive: true, mode: 0o700 });
-    await rename(sealedTempPath, this.bundlePath(shareId));
+    try {
+      await rename(sealedTempPath, this.bundlePath(shareId));
+    } catch (err) {
+      // `newStagingPath` keeps the rename inside one mount, so this should not happen. It stays
+      // because the cost of being wrong is a 500 on a share someone is trying to send, and a
+      // mount layout is not something this code gets to decide: an owner who binds the share
+      // directory somewhere else is not doing anything unreasonable. Copy, then drop the source,
+      // which is what `finally` upstream would have done with it anyway.
+      if ((err as NodeJS.ErrnoException).code !== "EXDEV") throw err;
+      this.log.warn(`${sealedTempPath} and ${dir} are different mounts; copying the bundle instead of moving it.`);
+      await copyFile(sealedTempPath, this.bundlePath(shareId));
+      await rm(sealedTempPath, { force: true });
+    }
     await writeFile(path.join(dir, "key"), key, { mode: 0o600 });
   }
 

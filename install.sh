@@ -236,14 +236,18 @@ fetch() {
 fetch compose.yml
 fetch compose.prod.yml
 fetch check-data-volume.sh
+# Not added to FILES: the share node is only ever brought up by `harbor public enable`, which adds
+# this overlay itself. Fetched by every install all the same, and not only the ones that run
+# Tailscale in the stack — the share node brings its own, and asks for a login URL rather than an
+# auth key, so it works just as well beside a Tailscale on the host. Gated on TS_AUTHKEY it was
+# missing on exactly the installs the docs recommend, and `harbor public enable` failed on a file
+# that had never been downloaded (2026-09-15).
+fetch compose.share-funnel.yml
+fetch tailscale-share-serve.json
 FILES="-f compose.yml -f compose.prod.yml"
 if [ -n "$TS_AUTHKEY" ]; then
   fetch compose.tailscale.yml
   fetch tailscale-serve.json
-  # Not added to FILES: the share node is only ever brought up by `harbor public enable`, which
-  # adds this overlay itself. An install that never publishes never has the service.
-  fetch compose.share-funnel.yml
-  fetch tailscale-share-serve.json
   FILES="$FILES -f compose.tailscale.yml"
 fi
 

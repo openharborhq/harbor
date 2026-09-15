@@ -82,7 +82,7 @@ case "${1:-help}" in
     _raw="@RAW@"
     case "$_want" in v*) _raw=$(echo "@RAW@" | sed "s|/main$|/$_want|") ;; esac
     _kept=""
-    for _f in compose.yml compose.prod.yml compose.tailscale.yml tailscale-serve.json tailscale-share-serve.json harbor-cli.sh check-data-volume.sh; do
+    for _f in compose.yml compose.prod.yml compose.tailscale.yml compose.share-funnel.yml tailscale-serve.json tailscale-share-serve.json harbor-cli.sh check-data-volume.sh; do
       if [ -f "@HARBOR_DIR@/$_f" ] && [ -n "${HARBOR_KEEP_LOCAL:-}" ]; then _kept="$_kept $_f"; continue; fi
       # A file this install never had is not an error: overlays depend on how it was set up.
       curl -fsSL "$_raw/infra/$_f" -o "@HARBOR_DIR@/$_f.new" 2>/dev/null || continue
@@ -186,8 +186,15 @@ case "${1:-help}" in
         fi
 
         if [ -n "$_domain" ]; then
-          sudo sed -i "s|^SHARE_ORIGIN=.*|SHARE_ORIGIN=https://$_domain|" "@ENV_FILE@" 2>/dev/null \
-            || printf 'SHARE_ORIGIN=https://%s\n' "$_domain" | sudo tee -a "@ENV_FILE@" >/dev/null
+          # Replace the line if it is there, append it if it is not. `sed -i` on a pattern that
+          # matches nothing still exits 0, so the `||` fallback this used to rely on never ran and
+          # the first `harbor public enable` on a box left SHARE_ORIGIN unset — links minted
+          # against an origin the doorman does not answer on (2026-09-15).
+          if grep -q '^SHARE_ORIGIN=' "@ENV_FILE@"; then
+            sudo sed -i "s|^SHARE_ORIGIN=.*|SHARE_ORIGIN=https://$_domain|" "@ENV_FILE@"
+          else
+            printf 'SHARE_ORIGIN=https://%s\n' "$_domain" | sudo tee -a "@ENV_FILE@" >/dev/null
+          fi
           dc up -d api >/dev/null
         fi
 

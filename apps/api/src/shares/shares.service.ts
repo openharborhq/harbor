@@ -85,7 +85,12 @@ export class SharesService {
 
     const shareKey = randomBytes(32);
     const zipTemp = this.blobs.newTempPath(".zip");
-    const sealedTemp = this.blobs.newTempPath(".bundle");
+    // The sealed bundle is staged where its sink will want it. For the doorman that is inside the
+    // share directory, so putting it away is a rename within one mount rather than across two —
+    // see `DoormanSink.newStagingPath`. The bucket sink only reads the file, so the vault's own
+    // temp directory is the right place for it, and it is the only one cleaned up by `finally`
+    // either way.
+    const sealedTemp = delivery === "doorman" ? this.doorman.newStagingPath() : this.blobs.newTempPath(".bundle");
     let plaintextBytes = 0;
 
     try {

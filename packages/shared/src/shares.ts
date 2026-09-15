@@ -126,6 +126,22 @@ export const ShareDeliverySettings = z.object({
   ready: z.boolean(),
   /** Why it is not ready, in the owner's terms. */
   problem: z.string().nullable(),
+  /**
+   * Whether the doorman answers anywhere but the box it runs on.
+   *
+   * False until `harbor public enable` has been run: until then the doorman is bound to
+   * 127.0.0.1 and a share link reaches nobody, not even someone on the tailnet. Reported whatever
+   * the chosen sink is, because Settings draws both options and has to describe the one that is
+   * not selected honestly — a badge reading "nothing to set up" beside a sink that needs a command
+   * run on the box is the first thing anyone reads and the last thing they check (2026-09-15).
+   *
+   * Not folded into `ready`, which blocks sharing. An unpublished doorman still seals the bundle
+   * and still mints a valid link; what is missing is reachability, and it is restored by one
+   * command without invalidating anything already made. So this warns and does not stop.
+   */
+  doormanPublished: z.boolean(),
+  /** Where the doorman answers, once it is published. For showing the name it took. */
+  doormanOrigin: z.string(),
 });
 export type ShareDeliverySettings = z.infer<typeof ShareDeliverySettings>;
 

@@ -17,6 +17,39 @@ migrations, on purpose, because a half-reversed schema is worse than a restore. 
 wrong, follow [`docs/restore.md`](docs/restore.md) with the backup `harbor upgrade` took
 immediately before it. That is why the upgrade refuses to run without one.
 
+## v0.7.4 — 2026-09-15
+
+- **Fixed: creating a share returned an internal server error on an appliance.** The sealed bundle
+  was written to `/data/tmp` and then moved into `/data/shares`. Those are one filesystem but two
+  bind mounts, and Linux refuses to rename across a mount boundary whatever is underneath, so every
+  share failed with `EXDEV: cross-device link not permitted`. The bundle is now sealed where it is
+  going to live, and the move stays inside one mount.
+
+  The guard added in v0.7.3 could not have caught this: it compares which device the two directories
+  are on, and they are genuinely on the same one.
+
+- **Fixed: `harbor public enable` stopped on a file the installer never downloaded.** The share
+  node's compose overlay was fetched only by installs that run Tailscale as a container. A box with
+  Tailscale on the host — the arrangement [`docs/deploy.md`](docs/deploy.md) recommends, because it
+  keeps a way in when the stack is down — never received it. Every install now fetches it, and
+  `harbor upgrade` adds it to boxes that already exist.
+
+- **Fixed: the first `harbor public enable` left `SHARE_ORIGIN` unset.** The line was replaced with
+  `sed` and appended only if `sed` failed — but `sed` reports success when it matches nothing, so on
+  a configuration that had never carried the setting nothing was written, and the command still
+  reported the links as live.
+
+- **Changed: Settings reports whether share links reach anyone, instead of claiming they do.**
+  "Harbor itself" carried a badge reading *Nothing to set up* on every install, while
+  `harbor public enable` was in fact required first — the one sentence saying so was the last clause
+  of the paragraph beneath it. The badge now reads the box's own state, the share dialog warns
+  before a link that reaches nobody is handed over, and neither blocks: the bundle and the link are
+  real, and publishing makes them reachable without invalidating either.
+
+**Worth knowing:** a box that ran `harbor public enable` on v0.7.3 has no `SHARE_ORIGIN` in its
+configuration. `sudo grep SHARE_ORIGIN /data/harbor.env` says whether yours does; running
+`harbor public enable` again on this release writes it.
+
 ## v0.7.3 — 2026-09-15
 
 - **Fixed: the stack would not start on an appliance, on any v0.7.x before this one.** The doorman
