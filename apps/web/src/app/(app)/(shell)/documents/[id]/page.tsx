@@ -82,8 +82,13 @@ export default async function DocumentPage(props: PageProps<"/documents/[id]">) 
         that scrolled, which on a laptop meant scrolling to see the bottom of a page that would
         have fitted, and on a large screen meant grey space around a small one.
       */}
-      <div className="flex min-w-0 flex-1 flex-col gap-3 p-5 lg:p-6">
-        <div className="flex min-h-0 flex-1 items-start justify-center overflow-hidden rounded-lg bg-surface p-6">
+      <div className="flex min-w-0 flex-1 flex-col bg-surface p-5 lg:p-6">
+        {/*
+          The whole pane is the mat, not a rounded card floating on white. A page sitting on its
+          own tone reads as a page; the same page inside a panel inside a window is two frames
+          around one document.
+        */}
+        <div className="flex min-h-0 flex-1 items-start justify-center overflow-hidden">
           {isImage ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img src={fileUrl} alt={doc.title} className="max-h-full max-w-full rounded-sm bg-white object-contain shadow-[0_1px_3px_rgba(13,22,34,0.12)]" />
@@ -93,15 +98,16 @@ export default async function DocumentPage(props: PageProps<"/documents/[id]">) 
             <p className="text-body text-muted">No preview for this file type. Download the original instead.</p>
           )}
         </div>
-        {/* What the file is, now that what you can do with it lives in the header. */}
-        <p className="shrink-0 truncate text-center text-small text-muted">
-          {f.originalFilename}
-          {f.pageCount ? ` · ${f.pageCount} page${f.pageCount === 1 ? "" : "s"}` : ""} · {Math.max(1, Math.round(f.byteSize / 1024))} KB
-        </p>
       </div>
 
       {/* Its own scroll: five tabs of metadata should never push the document out of view. */}
-      <aside className="scrollbar-none flex w-[420px] min-w-[360px] shrink-0 flex-col overflow-y-auto border-l border-border px-6 py-5">
+      {/*
+        Thirty per cent of the window, not a fixed 420px. The preview is the reason this view
+        exists and should grow with the screen; a details column that stayed put turned a wide
+        monitor into a wide document and the same narrow panel. The floor is what the widest field
+        label and a date need side by side.
+      */}
+      <aside className="scrollbar-none flex w-[30%] min-w-[360px] shrink-0 flex-col overflow-y-auto border-l border-border px-6 py-5">
         <DocumentDetail doc={doc} text={text} versions={versions} activity={activity} categories={categories} items={items} tasks={tasks} />
       </aside>
     </DocumentOverlay>
