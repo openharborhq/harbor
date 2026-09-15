@@ -142,7 +142,7 @@ export function ReviewShare({
                       setCopied(link.linkId);
                     }}
                     className={`h-9 w-[84px] shrink-0 rounded-md text-row font-semibold transition-colors ${
-                      copied === link.linkId ? "bg-accent-soft text-accent" : "bg-accent text-white hover:opacity-90"
+                      copied === link.linkId ? "bg-accent-soft text-accent" : "bg-accent-fill text-white hover:opacity-90"
                     }`}
                   >
                     {copied === link.linkId ? "Copied" : "Copy"}
@@ -156,7 +156,7 @@ export function ReviewShare({
           <Link href="/shares" onClick={done} className="text-row text-accent hover:underline">
             See all shares
           </Link>
-          <button type="button" onClick={done} className="ml-auto h-9 rounded-md bg-accent px-5 text-row font-semibold text-white hover:opacity-90">
+          <button type="button" onClick={done} className="ml-auto h-9 rounded-md bg-accent-fill px-5 text-row font-semibold text-white hover:opacity-90">
             Done
           </button>
         </Footer>
@@ -390,7 +390,7 @@ export function ReviewShare({
           type="button"
           disabled={busy || named.length === 0 || (sink !== null && !sink.ready)}
           onClick={() => void submit()}
-          className="h-9 rounded-md bg-accent px-5 text-row font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-40"
+          className="h-9 rounded-md bg-accent-fill px-5 text-row font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-40"
         >
           {busy ? "Sealing…" : named.length > 1 ? `Create ${named.length} links` : "Create link"}
         </button>

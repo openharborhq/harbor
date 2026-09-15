@@ -21,7 +21,7 @@ export default function AppError({ error, reset }: { error: Error & { digest?: s
         untouched either way, nothing here deletes or changes anything on its own.
       </p>
       <div className="mt-2 flex items-center gap-4">
-        <button type="button" onClick={reset} className="h-10 rounded-md bg-accent px-4 text-row font-semibold text-white">
+        <button type="button" onClick={reset} className="h-10 rounded-md bg-accent-fill px-4 text-row font-semibold text-white">
           Try again
         </button>
         <Link href="/home" className="text-row font-medium text-accent">

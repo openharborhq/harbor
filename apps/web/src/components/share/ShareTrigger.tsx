@@ -40,7 +40,7 @@ export function ShareTrigger() {
             10px, a step below the locked scale's smallest label. A count inside a button is read
             as a quantity rather than as text, and at 11px it competed with the word beside it.
           */}
-          <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-pill bg-accent px-1.5 text-[10px] font-bold leading-none tabular-nums text-white">
+          <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-pill bg-accent-fill px-1.5 text-[10px] font-bold leading-none tabular-nums text-white">
             {n}
           </span>
         </button>

@@ -55,7 +55,7 @@ export function Sidebar({
         tabIndex={-1}
         aria-hidden="true"
         onClick={() => setOpen(false)}
-        className={`fixed inset-0 z-30 bg-text/40 transition-opacity duration-200 lg:hidden ${
+        className={`fixed inset-0 z-30 bg-scrim/40 transition-opacity duration-200 lg:hidden ${
           open ? "visible opacity-100" : "invisible opacity-0"
         }`}
       />
@@ -106,7 +106,7 @@ export function Sidebar({
                   <span
                     aria-label={`${waiting} to review`}
                     className={`inline-flex h-[18px] min-w-[18px] shrink-0 items-center justify-center rounded-pill px-1.5 text-[10px] font-bold leading-none ${
-                      active ? "bg-accent text-white" : "bg-accent-soft text-accent"
+                      active ? "bg-accent-fill text-white" : "bg-accent-soft text-accent"
                     }`}
                   >
                     {waiting}

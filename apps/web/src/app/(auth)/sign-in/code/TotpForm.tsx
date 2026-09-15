@@ -42,7 +42,7 @@ export function TotpForm({ next }: { next: string }) {
       </label>
       <p className="text-small text-muted">Codes change every 30 seconds. If yours was just rejected, wait for the next one.</p>
       {error && <p className="text-small text-danger">{error}</p>}
-      <button type="submit" disabled={busy || code.trim().length < 6} className="h-11 rounded-md bg-accent text-body font-semibold text-white disabled:opacity-60">
+      <button type="submit" disabled={busy || code.trim().length < 6} className="h-11 rounded-md bg-accent-fill text-body font-semibold text-white disabled:opacity-60">
         {busy ? "Verifying…" : "Verify"}
       </button>
       <p className="text-center text-small text-muted">Lost your authenticator? Type one of your printed recovery codes instead.</p>

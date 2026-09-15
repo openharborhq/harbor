@@ -26,7 +26,7 @@ export function EmptyState({
       <p className="text-row font-semibold">{title}</p>
       <p className="max-w-[520px] text-body text-muted">{body}</p>
       {action && href && (
-        <Link href={href} className="mt-2 h-9 rounded-md bg-accent px-4 text-row font-semibold leading-9 text-white">
+        <Link href={href} className="mt-2 h-9 rounded-md bg-accent-fill px-4 text-row font-semibold leading-9 text-white">
           {action}
         </Link>
       )}

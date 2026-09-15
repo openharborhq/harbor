@@ -141,7 +141,7 @@ export function DocumentTasks({ documentId, tasks }: { documentId: string; tasks
                 type="button"
                 onClick={() => close(t)}
                 disabled={busy === t.id}
-                className="h-8 shrink-0 rounded-md bg-accent px-4 text-small font-medium text-white disabled:opacity-50"
+                className="h-8 shrink-0 rounded-md bg-accent-fill px-4 text-small font-medium text-white disabled:opacity-50"
               >
                 {busy === t.id ? "…" : t.kind === "pay" ? "Mark paid" : "Mark done"}
               </button>
@@ -180,7 +180,7 @@ export function DocumentTasks({ documentId, tasks }: { documentId: string; tasks
             <button type="button" onClick={() => setAdding(false)} className="h-9 px-2 text-small text-muted">
               Cancel
             </button>
-            <button type="submit" disabled={busy === "new" || !title.trim()} className="h-9 rounded-md bg-accent px-3 text-small font-medium text-white disabled:opacity-50">
+            <button type="submit" disabled={busy === "new" || !title.trim()} className="h-9 rounded-md bg-accent-fill px-3 text-small font-medium text-white disabled:opacity-50">
               Add
             </button>
           </div>
@@ -251,7 +251,7 @@ function EditTask({
         <button type="button" onClick={onCancel} className="h-9 px-2 text-small text-muted hover:text-text">
           Cancel
         </button>
-        <button type="submit" disabled={busy} className="h-9 rounded-md bg-accent px-3 text-small font-medium text-white disabled:opacity-50">
+        <button type="submit" disabled={busy} className="h-9 rounded-md bg-accent-fill px-3 text-small font-medium text-white disabled:opacity-50">
           {busy ? "Saving…" : "Save"}
         </button>
       </div>

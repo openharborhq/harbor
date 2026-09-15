@@ -17,6 +17,22 @@ migrations, on purpose, because a half-reversed schema is worse than a restore. 
 wrong, follow [`docs/restore.md`](docs/restore.md) with the backup `harbor upgrade` took
 immediately before it. That is why the upgrade refuses to run without one.
 
+## Unreleased
+
+- **New feature: dark mode.** Harbor follows the machine's own light or dark setting — no toggle and
+  no stored preference, because the question has already been asked once at the level where it
+  belongs. The palette is the Harbor site's, which already derived one from the same Paper file, so
+  the app, the site and the share page now agree rather than each being nearly the same.
+
+  Every pair was measured: body text clears AAA on both grounds, and nothing legible sits below AA.
+  Two colours deliberately do not follow the theme — the cobalt behind a white label, because no
+  single blue can be both readable as link text on dark and dark enough to carry white, and the wash
+  behind a dialog, which would otherwise have turned pale and lit the page it exists to push back.
+
+- **Fixed: the Download button on a shared link was close to unreadable in dark mode.** White on the
+  lightened accent measured 2.44:1, on the one page a recipient ever sees. It now keeps the cobalt
+  fill in both themes, at 9.12:1.
+
 ## v0.7.8 — 2026-09-15
 
 - **Added: `harbor upgrade` removes the images it supersedes.** An appliance gains most of a

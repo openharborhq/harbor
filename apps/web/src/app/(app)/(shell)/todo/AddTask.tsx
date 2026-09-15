@@ -80,7 +80,7 @@ export function AddTask({ items }: { items: Item[] }) {
 
   if (!open) {
     return (
-      <button type="button" onClick={() => setOpen(true)} className="flex h-9 shrink-0 items-center gap-2 rounded-md bg-accent px-4 text-row font-medium text-white hover:opacity-90">
+      <button type="button" onClick={() => setOpen(true)} className="flex h-9 shrink-0 items-center gap-2 rounded-md bg-accent-fill px-4 text-row font-medium text-white hover:opacity-90">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
           <path d="M12 5v14M5 12h14" />
         </svg>
@@ -136,7 +136,7 @@ export function AddTask({ items }: { items: Item[] }) {
         <button type="button" onClick={() => setOpen(false)} className="h-9 rounded-md px-3 text-row text-muted hover:text-text">
           Cancel
         </button>
-        <button type="submit" disabled={busy || !title.trim()} className="h-9 rounded-md bg-accent px-4 text-row font-medium text-white disabled:opacity-50">
+        <button type="submit" disabled={busy || !title.trim()} className="h-9 rounded-md bg-accent-fill px-4 text-row font-medium text-white disabled:opacity-50">
           {busy ? "Adding…" : "Add"}
         </button>
       </div>

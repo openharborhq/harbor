@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import type { BackupRunKind } from "@harbor/shared";
 import { api } from "@/lib/api-client";
 
-const primary = "h-9 rounded-md bg-accent px-4 text-row font-semibold text-white disabled:opacity-60";
+const primary = "h-9 rounded-md bg-accent-fill px-4 text-row font-semibold text-white disabled:opacity-60";
 const secondary = "h-9 rounded-md border border-border bg-ground px-4 text-row font-medium disabled:opacity-60";
 
 /**

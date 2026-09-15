@@ -100,7 +100,7 @@ export function DocumentFrame({
       }}
     >
       <Dialog.Portal>
-        <Dialog.Overlay className="dialog-overlay fixed inset-0 z-40 bg-text/40" />
+        <Dialog.Overlay className="dialog-overlay fixed inset-0 z-40 bg-scrim/40" />
         <Dialog.Content
           className="dialog-panel fixed inset-4 z-50 flex flex-col overflow-hidden rounded-card border border-border bg-ground shadow-[0_24px_64px_rgba(13,22,34,0.28)] outline-none lg:inset-8"
           // The document is the thing to read; the frame should not read its own title aloud first.

@@ -171,7 +171,7 @@ function Section({ title, rows, selected, onToggle }: { title: string; rows: Ite
 function Check({ on }: { on: boolean }) {
   if (!on) return <span className="size-4 shrink-0 rounded-sm border-[1.5px] border-border-strong" />;
   return (
-    <span className="flex size-4 shrink-0 items-center justify-center rounded-sm bg-accent">
+    <span className="flex size-4 shrink-0 items-center justify-center rounded-sm bg-accent-fill">
       <svg width="10" height="10" viewBox="0 0 12 12" fill="none">
         <path d="M2.5 6.2 5 8.5 9.5 3.5" stroke="#fff" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
       </svg>

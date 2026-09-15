@@ -299,7 +299,7 @@ export function InboxCard({ doc, categories, items, copies = [] }: { doc: Docume
               type="button"
               onClick={fileIt}
               disabled={!categoryId || busy !== null || processing}
-              className="h-9 rounded-md bg-accent px-4 text-row font-semibold text-white disabled:opacity-50"
+              className="h-9 rounded-md bg-accent-fill px-4 text-row font-semibold text-white disabled:opacity-50"
             >
               {busy === "file" ? "Filing…" : s && unchanged && !s.rejectedAt ? "Accept & file" : "File it"}
             </button>

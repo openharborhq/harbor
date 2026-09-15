@@ -65,7 +65,7 @@ export function EnrolmentCard({ otpauthUri, recoveryCodes, doneHref = "/sign-in"
         </ul>
       </div>
 
-      <Link href={doneHref} className="flex h-11 items-center justify-center rounded-md bg-accent text-body font-semibold text-white">
+      <Link href={doneHref} className="flex h-11 items-center justify-center rounded-md bg-accent-fill text-body font-semibold text-white">
         {doneLabel}
       </Link>
     </div>

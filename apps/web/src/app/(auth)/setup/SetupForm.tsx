@@ -66,7 +66,7 @@ export function SetupForm() {
           <input type="password" required minLength={12} autoComplete="new-password" value={confirm} onChange={(e) => setConfirm(e.target.value)} className={input} />
         </label>
         {error && <p className="text-small text-danger">{error}</p>}
-        <button type="submit" disabled={busy} className="mt-1 h-11 rounded-md bg-accent text-body font-semibold text-white disabled:opacity-60">
+        <button type="submit" disabled={busy} className="mt-1 h-11 rounded-md bg-accent-fill text-body font-semibold text-white disabled:opacity-60">
           {busy ? "Creating…" : "Create the first owner"}
         </button>
       </form>

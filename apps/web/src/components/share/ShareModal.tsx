@@ -50,7 +50,7 @@ export function ShareModal({ open, onClose }: { open: boolean; onClose: () => vo
   return (
     <Dialog.Root open={open} onOpenChange={(next) => !next && close()}>
       <Dialog.Portal>
-        <Dialog.Overlay className="dialog-overlay fixed inset-0 z-40 bg-text/40" />
+        <Dialog.Overlay className="dialog-overlay fixed inset-0 z-40 bg-scrim/40" />
         {/* The same frame as the document viewer: two dialogs of different sizes read as two
             different kinds of thing, and these are both "something over the app". */}
         <Dialog.Content

@@ -237,7 +237,7 @@ function NewTopLevel({ onAdd }: { onAdd: (name: string) => void }) {
       }}
     >
       <input autoFocus value={name} onChange={(e) => setName(e.target.value)} maxLength={60} placeholder="Pets, Boat, Grandparents…" className="h-9 w-64 rounded-md border border-border-strong px-3 text-row" />
-      <button type="submit" className="h-9 rounded-md bg-accent px-4 text-row font-semibold text-white">
+      <button type="submit" className="h-9 rounded-md bg-accent-fill px-4 text-row font-semibold text-white">
         Add
       </button>
       <button type="button" onClick={() => setOpen(false)} className="text-row font-medium text-muted">

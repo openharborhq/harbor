@@ -153,7 +153,7 @@ export function DocumentDetail({
                 Delete document
               </button>
             )}
-            <button type="button" onClick={() => setEditing(true)} className="h-10 rounded-md bg-accent px-4 text-row font-semibold text-white">
+            <button type="button" onClick={() => setEditing(true)} className="h-10 rounded-md bg-accent-fill px-4 text-row font-semibold text-white">
               Edit details
             </button>
           </div>
@@ -315,7 +315,7 @@ function EditForm({ doc, categories, items, onDone }: { doc: DocumentSummary; ca
         <button type="button" onClick={onDone} className="text-row font-medium text-muted">
           Cancel
         </button>
-        <button type="submit" disabled={busy} className="h-10 rounded-md bg-accent px-4 text-row font-semibold text-white disabled:opacity-60">
+        <button type="submit" disabled={busy} className="h-10 rounded-md bg-accent-fill px-4 text-row font-semibold text-white disabled:opacity-60">
           {busy ? "Saving…" : "Save"}
         </button>
       </div>

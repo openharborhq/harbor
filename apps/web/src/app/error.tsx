@@ -25,7 +25,7 @@ export default function RootError({ error, reset }: { error: Error & { digest?: 
         and <code className="rounded-sm bg-surface px-1.5 py-0.5 text-small">postgres</code> containers are up.
       </p>
       <div className="mt-2 flex items-center gap-4">
-        <button type="button" onClick={reset} className="h-10 rounded-md bg-accent px-4 text-row font-semibold text-white">
+        <button type="button" onClick={reset} className="h-10 rounded-md bg-accent-fill px-4 text-row font-semibold text-white">
           Try again
         </button>
         <Link href="/home" className="text-row font-medium text-accent">

@@ -25,6 +25,20 @@
   --color-label: #17604a;
   --color-label-soft: #e3f2ea;
 
+  /*
+   * Two tokens that do **not** flip with the theme, and the reason dark mode needs them.
+   *
+   * On a dark ground no single accent can do both jobs: white-on-accent needs the accent below
+   * 0.183 relative luminance, accent-as-link-text above 0.214. That range is empty, which is why
+   * `--color-accent` becomes a light blue in dark mode for links, and anything *filled* with
+   * cobalt and labelled in white keeps this one instead. The site reached the same conclusion and
+   * calls its non-flipping pair `band` / `on-band`.
+   */
+  --color-accent-fill: #123fa8;
+  /* The wash behind a dialog. Not `--color-text`, which inverts — a scrim that turned pale in dark
+     mode would light the page it is meant to push back. */
+  --color-scrim: #0d1622;
+
   --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
 
   --text-display: 40px;
@@ -55,6 +69,50 @@
   --spacing-sidebar: 248px;
   --spacing-content: 1192px;
   --spacing-gutter: 32px;
+}
+
+/*
+ * Dark, when the machine is set to dark (spec §4).
+ *
+ * The values are the Harbor site's, verbatim — it already ships a dark theme derived from the
+ * Paper file's own `terminal` and `on-dark` tokens, and two products of one household should not
+ * disagree about what Harbor looks like at night. `warn`, `danger` and `label` are the exception:
+ * the site never redefines them, which leaves its danger at 2.59:1 on its own dark ground. They
+ * are lifted here by the same move the site made for the accent, and every pair is measured.
+ *
+ * A media query and nothing else. No toggle, no stored preference, no flash of the wrong theme on
+ * first paint — the machine has already been asked this question and the answer is on the way in
+ * with the request.
+ */
+:root {
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    /* Native surfaces the page does not draw: form controls, scrollbars, the canvas behind it. */
+    color-scheme: dark;
+
+    --color-ground: #0f1723;
+    --color-surface: #162031;
+    --color-border: #243349;
+    --color-border-strong: #34475f;
+    --color-muted: #a7b4c6;
+    --color-text: #e6ecf5;
+    --color-accent: #7ea6ff;
+    --color-accent-soft: #1c2c4d;
+
+    /* Lifted, because the originals were chosen against white. Measured on #0f1723:
+       warn 8.28, danger 7.03, label 8.66 — and each on its own soft fill, 6.72 / 7.01. */
+    --color-warn: #e3a445;
+    --color-warn-soft: #33270f;
+    --color-danger: #f08375;
+    --color-label: #5cc79d;
+    --color-label-soft: #122e24;
+
+    /* Deeper than the ground, so a dialog still reads as being in front of something. */
+    --color-scrim: #05090f;
+  }
 }
 
 html,

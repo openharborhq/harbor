@@ -41,7 +41,7 @@ export function JoinForm({ token, email }: { token: string; email: string }) {
         <input type="password" required minLength={12} autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} className="h-11 rounded-md border border-border-strong px-3.5 text-body" />
       </label>
       {error && <p className="text-small text-danger">{error}</p>}
-      <button type="submit" disabled={busy} className="mt-1 h-11 rounded-md bg-accent text-body font-semibold text-white disabled:opacity-60">
+      <button type="submit" disabled={busy} className="mt-1 h-11 rounded-md bg-accent-fill text-body font-semibold text-white disabled:opacity-60">
         {busy ? "Creating…" : "Create my account"}
       </button>
     </form>

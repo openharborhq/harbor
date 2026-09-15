@@ -82,7 +82,7 @@ export function TaskRow({ task, showClosed = false }: { task: Task; showClosed?:
           disabled={busy}
           title={task.status === "done" ? "Mark as not done" : "Put it back on the list"}
           aria-label="Reopen"
-          className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-pill ${task.status === "done" ? "bg-accent text-white" : "bg-surface text-muted"}`}
+          className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-pill ${task.status === "done" ? "bg-accent-fill text-white" : "bg-surface text-muted"}`}
         >
           {task.status === "done" ? (
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">

@@ -80,7 +80,7 @@ export function ItemForm({ kind, parents }: { kind: ItemKind; parents: Item[] })
       )}
       {error && <p className="text-small text-danger">{error}</p>}
       <div className="mt-1 flex items-center gap-3">
-        <button type="submit" disabled={busy} className="h-9 rounded-md bg-accent px-4 text-row font-semibold text-white disabled:opacity-60">
+        <button type="submit" disabled={busy} className="h-9 rounded-md bg-accent-fill px-4 text-row font-semibold text-white disabled:opacity-60">
           {busy ? "Adding…" : "Add"}
         </button>
         <button type="button" onClick={() => setOpen(false)} className="text-row font-medium text-muted">

@@ -6,7 +6,7 @@ import type { InviteInfo, RecoveryCodesResult } from "@harbor/shared";
 import { api } from "@/lib/api-client";
 
 const input = "h-10 w-full rounded-md border border-border-strong px-3 text-row";
-const primary = "h-9 rounded-md bg-accent px-4 text-row font-semibold text-white disabled:opacity-60";
+const primary = "h-9 rounded-md bg-accent-fill px-4 text-row font-semibold text-white disabled:opacity-60";
 const secondary = "h-9 rounded-md border border-border bg-ground px-4 text-row font-medium";
 
 export function NameForm({ current }: { current: string }) {

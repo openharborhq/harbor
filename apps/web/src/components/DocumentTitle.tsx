@@ -110,7 +110,7 @@ export function DocumentTitle({ documentId, title }: { documentId: string; title
         onBlur={() => void save(value)}
         className="h-[34px] w-full max-w-[640px] rounded-md border border-border-strong px-2.5 text-[24px] font-bold leading-[30px] tracking-snug"
       />
-      <button type="submit" disabled={busy} className="h-[34px] shrink-0 rounded-md bg-accent px-3 text-row font-semibold text-white disabled:opacity-60">
+      <button type="submit" disabled={busy} className="h-[34px] shrink-0 rounded-md bg-accent-fill px-3 text-row font-semibold text-white disabled:opacity-60">
         {busy ? "Saving…" : "Save"}
       </button>
       {error && <span className="shrink-0 text-small text-danger">{error}</span>}

@@ -198,7 +198,7 @@ function SourceTab({ label, count, href, active }: { label: string; count: numbe
     <Link
       href={href}
       aria-current={active ? "page" : undefined}
-      className={`inline-flex h-8 items-center gap-1.5 rounded-pill px-3 text-row font-medium ${active ? "bg-accent text-white" : "border border-border text-muted"}`}
+      className={`inline-flex h-8 items-center gap-1.5 rounded-pill px-3 text-row font-medium ${active ? "bg-accent-fill text-white" : "border border-border text-muted"}`}
     >
       {label}
       <span className={active ? "opacity-70" : "opacity-60"}>{count}</span>

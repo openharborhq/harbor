@@ -207,7 +207,7 @@ export function SharingForm({ delivery, bucket }: { delivery: ShareDeliverySetti
           type="button"
           onClick={() => void save()}
           disabled={saving}
-          className="h-9 rounded-md bg-accent px-4 text-row font-semibold text-white disabled:opacity-50"
+          className="h-9 rounded-md bg-accent-fill px-4 text-row font-semibold text-white disabled:opacity-50"
         >
           {saving ? "Saving…" : "Save"}
         </button>

@@ -8,7 +8,7 @@ import { GroupLabel, Note } from "./ui";
 
 const field = "h-[38px] w-full rounded-md border border-border-strong px-3 text-row";
 const mono = `${field} font-mono text-small`;
-const primary = "h-10 rounded-md bg-accent px-5 text-body font-semibold text-white disabled:opacity-60";
+const primary = "h-10 rounded-md bg-accent-fill px-5 text-body font-semibold text-white disabled:opacity-60";
 const secondary = "h-9 rounded-md border border-border-strong px-4 text-row font-medium disabled:opacity-60";
 
 const PROVIDERS: { id: SuggestProvider; label: string; note: string }[] = [

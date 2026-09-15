@@ -3,6 +3,35 @@
 Design file: Paper `01M1VQQFCBZZKMYX760BE4STAV`. Tokens: white ground, cobalt `#123FA8`
 accent, Inter, 7-step type scale. All desktop artboards 1440 px; sidebar 248, content 1192.
 
+## 4.1 Light and dark (2026-09-15)
+
+**The machine's setting decides, and nothing else.** `prefers-color-scheme`, no toggle, no stored
+preference. A theme switch is a thing to build, explain and get wrong on first paint; the question
+has already been asked once, at the level where it belongs, and the answer arrives with the request.
+
+**The dark palette is the Harbor site's, verbatim** — `harbor-website` already derived one from the
+Paper file's own `terminal` and `on-dark` tokens, and two products of one household must not
+disagree about what Harbor looks like at night. Ground `#0F1723`, surface `#162031`, border
+`#243349`, text `#E6ECF5`, muted `#A7B4C6`, accent `#7EA6FF`, accent-soft `#1C2C4D`.
+
+**Three tokens are lifted here and nowhere else**: `warn`, `danger` and `label`. The site never
+redefines them, which leaves its danger at 2.59:1 on its own dark ground. The app's are
+`#E3A445`, `#F08375`, `#5CC79D`, each measured on both the ground and its own soft fill.
+
+**Two tokens deliberately do not flip.** On a dark ground white-on-accent needs the accent below
+0.183 relative luminance and accent-as-link-text needs it above 0.214 — an empty range, so one
+colour cannot do both jobs. `--color-accent` becomes the light blue for links; `--color-accent-fill`
+stays cobalt for anything filled and labelled in white, which is the site's `band`/`on-band` pair
+under another name. `--color-scrim` is the second: a dialog wash keyed to `--color-text` would turn
+pale in dark mode and light the page it exists to push back.
+
+**White stays white where the thing is paper** — a PDF page, a scanned image, a QR code. A document
+does not change colour because the room did.
+
+The doorman's landing page (§10.6) carries the same values inline. It had its own dark palette
+first, drifted a shade or two on all seven colours, and its Download button was white on the lifted
+accent at 2.44:1 — on the one page a stranger ever sees.
+
 ## Inventory
 
 | Surface | Status | Backed by | Gap |

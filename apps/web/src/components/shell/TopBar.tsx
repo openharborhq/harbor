@@ -23,7 +23,7 @@ export function TopBar({ query = "" }: { query?: string }) {
       <Link
         href="/add"
         aria-label="Add documents"
-        className="flex h-[34px] shrink-0 items-center gap-2 rounded-md bg-accent px-3 text-row font-semibold text-white hover:bg-accent/90 sm:px-4"
+        className="flex h-[34px] shrink-0 items-center gap-2 rounded-md bg-accent-fill px-3 text-row font-semibold text-white hover:bg-accent-fill/90 sm:px-4"
       >
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
           <path d="M12 19V5M5 12l7-7 7 7" />

@@ -81,7 +81,7 @@ export function ItemIdentity({
       ))}
       {error && <p className="text-small text-danger">{error}</p>}
       <div className="flex items-center gap-4">
-        <button type="submit" disabled={busy || !label.trim()} className="h-9 rounded-md bg-accent px-4 text-row font-semibold text-white disabled:opacity-60">
+        <button type="submit" disabled={busy || !label.trim()} className="h-9 rounded-md bg-accent-fill px-4 text-row font-semibold text-white disabled:opacity-60">
           {busy ? "Saving…" : "Save"}
         </button>
         <button type="button" onClick={cancel} className="text-row font-medium text-muted">
