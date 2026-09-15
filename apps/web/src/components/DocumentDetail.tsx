@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import type { ActivityEntry, Category, DocumentSummary, DocumentText, DocumentVersion, Item, Task, UpdateDocument } from "@harbor/shared";
@@ -211,11 +210,6 @@ export function DocumentDetail({
           {activity.length === 0 && <li className="py-3 text-row text-muted">No activity recorded.</li>}
         </ul>
       )}
-      <p className="mt-6 text-small text-muted">
-        <Link href="/library/deleted" className="font-medium text-accent">
-          Recently deleted
-        </Link>
-      </p>
     </div>
   );
 }
