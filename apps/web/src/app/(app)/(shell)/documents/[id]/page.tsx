@@ -82,7 +82,7 @@ export default async function DocumentPage(props: PageProps<"/documents/[id]">) 
         that scrolled, which on a laptop meant scrolling to see the bottom of a page that would
         have fitted, and on a large screen meant grey space around a small one.
       */}
-      <div className="flex min-w-0 flex-1 flex-col bg-surface p-5 lg:p-6">
+      <div className="flex min-w-0 flex-1 flex-col bg-surface px-10 py-5 lg:px-20 lg:py-6">
         {/*
           The whole pane is the mat, not a rounded card floating on white. A page sitting on its
           own tone reads as a page; the same page inside a panel inside a window is two frames
