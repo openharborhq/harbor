@@ -246,7 +246,12 @@ export function ReviewShare({
               Clear all
             </button>
           </div>
-          <ul className="scrollbar-none h-[152px] overflow-y-auto rounded-lg border border-border">
+          {/*
+            Ten rows, then it scrolls. A fixed height showed four of them and wasted the rest of a
+            tall dialog on a share of two; growing without a ceiling would push the recipients —
+            the only real question here — off the bottom on a share of thirty.
+          */}
+          <ul className="scrollbar-none max-h-[360px] overflow-y-auto rounded-lg border border-border">
             {basket.documents.map((doc) => {
               const active = preview?.id === doc.id;
               return (
