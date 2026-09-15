@@ -36,7 +36,11 @@ export function ShareTrigger() {
             <path d="M4 13v6a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-6M12 3v12M8 7l4-4 4 4" />
           </svg>
           <span className="hidden sm:inline">Share</span>
-          <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-pill bg-accent px-1.5 text-label font-bold tabular-nums text-white">
+          {/*
+            10px, a step below the locked scale's smallest label. A count inside a button is read
+            as a quantity rather than as text, and at 11px it competed with the word beside it.
+          */}
+          <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-pill bg-accent px-1.5 text-[10px] font-bold leading-none tabular-nums text-white">
             {n}
           </span>
         </button>

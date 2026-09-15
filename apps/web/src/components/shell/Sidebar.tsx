@@ -105,7 +105,7 @@ export function Sidebar({
                 {item.href === "/inbox" && waiting > 0 && (
                   <span
                     aria-label={`${waiting} to review`}
-                    className={`inline-flex h-[18px] min-w-[18px] shrink-0 items-center justify-center rounded-pill px-1.5 text-label font-bold ${
+                    className={`inline-flex h-[18px] min-w-[18px] shrink-0 items-center justify-center rounded-pill px-1.5 text-[10px] font-bold leading-none ${
                       active ? "bg-accent text-white" : "bg-accent-soft text-accent"
                     }`}
                   >
@@ -115,7 +115,7 @@ export function Sidebar({
                 {item.href === "/todo" && pressing > 0 && (
                   <span
                     aria-label={`${pressing} overdue or due today`}
-                    className={`inline-flex h-[18px] min-w-[18px] shrink-0 items-center justify-center rounded-pill px-1.5 text-label font-bold ${
+                    className={`inline-flex h-[18px] min-w-[18px] shrink-0 items-center justify-center rounded-pill px-1.5 text-[10px] font-bold leading-none ${
                       active ? "bg-danger text-white" : "bg-danger/10 text-danger"
                     }`}
                   >

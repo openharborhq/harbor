@@ -1,7 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
-import { createPortal } from "react-dom";
+import * as Dialog from "@radix-ui/react-dialog";
+import { useCallback, useState } from "react";
 import { DocPreview } from "./DocPreview";
 import { ReviewShare } from "./ReviewShare";
 import { useShareBasket, type BasketDocument } from "./ShareBasket";
@@ -13,23 +13,21 @@ import { useShareBasket, type BasketDocument } from "./ShareBasket";
  * a search, then an item, then the inbox — and sending someone to another screen to finish loses
  * the place they were in, for a step that is mostly confirmation.
  *
- * **A fixed size.** The panel is one height whatever it holds, and the form scrolls inside it. A
- * dialog that grows with its contents moves its own footer while you fill it in, and the button
- * you were reaching for is somewhere else by the time you get there.
+ * **A size that does not depend on its contents** — the window less a margin, the same frame the
+ * document viewer uses. The form scrolls inside it. A dialog that grows as you fill it in moves
+ * its own footer, and the button you were reaching for is somewhere else by the time you arrive.
  *
  * **One size, two panes.** The preview column is always there — it started out appearing only once
  * a document was picked, which meant the dialog resized under the pointer the first time anyone
  * clicked a row. A pane that is sometimes there is worse than one that is sometimes empty, so it
  * shows the first document by default and an empty frame when there is nothing to show.
  *
- * It renders through a portal, and that is not tidiness. The trigger lives in the top bar, which
- * is `sticky` with a `z-index` — and those two together make a stacking context, so a `z-50`
- * anywhere inside it is still trapped beneath the bar's own `z-20`. The sidebar at `z-40` then
- * painted straight over the backdrop, leaving the navigation bright beside a dimmed page. Out at
- * the document body, the dialog is above everything, which is what "modal" means.
+ * A Radix dialog, like the document viewer, so the app has one answer to what a dialog does rather
+ * than two hand-rolled ones that drifted apart. It brings focus trapping, the page behind hidden
+ * from screen readers, scroll locked without the layout shifting, focus returned on close — and
+ * `data-state`, which is what keeps a closing dialog mounted long enough to animate out.
  */
 export function ShareModal({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const panel = useRef<HTMLDivElement>(null);
   const basket = useShareBasket();
   const [picked, setPicked] = useState<BasketDocument | null>(null);
 
@@ -49,71 +47,43 @@ export function ShareModal({ open, onClose }: { open: boolean; onClose: () => vo
     onClose();
   }, [onClose]);
 
-  useEffect(() => {
-    if (!open) return;
-    const previous = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") close();
-    };
-    window.addEventListener("keydown", onKey);
-    panel.current?.focus();
-    return () => {
-      document.body.style.overflow = previous;
-      window.removeEventListener("keydown", onKey);
-    };
-  }, [open, close]);
+  return (
+    <Dialog.Root open={open} onOpenChange={(next) => !next && close()}>
+      <Dialog.Portal>
+        <Dialog.Overlay className="dialog-overlay fixed inset-0 z-40 bg-text/40" />
+        {/* The same frame as the document viewer: two dialogs of different sizes read as two
+            different kinds of thing, and these are both "something over the app". */}
+        <Dialog.Content
+          className="dialog-panel fixed inset-4 z-50 flex overflow-hidden rounded-card border border-border bg-ground shadow-[0_24px_64px_rgba(13,22,34,0.28)] outline-none lg:inset-8"
+          aria-describedby={undefined}
+        >
+          {/* The form does not want to be wider than this however big the window is; the preview does. */}
+          <div className="flex min-w-0 flex-1 flex-col sm:w-[560px] sm:shrink-0 sm:flex-none">
+            <header className="flex shrink-0 items-center gap-3 border-b border-border px-6 py-4">
+              <Dialog.Title className="flex-1 text-section font-semibold tracking-snug">Share</Dialog.Title>
+              <Dialog.Close
+                aria-label="Close"
+                className="-mr-2 flex size-8 shrink-0 items-center justify-center rounded-md text-muted transition-colors hover:bg-surface hover:text-text"
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" className="size-4" aria-hidden="true">
+                  <path d="M6 6l12 12M18 6L6 18" />
+                </svg>
+              </Dialog.Close>
+            </header>
 
-  // `open` is false on the server, so the portal is only ever reached in the browser.
-  if (!open || typeof document === "undefined") return null;
+            <ReviewShare onClose={close} preview={preview} onPreview={setPicked} />
+          </div>
 
-  return createPortal(
-    <div
-      className="fixed inset-0 z-50 flex items-end justify-center bg-text/40 p-0 sm:items-center sm:p-6"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="share-modal-title"
-      // Only a press that begins on the backdrop closes it: a drag that started inside the panel
-      // and ended outside used to discard a half-filled form.
-      onMouseDown={(e) => {
-        if (e.target === e.currentTarget) close();
-      }}
-    >
-      <div
-        ref={panel}
-        tabIndex={-1}
-        className="flex h-[640px] max-h-[92vh] w-full max-w-[940px] overflow-hidden rounded-t-card bg-ground shadow-[0_16px_48px_rgba(13,22,34,0.24)] outline-none sm:max-h-[86vh] sm:rounded-card"
-      >
-        <div className="flex min-w-0 flex-1 flex-col sm:w-[560px] sm:flex-none">
-          <header className="flex shrink-0 items-center gap-3 border-b border-border px-6 py-4">
-            <h2 id="share-modal-title" className="flex-1 text-section font-semibold tracking-snug">
-              Share
-            </h2>
-            <button
-              type="button"
-              onClick={close}
-              aria-label="Close"
-              className="-mr-2 flex size-8 shrink-0 items-center justify-center rounded-md text-muted transition-colors hover:bg-surface hover:text-text"
-            >
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" className="size-4" aria-hidden="true">
-                <path d="M6 6l12 12M18 6L6 18" />
-              </svg>
-            </button>
-          </header>
-
-          <ReviewShare onClose={close} preview={preview} onPreview={setPicked} />
-        </div>
-
-        {/*
-          Hidden below `sm`: a phone has no room to put a preview beside anything, and a panel that
-          slid over the form would hide the share being built.
-        */}
-        <aside className="hidden min-w-0 flex-1 border-l border-border bg-surface sm:flex">
-          {/* Keyed per document: the "no preview" state is about one file, not about the pane. */}
-          <DocPreview key={preview?.id ?? "none"} document={preview} />
-        </aside>
-      </div>
-    </div>,
-    document.body,
+          {/*
+            Hidden below `sm`: a phone has no room to put a preview beside anything, and a panel
+            that slid over the form would hide the share being built.
+          */}
+          <aside className="hidden min-w-0 flex-1 border-l border-border bg-surface sm:flex">
+            {/* Keyed per document: the "no preview" state is about one file, not about the pane. */}
+            <DocPreview key={preview?.id ?? "none"} document={preview} />
+          </aside>
+        </Dialog.Content>
+      </Dialog.Portal>
+    </Dialog.Root>
   );
 }

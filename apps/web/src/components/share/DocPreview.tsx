@@ -50,7 +50,13 @@ export function DocPreview({ document: doc }: { document: BasketDocument | null 
             src={`/api/documents/${doc.id}/thumbnail`}
             alt={`First page of ${doc.title}`}
             onError={() => setFailed(true)}
-            className="w-full rounded-md border border-border bg-ground"
+            /*
+              Never wider than it was drawn. First-page previews are rendered at 480px on the long
+              edge (`pdftoppm -scale-to 480`), and this pane is wider than that on any real screen
+              — filling it meant upscaling a 480px image by half again, which is what made every
+              document look soft. Capped and centred, it is the size it actually is.
+            */
+            className="mx-auto w-full max-w-[480px] rounded-md border border-border bg-ground"
           />
         )}
       </div>
