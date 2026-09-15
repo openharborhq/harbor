@@ -60,7 +60,7 @@ export default async function LibraryPage(props: PageProps<"/library">) {
   return (
     <>
       <TopBar />
-      <main className="flex max-w-[1192px] flex-col gap-8 px-14 py-14">
+      <main className="mx-auto flex w-full max-w-[1192px] flex-col gap-8 px-14 py-14">
         <div>
           <h1 className="text-title font-bold tracking-snug">Library</h1>
           <p className="mt-1.5 text-body text-muted">
@@ -192,7 +192,7 @@ async function SearchResults({ q }: { q: string }) {
   return (
     <>
       <TopBar query={q} />
-      <main className="flex max-w-[1192px] flex-col gap-8 px-14 py-14">
+      <main className="mx-auto flex w-full max-w-[1192px] flex-col gap-8 px-14 py-14">
         <div>
           <h1 className="text-title font-bold tracking-snug">Library</h1>
           <p className="mt-1.5 text-body text-muted">Every document in the vault, including the words inside them.</p>

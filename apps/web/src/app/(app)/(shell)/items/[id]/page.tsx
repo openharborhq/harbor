@@ -39,7 +39,7 @@ export default async function ItemPage(props: PageProps<"/items/[id]">) {
   return (
     <>
       <TopBar />
-      <main className="flex max-w-[1192px] flex-col gap-12 px-14 py-14">
+      <main className="mx-auto flex w-full max-w-[1192px] flex-col gap-12 px-14 py-14">
         <div className="flex flex-col gap-5">
           {/*
             Where you came from sits above what you arrived at, across the whole block. Tucked

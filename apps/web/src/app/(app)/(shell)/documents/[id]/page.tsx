@@ -38,7 +38,7 @@ export default async function DocumentPage(props: PageProps<"/documents/[id]">) 
       <TopBar />
       <AutoRefresh active={isProcessing(f.processingStatus)} />
       {/* Wider than the other pages: this one is a viewer, and a squeezed PDF is unreadable. */}
-      <main className="flex max-w-[1400px] flex-col gap-6 px-14 py-8">
+      <main className="mx-auto flex w-full max-w-[1400px] flex-col gap-6 px-14 py-8">
         <div className="flex items-start justify-between gap-6">
           <div className="min-w-0">
             <BackLink href={doc.category ? "/library" : "/inbox"} className="text-small font-medium text-accent">

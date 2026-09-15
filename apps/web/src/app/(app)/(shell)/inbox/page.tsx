@@ -56,7 +56,7 @@ export default async function InboxPage(props: PageProps<"/inbox">) {
     <>
       <TopBar />
       <AutoRefresh active={processing > 0} />
-      <main className="flex max-w-[1192px] flex-col gap-10 px-14 py-14">
+      <main className="mx-auto flex w-full max-w-[1192px] flex-col gap-10 px-14 py-14">
         <div className="flex items-end justify-between">
           <div>
             <h1 className="text-title font-bold tracking-snug">{clutterView ? "Probably not paperwork" : "Inbox"}</h1>

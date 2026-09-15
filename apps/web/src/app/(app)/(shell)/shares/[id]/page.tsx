@@ -66,7 +66,7 @@ export default async function SharePage(props: PageProps<"/shares/[id]">) {
   return (
     <>
       <TopBar />
-      <main className="flex max-w-[900px] flex-col gap-6 px-4 py-8 lg:px-14">
+      <main className="mx-auto flex w-full max-w-[900px] flex-col gap-6 px-4 py-8 lg:px-14">
         <div>
           <BackLink href="/shares">Shared</BackLink>
           <h1 className="mt-2 text-title font-bold tracking-tight">{share.label}</h1>

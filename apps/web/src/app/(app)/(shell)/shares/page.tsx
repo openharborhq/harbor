@@ -52,7 +52,7 @@ export default async function SharesPage() {
   return (
     <>
       <TopBar />
-      <main className="flex flex-col gap-6 px-4 py-8 lg:px-14">
+      <main className="mx-auto flex w-full max-w-[900px] flex-col gap-6 px-4 py-8 lg:px-14">
         <div>
           <h1 className="text-title font-bold tracking-tight">Shared</h1>
           <p className="mt-1 max-w-[64ch] text-body text-muted">
@@ -68,7 +68,7 @@ export default async function SharesPage() {
             body="Add documents to a share from a search, an item, or the inbox, and they gather into a basket at the bottom of the screen."
           />
         ) : (
-          <ul className="flex max-w-[900px] flex-col divide-y divide-border rounded-card border border-border bg-ground">
+          <ul className="flex flex-col divide-y divide-border rounded-card border border-border bg-ground">
             {shares.map((share) => (
               <li key={share.id}>
                 <Link href={`/shares/${share.id}`} className="flex flex-wrap items-center gap-x-4 gap-y-1 px-4 py-3 hover:bg-surface">

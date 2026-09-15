@@ -16,7 +16,7 @@ export default async function ItemsPage() {
   return (
     <>
       <TopBar />
-      <main className="flex max-w-[1192px] flex-col gap-12 px-14 py-14">
+      <main className="mx-auto flex w-full max-w-[1192px] flex-col gap-12 px-14 py-14">
         <div>
           <h1 className="text-title font-bold tracking-snug">People &amp; things</h1>
           <p className="mt-1.5 text-body text-muted">

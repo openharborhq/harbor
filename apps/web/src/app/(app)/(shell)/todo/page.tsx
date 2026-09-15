@@ -42,7 +42,7 @@ export default async function TodoPage() {
   return (
     <>
       <TopBar />
-      <main className="flex max-w-[1192px] flex-col px-14 py-11">
+      <main className="mx-auto flex w-full max-w-[1192px] flex-col px-14 py-11">
         <div className="flex flex-wrap items-end gap-6 pb-2">
           <div className="flex min-w-[320px] flex-1 flex-col gap-2">
             <h1 className="text-title font-bold tracking-snug">To do</h1>

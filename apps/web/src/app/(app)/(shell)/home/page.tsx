@@ -28,7 +28,7 @@ export default async function HomePage() {
   return (
     <>
       <TopBar />
-      <main className="flex max-w-[1192px] flex-col gap-16 px-14 py-14">
+      <main className="mx-auto flex w-full max-w-[1192px] flex-col gap-16 px-14 py-14">
         {/* Family */}
         <section className="flex flex-col gap-5">
           <SectionHeader title="Family" meta={`${plural(h.family.length, "person", "people")} · ${plural(totalRecords, "record")}`} />
