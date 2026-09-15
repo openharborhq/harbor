@@ -59,14 +59,18 @@ export function DocumentDetail({
 
   return (
     <div className="flex min-h-0 flex-1 flex-col px-5">
-      {/* Full-bleed rule, inset tabs: the line belongs to the pane, the labels to the content. */}
-      <div className="-mx-5 flex gap-5 border-b border-border px-5">
+      {/*
+        Full-bleed rule, and each tab carries its own horizontal padding rather than the row
+        spacing them with a gap. The padding is the target: a tab is a thing you point at, and at
+        `px-4` the first one's label lands where the content below it starts.
+      */}
+      <div className="-mx-5 flex border-b border-border">
         {(["details", "filing", "text", "versions", "activity"] as Tab[]).map((t) => (
           <button
             key={t}
             type="button"
             onClick={() => setTab(t)}
-            className={`-mb-px whitespace-nowrap border-b-2 pb-3 text-row font-medium ${tab === t ? "border-accent text-accent" : "border-transparent text-muted hover:text-text"}`}
+            className={`-mb-px whitespace-nowrap border-b-2 px-4 pb-3 pt-1 text-row font-medium transition-colors ${tab === t ? "border-accent text-accent" : "border-transparent text-muted hover:text-text"}`}
           >
             {t === "details" ? "Details" : t === "filing" ? "Filing" : t === "text" ? "Extracted text" : t === "versions" ? "Versions" : "Activity"}
           </button>
