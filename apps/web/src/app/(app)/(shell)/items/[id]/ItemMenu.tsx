@@ -15,6 +15,8 @@ import type { Item } from "@harbor/shared";
 export function ItemMenu({ item, onEdit }: { item: Item; onEdit: () => void }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
+  /** The menu has two faces: its items, and the question it asks before the destructive one. */
+  const [confirming, setConfirming] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const wrap = useRef<HTMLDivElement>(null);
@@ -22,10 +24,13 @@ export function ItemMenu({ item, onEdit }: { item: Item; onEdit: () => void }) {
   useEffect(() => {
     if (!open) return;
     const onDown = (e: MouseEvent) => {
-      if (!wrap.current?.contains(e.target as Node)) setOpen(false);
+      if (!wrap.current?.contains(e.target as Node)) close();
     };
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setOpen(false);
+      // Escape steps back one layer: out of the question first, then out of the menu.
+      if (e.key !== "Escape") return;
+      if (confirming) setConfirming(false);
+      else close();
     };
     document.addEventListener("mousedown", onDown);
     window.addEventListener("keydown", onKey);
@@ -33,10 +38,15 @@ export function ItemMenu({ item, onEdit }: { item: Item; onEdit: () => void }) {
       document.removeEventListener("mousedown", onDown);
       window.removeEventListener("keydown", onKey);
     };
-  }, [open]);
+  }, [open, confirming]);
+
+  function close() {
+    setOpen(false);
+    setConfirming(false);
+  }
 
   async function removePhoto() {
-    setOpen(false);
+    close();
     setBusy(true);
     setError(null);
     try {
@@ -54,7 +64,7 @@ export function ItemMenu({ item, onEdit }: { item: Item; onEdit: () => void }) {
     <div ref={wrap} className="relative shrink-0">
       <button
         type="button"
-        onClick={() => setOpen((v) => !v)}
+        onClick={() => (open ? close() : setOpen(true))}
         disabled={busy}
         aria-haspopup="menu"
         aria-expanded={open}
@@ -68,7 +78,7 @@ export function ItemMenu({ item, onEdit }: { item: Item; onEdit: () => void }) {
         </svg>
       </button>
 
-      {open && (
+      {open && !confirming && (
         <div
           role="menu"
           className="absolute right-0 top-full z-20 mt-1 w-[200px] overflow-hidden rounded-lg border border-border bg-ground py-1 shadow-[0_8px_24px_rgba(13,22,34,0.14)]"
@@ -77,7 +87,7 @@ export function ItemMenu({ item, onEdit }: { item: Item; onEdit: () => void }) {
             type="button"
             role="menuitem"
             onClick={() => {
-              setOpen(false);
+              close();
               onEdit();
             }}
             className="flex w-full items-center px-3 py-2 text-left text-row transition-colors hover:bg-surface"
@@ -88,12 +98,36 @@ export function ItemMenu({ item, onEdit }: { item: Item; onEdit: () => void }) {
             <button
               type="button"
               role="menuitem"
-              onClick={() => void removePhoto()}
+              onClick={() => setConfirming(true)}
               className="flex w-full items-center px-3 py-2 text-left text-row text-danger transition-colors hover:bg-surface"
             >
-              Remove photo
+              Remove photo…
             </button>
           )}
+        </div>
+      )}
+
+      {/*
+        Asked in the menu's own place rather than over the page. It is a small, undoable-by-redoing
+        act — the photo can be added again — so it wants a question, not a dialog that takes the
+        screen. Keeping is the quiet default; removing has to be chosen twice.
+      */}
+      {open && confirming && (
+        <div className="absolute right-0 top-full z-20 mt-1 w-[240px] rounded-lg border border-border bg-ground p-3 shadow-[0_8px_24px_rgba(13,22,34,0.14)]">
+          <p className="text-row font-semibold">Remove the photo?</p>
+          <p className="mt-1 text-small text-muted">{item.label} goes back to initials. You can add another later.</p>
+          <div className="mt-3 flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => void removePhoto()}
+              className="h-8 rounded-md bg-danger px-3 text-row font-semibold text-white transition-opacity hover:opacity-90"
+            >
+              Remove
+            </button>
+            <button type="button" onClick={() => setConfirming(false)} className="h-8 rounded-md px-2 text-row font-medium text-muted hover:text-text">
+              Keep it
+            </button>
+          </div>
         </div>
       )}
 
