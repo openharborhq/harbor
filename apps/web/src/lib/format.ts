@@ -22,6 +22,18 @@ export function formatDate(iso: string | null): string {
   return new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
 }
 
+/**
+ * The same date, numerically — 03/14/2025.
+ *
+ * For places where a date shares a line with something else and must not wrap: "14 Mar 2025" is
+ * nicer to read on its own, and three characters too wide when a card has to fit "Expires …" and
+ * an action beside it.
+ */
+export function formatDateNumeric(iso: string | null): string {
+  if (!iso) return "—";
+  return new Date(iso).toLocaleDateString("en-US", { month: "2-digit", day: "2-digit", year: "numeric" });
+}
+
 export function pages(n: number | null): string {
   if (n === null) return "";
   return n === 1 ? "1 page" : `${n} pages`;

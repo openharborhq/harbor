@@ -64,9 +64,13 @@ export function AvatarPicker({ item }: { item: Item }) {
         className="group relative rounded-pill"
         aria-label={item.avatarUpdatedAt ? `Change the photo of ${item.label}` : `Add a photo of ${item.label}`}
       >
-        <ItemAvatar item={item} size={88} textSize="text-[32px]" />
-        <span className="absolute inset-0 flex items-end justify-center rounded-pill bg-text/55 pb-2 text-label font-semibold text-white opacity-0 transition-opacity group-hover:opacity-100">
-          {item.avatarUpdatedAt ? "Change" : "Add photo"}
+        <ItemAvatar item={item} size={56} textSize="text-[20px]" />
+        {/* At 56px there is no room for two words under a face; the icon says it instead. */}
+        <span className="absolute inset-0 flex items-center justify-center rounded-pill bg-text/55 text-white opacity-0 transition-opacity group-hover:opacity-100">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="size-5" aria-hidden="true">
+            <path d="M3 8a2 2 0 0 1 2-2h2l1.5-2h7L17 6h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8Z" />
+            <circle cx="12" cy="12.5" r="3.2" />
+          </svg>
         </span>
       </button>
 

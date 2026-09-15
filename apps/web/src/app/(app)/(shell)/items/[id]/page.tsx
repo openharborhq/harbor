@@ -7,7 +7,7 @@ import { ListStatusPill } from "@/components/StatusPill";
 import { BackLink } from "@/components/BackLink";
 import { TopBar } from "@/components/shell/TopBar";
 import { ApiError, apiFetch } from "@/lib/api-server";
-import { ageFrom, formatDate, formatRelative } from "@/lib/format";
+import { formatDate, formatRelative } from "@/lib/format";
 import { AvatarPicker } from "./AvatarPicker";
 import { DeleteItem } from "./DeleteItem";
 import { ItemHeader } from "./ItemHeader";
@@ -60,12 +60,17 @@ export default async function ItemPage(props: PageProps<"/items/[id]">) {
             )}
           </div>
 
-          <div className="flex items-start gap-6">
-            <AvatarPicker item={item} />
-            <div className="flex min-w-0 flex-1 flex-col">
-              <ItemHeader item={item} headline={headline(item)} />
-              <ItemParent item={item} candidates={parentOptions} />
+          <div>
+            {/*
+              Centred on the name, not on the column. "Inside X" sits below the pair rather than
+              beside the face, because centring the avatar against two lines of different weight
+              aligns it with the gap between them and looks a few pixels low against the name.
+            */}
+            <div className="flex items-center gap-4">
+              <AvatarPicker item={item} />
+              <ItemHeader item={item} />
             </div>
+            <ItemParent item={item} candidates={parentOptions} />
           </div>
         </div>
 
@@ -96,7 +101,9 @@ export default async function ItemPage(props: PageProps<"/items/[id]">) {
 
         <section className="flex flex-col gap-4">
           <div className="flex items-baseline justify-between">
-            <h2 className="text-section font-bold tracking-snug">All records</h2>
+            <h2 className="text-section font-bold tracking-snug">
+              All records <span className="font-normal text-muted">· {documents.length}</span>
+            </h2>
             <CategoryChips itemId={item.id} total={documents.length} counts={counts} active={filter} />
           </div>
           {shown.length === 0 && (
@@ -145,16 +152,6 @@ function descendantsOf(rootId: string, all: Item[]): Set<string> {
   return out;
 }
 
-function headline(item: Item): string {
-  const bits: (string | null)[] = [ITEM_KIND_LABEL[item.kind].one, itemSubtitle(item)];
-  const dob = item.details.dateOfBirth;
-  if (item.kind === "person" && typeof dob === "string" && dob) {
-    const age = ageFrom(dob);
-    bits.push(`born ${formatDate(dob)}${age !== null ? ` · ${age} years old` : ""}`);
-  }
-  bits.push(`${item.documentCount} record${item.documentCount === 1 ? "" : "s"}`);
-  return bits.filter(Boolean).join(" · ");
-}
 
 /**
  * Category chips over the records table.

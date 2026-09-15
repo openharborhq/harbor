@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import type { KeyDocumentSlot } from "@harbor/shared";
 import { api } from "@/lib/api-client";
-import { daysUntil, formatDate } from "@/lib/format";
+import { daysUntil, formatDateNumeric } from "@/lib/format";
 
 /**
  * Key-document slots. A card carries what you came for — what it is, what it is called, when it
@@ -44,7 +44,13 @@ export function KeyDocuments({ itemId, slots, candidates }: { itemId: string; sl
         const days = s.document?.expiresAt ? daysUntil(s.document.expiresAt) : null;
         if (s.document) {
           // A date earns its line only when it says something: an expiry, or the date on the paper.
-          const when = s.document.expiresAt ? (days! <= 0 ? "Expired" : `Expires ${formatDate(s.document.expiresAt)}`) : s.document.documentDate ? formatDate(s.document.documentDate) : null;
+          const when = s.document.expiresAt
+            ? days! <= 0
+              ? "Expired"
+              : `Expires ${formatDateNumeric(s.document.expiresAt)}`
+            : s.document.documentDate
+              ? formatDateNumeric(s.document.documentDate)
+              : null;
           return (
             <div key={s.id} className="group flex min-h-[116px] flex-col rounded-lg border border-border p-4 transition-colors hover:border-border-strong">
               <div className="label">{s.kind}</div>
@@ -52,7 +58,12 @@ export function KeyDocuments({ itemId, slots, candidates }: { itemId: string; sl
                 {s.document.title}
               </Link>
               <div className="mt-auto flex items-end justify-between gap-2 pt-3">
-                <span className={`text-small ${days !== null && days <= 90 ? "font-medium text-warn" : "text-muted"}`}>{when}</span>
+                {/* One line, always: "Expires 03/14/2025" wrapping under itself made the card ragged. */}
+                <span
+                  className={`min-w-0 truncate whitespace-nowrap text-small ${days !== null && days <= 90 ? "font-medium text-warn" : "text-muted"}`}
+                >
+                  {when}
+                </span>
                 <button type="button" onClick={() => link(s, null)} className={`shrink-0 text-small text-muted hover:text-text ${REVEAL}`}>
                   Unlink
                 </button>

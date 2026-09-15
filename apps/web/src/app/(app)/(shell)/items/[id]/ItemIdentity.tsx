@@ -11,12 +11,10 @@ import { api } from "@/lib/api-client";
  */
 export function ItemIdentity({
   item,
-  headline,
   editing,
   onEditingChange,
 }: {
   item: Item;
-  headline: string;
   /** Owned by `ItemHeader`, because the menu is what opens the form now. */
   editing: boolean;
   onEditingChange: (editing: boolean) => void;
@@ -55,10 +53,7 @@ export function ItemIdentity({
 
   if (!editing) {
     return (
-      <>
-        <h1 className="text-title font-bold tracking-snug">{item.label}</h1>
-        <p className="mt-1 text-body text-muted">{headline}</p>
-      </>
+      <h1 className="text-title font-bold tracking-snug">{item.label}</h1>
     );
   }
 
