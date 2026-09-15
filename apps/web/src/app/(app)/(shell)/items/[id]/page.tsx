@@ -10,7 +10,7 @@ import { ApiError, apiFetch } from "@/lib/api-server";
 import { ageFrom, formatDate, formatRelative } from "@/lib/format";
 import { AvatarPicker } from "./AvatarPicker";
 import { DeleteItem } from "./DeleteItem";
-import { ItemIdentity } from "./ItemIdentity";
+import { ItemHeader } from "./ItemHeader";
 import { ItemParent } from "./ItemParent";
 import { KeyDocuments } from "./KeyDocuments";
 
@@ -40,24 +40,32 @@ export default async function ItemPage(props: PageProps<"/items/[id]">) {
     <>
       <TopBar />
       <main className="flex max-w-[1192px] flex-col gap-12 px-14 py-14">
-        <div className="flex items-center gap-6">
-          <AvatarPicker item={item} />
-          <div>
-            <div className="flex items-center gap-2 text-small font-medium">
-              <BackLink href="/items" className="text-accent">
-                ← People &amp; things
-              </BackLink>
-              {item.parentId && (
-                <>
-                  <span className="text-muted">/</span>
-                  <Link href={`/items/${item.parentId}`} className="text-accent">
-                    {item.parentLabel}
-                  </Link>
-                </>
-              )}
+        <div className="flex flex-col gap-5">
+          {/*
+            Where you came from sits above what you arrived at, across the whole block. Tucked
+            beside the name it read as part of the title, which is the one thing on this page that
+            is not navigation.
+          */}
+          <div className="flex items-center gap-2 text-small font-medium">
+            <BackLink href="/items" className="text-accent">
+              ← People &amp; things
+            </BackLink>
+            {item.parentId && (
+              <>
+                <span className="text-muted">/</span>
+                <Link href={`/items/${item.parentId}`} className="text-accent">
+                  {item.parentLabel}
+                </Link>
+              </>
+            )}
+          </div>
+
+          <div className="flex items-start gap-6">
+            <AvatarPicker item={item} />
+            <div className="flex min-w-0 flex-1 flex-col">
+              <ItemHeader item={item} headline={headline(item)} />
+              <ItemParent item={item} candidates={parentOptions} />
             </div>
-            <ItemIdentity item={item} headline={headline(item)} />
-            <ItemParent item={item} candidates={parentOptions} />
           </div>
         </div>
 

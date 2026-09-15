@@ -9,9 +9,19 @@ import { api } from "@/lib/api-client";
  * The item's name and its kind-specific details. Both were set once at creation with no way back
  * — an address changes, a plate changes, and a name typed in a hurry is worth fixing.
  */
-export function ItemIdentity({ item, headline }: { item: Item; headline: string }) {
+export function ItemIdentity({
+  item,
+  headline,
+  editing,
+  onEditingChange,
+}: {
+  item: Item;
+  headline: string;
+  /** Owned by `ItemHeader`, because the menu is what opens the form now. */
+  editing: boolean;
+  onEditingChange: (editing: boolean) => void;
+}) {
   const router = useRouter();
-  const [editing, setEditing] = useState(false);
   const [label, setLabel] = useState(item.label);
   const [details, setDetails] = useState<Record<string, string>>(
     Object.fromEntries(Object.entries(item.details).map(([k, v]) => [k, typeof v === "string" ? v : String(v ?? "")])),
@@ -27,7 +37,7 @@ export function ItemIdentity({ item, headline }: { item: Item; headline: string 
     try {
       const clean = Object.fromEntries(Object.entries(details).filter(([, v]) => v.trim() !== ""));
       await api(`/items/${item.id}`, { method: "PATCH", body: JSON.stringify({ label: label.trim(), details: clean }) });
-      setEditing(false);
+      onEditingChange(false);
       router.refresh();
     } catch (err) {
       setError((err as Error).message);
@@ -40,18 +50,13 @@ export function ItemIdentity({ item, headline }: { item: Item; headline: string 
     setLabel(item.label);
     setDetails(Object.fromEntries(Object.entries(item.details).map(([k, v]) => [k, typeof v === "string" ? v : String(v ?? "")])));
     setError(null);
-    setEditing(false);
+    onEditingChange(false);
   }
 
   if (!editing) {
     return (
       <>
-        <h1 className="mt-1 flex items-baseline gap-3 text-title font-bold tracking-snug">
-          {item.label}
-          <button type="button" onClick={() => setEditing(true)} className="text-small font-medium text-accent">
-            Edit
-          </button>
-        </h1>
+        <h1 className="text-title font-bold tracking-snug">{item.label}</h1>
         <p className="mt-1 text-body text-muted">{headline}</p>
       </>
     );

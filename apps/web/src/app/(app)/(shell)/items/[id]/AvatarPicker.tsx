@@ -50,20 +50,6 @@ export function AvatarPicker({ item }: { item: Item }) {
     }
   }
 
-  async function remove() {
-    setBusy(true);
-    setError(null);
-    try {
-      const res = await fetch(`/api/items/${item.id}/avatar`, { method: "DELETE", credentials: "same-origin" });
-      if (!res.ok) throw new Error(`Could not remove the photo (${res.status})`);
-      router.refresh();
-    } catch (err) {
-      setError((err as Error).message);
-    } finally {
-      setBusy(false);
-    }
-  }
-
   function close() {
     if (source) URL.revokeObjectURL(source);
     setSource(null);
@@ -71,7 +57,7 @@ export function AvatarPicker({ item }: { item: Item }) {
   }
 
   return (
-    <div className="flex flex-col items-center gap-2">
+    <div className="shrink-0">
       <button
         type="button"
         onClick={() => fileInput.current?.click()}
@@ -83,12 +69,6 @@ export function AvatarPicker({ item }: { item: Item }) {
           {item.avatarUpdatedAt ? "Change" : "Add photo"}
         </span>
       </button>
-
-      {item.avatarUpdatedAt && (
-        <button type="button" onClick={remove} disabled={busy} className="text-small font-medium text-muted hover:text-danger disabled:opacity-60">
-          Remove
-        </button>
-      )}
 
       <input
         ref={fileInput}
