@@ -17,7 +17,7 @@ migrations, on purpose, because a half-reversed schema is worse than a restore. 
 wrong, follow [`docs/restore.md`](docs/restore.md) with the backup `harbor upgrade` took
 immediately before it. That is why the upgrade refuses to run without one.
 
-## Unreleased
+## v0.8.0 — 2026-09-15
 
 - **New feature: dark mode.** Harbor follows the machine's own light or dark setting — no toggle and
   no stored preference, because the question has already been asked once at the level where it
