@@ -15,7 +15,7 @@ import { useEffect, type ReactNode } from "react";
  * and costs a routing arrangement whose behaviour differs between a click and a refresh. This way
  * the URL is the document either way: shareable, refreshable, and back closes it.
  */
-export function DocumentOverlay({ children }: { children: ReactNode }) {
+export function DocumentOverlay({ header, children }: { header?: ReactNode; children: ReactNode }) {
   const router = useRouter();
 
   useEffect(() => {
@@ -50,19 +50,29 @@ export function DocumentOverlay({ children }: { children: ReactNode }) {
 
   return (
     <div className="fixed inset-0 z-40 flex flex-col bg-ground">
-      <header className="flex h-[60px] shrink-0 items-center justify-end px-4 lg:px-8">
+      {/*
+        The title band is the header rather than the top of the left pane: it belongs to both
+        panes, and putting it inside one of them would either shrink the preview or scroll away
+        while the details stayed.
+      */}
+      <header className="flex h-[68px] shrink-0 items-center gap-6 border-b border-border px-5 lg:px-8">
+        <div className="min-w-0 flex-1">{header}</div>
         <button
           type="button"
           onClick={close}
           aria-label="Close (Esc)"
-          className="flex size-9 items-center justify-center rounded-md text-muted transition-colors hover:bg-surface hover:text-text"
+          className="flex size-9 shrink-0 items-center justify-center rounded-md text-muted transition-colors hover:bg-surface hover:text-text"
         >
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" className="size-5" aria-hidden="true">
             <path d="M6 6l12 12M18 6L6 18" />
           </svg>
         </button>
       </header>
-      <div className="scrollbar-none min-h-0 flex-1 overflow-y-auto">{children}</div>
+      {/*
+        No scrolling here. The two panes below own the remaining height and scroll separately, so
+        reading the last page of a PDF never drags the details out of view.
+      */}
+      <div className="flex min-h-0 flex-1">{children}</div>
     </div>
   );
 }

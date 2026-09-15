@@ -59,7 +59,7 @@ export function DocumentDetail({
   }
 
   return (
-    <aside className="flex w-[420px] min-w-[360px] flex-col">
+    <div className="flex min-h-0 flex-1 flex-col">
       <div className="flex gap-5 border-b border-border">
         {(["details", "filing", "text", "versions", "activity"] as Tab[]).map((t) => (
           <button
@@ -216,7 +216,7 @@ export function DocumentDetail({
           Recently deleted
         </Link>
       </p>
-    </aside>
+    </div>
   );
 }
 

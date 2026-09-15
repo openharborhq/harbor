@@ -71,7 +71,7 @@ export function PdfPages({ url, title }: { url: string; title: string }) {
   }, [url, title]);
 
   return (
-    <div className="h-full w-full overflow-y-auto">
+    <div className="scrollbar-none h-full w-full overflow-y-auto">
       {state === "loading" && <p className="py-8 text-center text-small text-muted">Rendering the document…</p>}
       {state === "failed" && (
         <p className="py-8 text-center text-small text-muted">
