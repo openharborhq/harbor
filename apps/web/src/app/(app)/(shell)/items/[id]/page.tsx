@@ -62,10 +62,7 @@ export default async function ItemPage(props: PageProps<"/items/[id]">) {
         </div>
 
         <section className="flex flex-col gap-4">
-          <div className="flex items-baseline gap-3">
-            <h2 className="text-section font-bold tracking-snug">Key documents</h2>
-            <span className="text-body text-muted">the ones you need in a hurry</span>
-          </div>
+          <h2 className="text-section font-bold tracking-snug">Key documents</h2>
           <KeyDocuments itemId={item.id} slots={keyDocuments} candidates={documents.map((d) => ({ id: d.id, title: d.title }))} />
         </section>
 
