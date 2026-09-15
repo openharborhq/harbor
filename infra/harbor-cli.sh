@@ -123,6 +123,21 @@ case "${1:-help}" in
     # The share node lives in its own overlay, added only for this subcommand — an install that
     # never publishes never has the service at all.
     dcp() { docker compose -p "@HARBOR_PROJECT@" --env-file "@ENV_FILE@" @FILES@ -f compose.share-funnel.yml "$@"; }
+    # The name the share node actually took, which is what every link is built from.
+    #
+    # `tailscale status --json` is pretty-printed, so `"CertDomains": [` and its first entry are on
+    # different lines — and `grep` is line-based, so the pattern this used could never match. The
+    # domain came back empty on a node that was published and serving correctly: `harbor public
+    # status` said "https://unknown", and `enable` skipped writing SHARE_ORIGIN because of its own
+    # emptiness guard (2026-09-15). Whitespace goes first; a hostname contains none.
+    share_domain() {
+      _json=$(dcp exec -T tailscale-share tailscale status --json 2>/dev/null)
+      _d=$(printf '%s' "$_json" | tr -d ' \n' | grep -o '"CertDomains":\["[^"]*"' | sed 's/.*"\([^"]*\)"$/\1/')
+      # A tailnet without HTTPS certificates has no CertDomains at all. The node's own name is the
+      # same string carrying the trailing dot of its DNS form.
+      [ -n "$_d" ] || _d=$(printf '%s' "$_json" | grep -o '"DNSName": *"[^"]*"' | head -1 | sed 's/.*"\([^"]*\)"$/\1/; s/\.$//')
+      printf '%s' "$_d"
+    }
     # Spec §10.6. Turning Funnel on is the one deliberate step that puts anything on the public
     # internet, so it is a command with a confirmation rather than a setting — and the checking is
     # the command's job, not the operator's. Funnel needs no firewall change and no forwarded
@@ -169,7 +184,7 @@ case "${1:-help}" in
         # A name collision makes Tailscale append a suffix, so the hostname is NOT necessarily the
         # one asked for. Read what the node actually got; links are built from this, never from
         # the configured name.
-        _domain=$(dcp exec -T tailscale-share tailscale status --json 2>/dev/null | grep -o '"CertDomains": *\[ *"[^"]*"' | sed 's/.*"\([^"]*\)"$/\1/')
+        _domain=$(share_domain)
         echo "Share node is on the tailnet as: ${_domain:-unknown}"
 
         # Step 2: Funnel is off by default for a tailnet. When it is not permitted, the CLI
@@ -213,7 +228,7 @@ case "${1:-help}" in
         ;;
       status)
         if dcp ps --services --filter status=running 2>/dev/null | grep -q '^tailscale-share$'; then
-          _domain=$(dcp exec -T tailscale-share tailscale status --json 2>/dev/null | grep -o '"CertDomains": *\[ *"[^"]*"' | sed 's/.*"\([^"]*\)"$/\1/')
+          _domain=$(share_domain)
           echo "public: on  (https://${_domain:-unknown})"
         else
           echo "public: off — share links are not reachable from outside this machine"
