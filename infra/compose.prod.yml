@@ -14,19 +14,19 @@ services:
   redis:
     ports: !reset []
   worker:
-    image: ${HARBOR_IMAGE_PREFIX:-ghcr.io/openharborhq/harbor}-worker:${HARBOR_IMAGE_TAG:-v0.7.8}
+    image: ${HARBOR_IMAGE_PREFIX:-ghcr.io/openharborhq/harbor}-worker:${HARBOR_IMAGE_TAG:-v0.8.0}
     build: !reset null
   mailfetch:
-    image: ${HARBOR_IMAGE_PREFIX:-ghcr.io/openharborhq/harbor}-api:${HARBOR_IMAGE_TAG:-v0.7.8}
+    image: ${HARBOR_IMAGE_PREFIX:-ghcr.io/openharborhq/harbor}-api:${HARBOR_IMAGE_TAG:-v0.8.0}
     build: !reset null
   suggester:
-    image: ${HARBOR_IMAGE_PREFIX:-ghcr.io/openharborhq/harbor}-api:${HARBOR_IMAGE_TAG:-v0.7.8}
+    image: ${HARBOR_IMAGE_PREFIX:-ghcr.io/openharborhq/harbor}-api:${HARBOR_IMAGE_TAG:-v0.8.0}
     build: !reset null
   backup:
-    image: ${HARBOR_IMAGE_PREFIX:-ghcr.io/openharborhq/harbor}-backup:${HARBOR_IMAGE_TAG:-v0.7.8}
+    image: ${HARBOR_IMAGE_PREFIX:-ghcr.io/openharborhq/harbor}-backup:${HARBOR_IMAGE_TAG:-v0.8.0}
     build: !reset null
   api:
-    image: ${HARBOR_IMAGE_PREFIX:-ghcr.io/openharborhq/harbor}-api:${HARBOR_IMAGE_TAG:-v0.7.8}
+    image: ${HARBOR_IMAGE_PREFIX:-ghcr.io/openharborhq/harbor}-api:${HARBOR_IMAGE_TAG:-v0.8.0}
     build: !reset null
     ports: !reset []
     environment:
@@ -36,11 +36,11 @@ services:
   # and `up` dies on a missing build context before anything else starts. Every other service has
   # had an image override since the first release; this one was added to compose.yml and missed.
   share:
-    image: ${HARBOR_IMAGE_PREFIX:-ghcr.io/openharborhq/harbor}-share:${HARBOR_IMAGE_TAG:-v0.7.8}
+    image: ${HARBOR_IMAGE_PREFIX:-ghcr.io/openharborhq/harbor}-share:${HARBOR_IMAGE_TAG:-v0.8.0}
     build: !reset null
 
   web:
-    image: ${HARBOR_IMAGE_PREFIX:-ghcr.io/openharborhq/harbor}-web:${HARBOR_IMAGE_TAG:-v0.7.8}
+    image: ${HARBOR_IMAGE_PREFIX:-ghcr.io/openharborhq/harbor}-web:${HARBOR_IMAGE_TAG:-v0.8.0}
     build: !reset null
     # !override, not !reset: reset removes the attribute and ignores what follows it, so this
     # line published nothing and the appliance would have had no web port at all — found the
