@@ -2,12 +2,11 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { displayTitle, type ActivityEntry, type Category, type DocumentSummary, type DocumentText, type DocumentVersion, type Item, type Task } from "@harbor/shared";
 import { AutoRefresh } from "@/components/AutoRefresh";
+import { DocumentOverlay } from "@/components/DocumentOverlay";
 import { DocumentDetail } from "@/components/DocumentDetail";
 import { PdfPages } from "@/components/PdfPages";
 import { isProcessing } from "@/components/StatusPill";
 import { DocumentTitle } from "@/components/DocumentTitle";
-import { BackLink } from "@/components/BackLink";
-import { TopBar } from "@/components/shell/TopBar";
 import { ApiError, apiFetch } from "@/lib/api-server";
 
 export const metadata: Metadata = { title: "Document" };
@@ -34,16 +33,12 @@ export default async function DocumentPage(props: PageProps<"/documents/[id]">) 
   const isImage = f.mimeType.startsWith("image/");
 
   return (
-    <>
-      <TopBar />
+    <DocumentOverlay>
       <AutoRefresh active={isProcessing(f.processingStatus)} />
       {/* Wider than the other pages: this one is a viewer, and a squeezed PDF is unreadable. */}
-      <main className="mx-auto flex w-full max-w-[1400px] flex-col gap-6 px-14 py-8">
+      <main className="mx-auto flex w-full max-w-[1400px] flex-col gap-6 px-14 pb-10 pt-2">
         <div className="flex items-start justify-between gap-6">
           <div className="min-w-0">
-            <BackLink href={doc.category ? "/library" : "/inbox"} className="text-small font-medium text-accent">
-              ← {doc.category ? "Library" : "Inbox"}
-            </BackLink>
             <DocumentTitle documentId={doc.id} title={displayTitle(doc)} />
             <p className="mt-1 text-row text-muted">
               <span className={doc.category ? "text-accent" : ""}>{doc.category ? doc.category.path : "Inbox"}</span>
@@ -88,6 +83,6 @@ export default async function DocumentPage(props: PageProps<"/documents/[id]">) 
           <DocumentDetail doc={doc} text={text} versions={versions} activity={activity} categories={categories} items={items} tasks={tasks} />
         </div>
       </main>
-    </>
+    </DocumentOverlay>
   );
 }
