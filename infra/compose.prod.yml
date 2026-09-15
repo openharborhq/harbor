@@ -32,6 +32,13 @@ services:
     environment:
       WEB_ORIGIN: ${WEB_ORIGIN}
       SESSION_COOKIE_SECURE: "${SESSION_COOKIE_SECURE:-true}"
+  # Without this the appliance tries to BUILD the doorman from a source tree it does not have,
+  # and `up` dies on a missing build context before anything else starts. Every other service has
+  # had an image override since the first release; this one was added to compose.yml and missed.
+  share:
+    image: ${HARBOR_IMAGE_PREFIX:-ghcr.io/openharborhq/harbor}-share:${HARBOR_IMAGE_TAG:-v0.7.2}
+    build: !reset null
+
   web:
     image: ${HARBOR_IMAGE_PREFIX:-ghcr.io/openharborhq/harbor}-web:${HARBOR_IMAGE_TAG:-v0.7.2}
     build: !reset null

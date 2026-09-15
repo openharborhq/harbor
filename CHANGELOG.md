@@ -17,6 +17,18 @@ migrations, on purpose, because a half-reversed schema is worse than a restore. 
 wrong, follow [`docs/restore.md`](docs/restore.md) with the backup `harbor upgrade` took
 immediately before it. That is why the upgrade refuses to run without one.
 
+## v0.7.3 — 2026-09-15
+
+- **Fixed: the stack would not start on an appliance, on any v0.7.x before this one.** The doorman
+  was added to the compose file with instructions to build it from source, and nothing published an
+  image for it — so `up` stopped at a build context that does not exist on a box, before any other
+  service started. CI now builds and publishes `harbor-share` alongside the other four, and the
+  appliance's compose file pulls it like everything else. Nothing in v0.7.0 changes; this is the
+  first v0.7.x that starts.
+
+  It was invisible until an appliance tried it: locally and in CI the stack builds from the source
+  tree sitting right there, which is exactly the difference between the two.
+
 ## v0.7.2 — 2026-09-15
 
 - **Fixed: the API would not start on a volume without the new share directories.** Sharing creates
