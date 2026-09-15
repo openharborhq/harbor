@@ -8,6 +8,9 @@ COPY pnpm-lock.yaml pnpm-workspace.yaml package.json turbo.json ./
 COPY apps/api/package.json apps/api/
 COPY packages/shared/package.json packages/shared/
 COPY packages/db/package.json packages/db/
+# In the graph because the API seals share bundles with it. Without its package.json here,
+# pnpm installs none of its devDependencies and the workspace build fails on `tsc: not found`.
+COPY packages/bundle/package.json packages/bundle/
 RUN pnpm install --frozen-lockfile --filter @harbor/api...
 COPY packages ./packages
 COPY apps/api ./apps/api

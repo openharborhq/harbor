@@ -17,6 +17,14 @@ migrations, on purpose, because a half-reversed schema is worse than a restore. 
 wrong, follow [`docs/restore.md`](docs/restore.md) with the backup `harbor upgrade` took
 immediately before it. That is why the upgrade refuses to run without one.
 
+## v0.7.1 — 2026-09-15
+
+- **Fixed: the v0.7.0 images for `api`, `worker` and `backup` never built.** Sharing added a
+  workspace package that those three depend on, and their Dockerfiles copied every other package's
+  manifest before installing but not that one — so the build ran without its TypeScript and stopped
+  at `tsc: not found`. Only `web` came out of v0.7.0 intact. Everything in v0.7.0 applies; this is
+  the release that can actually be pulled.
+
 ## v0.7.0 — 2026-09-15
 
 - **New feature: document sharing.** Share files from the box itself or from a bucket, with a link
