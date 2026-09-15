@@ -120,7 +120,7 @@ export function ReviewShare({
   if (created) {
     return (
       <>
-        <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
+        <div className="scrollbar-none min-h-0 flex-1 overflow-y-auto px-6 py-5">
           <p className="text-body">
             {created.length === 1 ? "The link is" : `All ${created.length} links are`} ready. Copy{" "}
             {created.length === 1 ? "it" : "each one"} now — Harbor keeps them hashed and cannot show them again.
@@ -165,7 +165,7 @@ export function ReviewShare({
   if (basket.ready && basket.documents.length === 0) {
     return (
       <>
-        <div className="min-h-0 flex-1 overflow-y-auto px-6 py-8 text-center">
+        <div className="scrollbar-none min-h-0 flex-1 overflow-y-auto px-6 py-8 text-center">
           <p className="text-body text-muted">Nothing selected. Tick documents in any list — a search, an item, the inbox — to share them.</p>
         </div>
         <Footer>
@@ -184,7 +184,7 @@ export function ReviewShare({
 
   return (
     <>
-      <div className="min-h-0 flex-1 overflow-y-auto">
+      <div className="scrollbar-none min-h-0 flex-1 overflow-y-auto">
         {/*
           Name and duration first: they describe the share itself, and answering them before
           scrolling a list is the order someone actually thinks in.
@@ -246,7 +246,7 @@ export function ReviewShare({
               Clear all
             </button>
           </div>
-          <ul className="h-[152px] overflow-y-auto rounded-lg border border-border">
+          <ul className="scrollbar-none h-[152px] overflow-y-auto rounded-lg border border-border">
             {basket.documents.map((doc) => {
               const active = preview?.id === doc.id;
               return (

@@ -41,7 +41,7 @@ export function RecentDocuments({ initial }: { initial: RecentDocument[] }) {
     <div className="mt-8 flex shrink-0 flex-col">
       <div className="label px-3">Recent</div>
       <ul
-        className={`mt-2 flex flex-col ${recent.length > VISIBLE ? "overflow-y-auto" : ""}`}
+        className={`mt-2 flex flex-col ${recent.length > VISIBLE ? "scrollbar-none overflow-y-auto" : ""}`}
         style={recent.length > VISIBLE ? { maxHeight: VISIBLE * ROW_PX } : undefined}
       >
         {recent.map((r) => {

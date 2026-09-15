@@ -120,7 +120,7 @@ export function DocumentPicker({
         className="h-9 w-full rounded-md border border-border-strong px-3 text-row outline-none focus:border-accent"
       />
       {open && (
-        <div className="absolute left-0 top-10 z-20 max-h-72 w-[380px] overflow-y-auto rounded-md border border-border bg-ground p-1 shadow-lg">
+        <div className="scrollbar-none absolute left-0 top-10 z-20 max-h-72 w-[380px] overflow-y-auto rounded-md border border-border bg-ground p-1 shadow-lg">
           <div className="label px-2.5 py-1.5">{heading}</div>
           {list.map((c) => (
             <button

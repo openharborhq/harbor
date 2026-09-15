@@ -13,7 +13,7 @@ import { SettingsNav } from "./SettingsNav";
 export default function SettingsLayout({ children }: LayoutProps<"/settings">) {
   return (
     <div className="flex min-h-screen bg-ground">
-      <aside className="sticky top-0 flex h-screen w-sidebar shrink-0 flex-col gap-[26px] overflow-y-auto border-r border-border bg-surface px-5 pt-[26px] pb-6">
+      <aside className="scrollbar-none sticky top-0 flex h-screen w-sidebar shrink-0 flex-col gap-[26px] overflow-y-auto border-r border-border bg-surface px-5 pt-[26px] pb-6">
         <Link href="/home" className="-ml-1.5 flex h-[30px] shrink-0 items-center gap-2 rounded-md px-1.5 text-row font-medium text-muted hover:bg-ground hover:text-text">
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none" className="shrink-0">
             <path d="M10 3.5L5.5 8L10 12.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />

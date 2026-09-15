@@ -83,7 +83,7 @@ export function Sidebar({
             </svg>
           </button>
         </div>
-        <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
+        <div className="scrollbar-none flex min-h-0 flex-1 flex-col overflow-y-auto">
         <nav className="mt-9 flex flex-col gap-1">
           {NAV.map((item) => {
             const active = pathname === item.href || pathname.startsWith(`${item.href}/`);

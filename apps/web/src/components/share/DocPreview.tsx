@@ -39,7 +39,7 @@ export function DocPreview({ document: doc }: { document: BasketDocument | null 
         </div>
       </header>
 
-      <div className="min-h-0 flex-1 overflow-y-auto p-5">
+      <div className="scrollbar-none min-h-0 flex-1 overflow-y-auto p-5">
         {failed ? (
           <p className="pt-8 text-center text-small text-muted">
             No preview for this one yet. It is still included in the share.

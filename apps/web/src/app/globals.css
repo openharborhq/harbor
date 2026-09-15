@@ -73,6 +73,24 @@ mark {
   padding: 0 2px;
 }
 
+/*
+ * Scroll without the bar.
+ *
+ * For panels that scroll *inside* the interface — the sidebar, a dialog, a picker. On a Mac set to
+ * "always show scroll bars", every one of these grows a heavy inset track that reads as a border
+ * inside a component that already has one.
+ *
+ * Deliberately not applied to the page itself: the window's scrollbar is the only thing telling
+ * someone how much document is below them, and a list of two hundred is exactly when that matters.
+ */
+.scrollbar-none {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+
 /* Small uppercase field labels used throughout the design. */
 .label {
   font-size: var(--text-label);

@@ -105,7 +105,7 @@ export function ItemPicker({
               className="w-full bg-transparent text-row outline-none placeholder:text-muted"
             />
           </label>
-          <div className="max-h-[320px] overflow-y-auto">
+          <div className="scrollbar-none max-h-[320px] overflow-y-auto">
             <Groups items={items} query={query} selected={selected} onToggle={toggle} />
           </div>
           <Link href="/items" className="mt-1.5 border-t border-border px-3 pb-1 pt-2.5 text-row font-medium text-accent">
