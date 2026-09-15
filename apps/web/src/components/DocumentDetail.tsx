@@ -58,8 +58,9 @@ export function DocumentDetail({
   }
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col">
-      <div className="flex gap-5 border-b border-border">
+    <div className="flex min-h-0 flex-1 flex-col px-5">
+      {/* Full-bleed rule, inset tabs: the line belongs to the pane, the labels to the content. */}
+      <div className="-mx-5 flex gap-5 border-b border-border px-5">
         {(["details", "filing", "text", "versions", "activity"] as Tab[]).map((t) => (
           <button
             key={t}

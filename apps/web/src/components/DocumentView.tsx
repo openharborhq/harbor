@@ -105,14 +105,21 @@ export async function DocumentView({ id, variant }: { id: string; variant: "page
         </div>
       </div>
 
-      {/* Its own scroll: five tabs of metadata should never push the document out of view. */}
+      {/*
+        Its own scroll: five tabs of metadata should never push the document out of view.
+
+        No horizontal padding here — the panel inside insets its own content, so the tab rule can
+        run the full width of the pane. The floor is set by the tablist: 364px of tabs, 40 of inset,
+        and 420 leaves that comfortable rather than exact. At 360 with this pane's old px-6 there
+        were 312px for 364px of tabs, and "Activity" was simply cut off.
+      */}
       {/*
         Thirty per cent of the window, not a fixed 420px. The preview is the reason this view
         exists and should grow with the screen; a details column that stayed put turned a wide
         monitor into a wide document and the same narrow panel. The floor is what the widest field
         label and a date need side by side.
       */}
-      <aside className="scrollbar-none flex w-[30%] min-w-[360px] shrink-0 flex-col overflow-y-auto border-l border-border px-6 py-5">
+      <aside className="scrollbar-none flex w-[30%] min-w-[420px] shrink-0 flex-col overflow-y-auto border-l border-border py-5">
         <DocumentDetail doc={doc} text={text} versions={versions} activity={activity} categories={categories} items={items} tasks={tasks} />
       </aside>
     </DocumentFrame>
