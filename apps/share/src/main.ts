@@ -130,8 +130,13 @@ function page(title: string, body: string, status = 200, res?: ServerResponse): 
   return `<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>${esc(title)}</title><style>
-:root{color-scheme:light dark;--ground:#fff;--surface:#f2f5f9;--border:#dce3ec;--text:#0d1622;--muted:#586471;--accent:#123fa8}
-@media(prefers-color-scheme:dark){:root{--ground:#0a0f18;--surface:#111a27;--border:#25334a;--text:#e9eef6;--muted:#9aa8bb;--accent:#7ba4ff}}
+/* Harbor's palette, the same values as the app, the site and the bucket landing page. This file
+   carried a fourth near-copy of it, drifted a shade or two on every colour (2026-09-15).
+   --fill and --danger are why it matters: this page had white on the lifted --accent at 2.44:1 for
+   its Download button, and a hardcoded #a33125 error at 2.59:1 — the sentence that tells a stranger
+   why their password did not work, in the dark, on the only page of Harbor they will ever see. */
+:root{color-scheme:light dark;--ground:#fff;--surface:#f2f5f9;--border:#dce3ec;--text:#0d1622;--muted:#586471;--accent:#123fa8;--fill:#123fa8;--danger:#a33125}
+@media(prefers-color-scheme:dark){:root{--ground:#0f1723;--surface:#162031;--border:#243349;--text:#e6ecf5;--muted:#a7b4c6;--accent:#7ea6ff;--danger:#f08375}}
 *{box-sizing:border-box}body{margin:0;background:var(--surface);color:var(--text);font:15px/22px -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;-webkit-font-smoothing:antialiased}
 main{max-width:520px;margin:0 auto;padding:48px 20px}
 .card{background:var(--ground);border:1px solid var(--border);border-radius:18px;padding:28px}
@@ -140,8 +145,8 @@ p{margin:0 0 14px;color:var(--muted)}p.lead{color:var(--text)}
 .meta{font-size:13px;color:var(--muted);margin:0 0 20px}
 label{display:block;font-size:13px;font-weight:600;margin:0 0 6px}
 input{width:100%;font:inherit;padding:10px 12px;border:1px solid var(--border);border-radius:8px;background:var(--ground);color:var(--text);margin-bottom:16px}
-button{font:inherit;font-weight:600;background:var(--accent);color:#fff;border:0;border-radius:8px;padding:11px 20px;cursor:pointer}
-.err{color:#a33125;font-size:13px;margin:-8px 0 14px}
+button{font:inherit;font-weight:600;background:var(--fill);color:#fff;border:0;border-radius:8px;padding:11px 20px;cursor:pointer}
+.err{color:var(--danger);font-size:13px;margin:-8px 0 14px}
 footer{margin-top:22px;font-size:12px;color:var(--muted);text-align:center}
 </style></head><body><main><div class="card">${body}</div>
 <footer>Sent with Harbor</footer></main></body></html>`;

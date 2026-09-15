@@ -17,6 +17,15 @@ migrations, on purpose, because a half-reversed schema is worse than a restore. 
 wrong, follow [`docs/restore.md`](docs/restore.md) with the backup `harbor upgrade` took
 immediately before it. That is why the upgrade refuses to run without one.
 
+## v0.8.1 — 2026-09-15
+
+- **Fixed: the share page a recipient opens was still on its own palette, with two colours too faint
+  to read in dark mode.** v0.8.0 aligned the page used for bucket delivery and missed the doorman's
+  own, which is the one behind every link this box serves. Its Download button was white on the
+  lightened accent at 2.44:1, and its error line — the sentence that tells someone why their
+  password did not work — was a fixed dark red at 2.59:1 on a dark ground. Both now come from the
+  same palette as everything else, at 9.12:1 and 7.03:1.
+
 ## v0.8.0 — 2026-09-15
 
 - **New feature: dark mode.** Harbor follows the machine's own light or dark setting — no toggle and
