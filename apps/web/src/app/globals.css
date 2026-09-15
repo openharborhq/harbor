@@ -74,6 +74,54 @@ mark {
 }
 
 /*
+ * Dialog motion.
+ *
+ * Keyed off Radix's `data-state`, which is also what keeps an exiting dialog mounted until its
+ * animation ends — without a closing animation it would vanish on the frame the state changed.
+ *
+ * Short and small: 140ms in, 110ms out, and a panel that rises 8px rather than flying. A document
+ * opening is a small act repeated all day, and anything longer becomes a wait. Out is quicker
+ * than in, because by then the decision is made.
+ */
+@keyframes harbor-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes harbor-fade-out {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+@keyframes harbor-panel-in {
+  from { opacity: 0; transform: translateY(8px) scale(0.99); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes harbor-panel-out {
+  from { opacity: 1; transform: none; }
+  to { opacity: 0; transform: translateY(4px) scale(0.995); }
+}
+
+.dialog-overlay[data-state="open"] {
+  animation: harbor-fade-in 140ms ease-out;
+}
+.dialog-overlay[data-state="closed"] {
+  animation: harbor-fade-out 110ms ease-in;
+}
+.dialog-panel[data-state="open"] {
+  animation: harbor-panel-in 140ms cubic-bezier(0.2, 0.8, 0.3, 1);
+}
+.dialog-panel[data-state="closed"] {
+  animation: harbor-panel-out 110ms ease-in;
+}
+
+/* Someone who asked for less motion gets the state change, not the journey. */
+@media (prefers-reduced-motion: reduce) {
+  .dialog-overlay[data-state],
+  .dialog-panel[data-state] {
+    animation-duration: 1ms;
+  }
+}
+
+/*
  * Scroll without the bar.
  *
  * For panels that scroll *inside* the interface — the sidebar, a dialog, a picker. On a Mac set to

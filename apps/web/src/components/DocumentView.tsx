@@ -38,6 +38,7 @@ export async function DocumentView({ id, variant }: { id: string; variant: "page
   return (
     <DocumentFrame
       variant={variant}
+      title={displayTitle(doc)}
       header={
         <div className="flex min-w-0 items-center justify-between gap-5">
           <div className="min-w-0">

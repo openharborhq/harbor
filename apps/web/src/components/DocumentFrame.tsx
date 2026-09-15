@@ -1,5 +1,6 @@
 "use client";
 
+import * as Dialog from "@radix-ui/react-dialog";
 import { useRouter } from "next/navigation";
 import { useEffect, type ReactNode } from "react";
 
@@ -15,35 +16,26 @@ import { useEffect, type ReactNode } from "react";
  * down rather than navigating. Reached by a link, a bookmark or a refresh there is no list behind
  * it to preserve, so it is a **page** and takes the window; framing emptiness would be worse than
  * filling it.
+ *
+ * The modal is a Radix dialog rather than a hand-rolled layer. What that buys is the part nobody
+ * sees: focus moves in and is trapped, the page behind is hidden from screen readers, scroll is
+ * locked without the layout shifting as the scrollbar goes, and focus returns to whatever opened
+ * it. It also exposes `data-state`, which is what lets a closing dialog animate out instead of
+ * disappearing on the frame it was dismissed.
  */
 export function DocumentFrame({
   variant,
   header,
+  title,
   children,
 }: {
   variant: "page" | "modal";
   header?: ReactNode;
+  /** Names the dialog for a screen reader; the visible title is inside `header`. */
+  title: string;
   children: ReactNode;
 }) {
   const router = useRouter();
-
-  useEffect(() => {
-    // The page underneath must not scroll while this is over it.
-    const previous = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    const onKey = (e: KeyboardEvent) => {
-      // Not while someone is typing a title or a note — Escape there belongs to the field.
-      const el = document.activeElement;
-      const typing = el instanceof HTMLElement && (el.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(el.tagName));
-      if (e.key === "Escape" && !typing) close();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => {
-      document.body.style.overflow = previous;
-      window.removeEventListener("keydown", onKey);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
   /**
    * Back where you came from, or the library.
@@ -57,20 +49,8 @@ export function DocumentFrame({
     else router.push("/library");
   }
 
-  /** Only a press that begins on the backdrop, so a drag out of the document does not close it. */
-  function backdrop(e: React.MouseEvent) {
-    if (e.target === e.currentTarget) close();
-  }
-
-  const frame =
-    variant === "modal"
-      ? // Inset: enough of the app shows around it to say what you are on top of.
-        "absolute inset-4 rounded-card border border-border shadow-[0_24px_64px_rgba(13,22,34,0.28)] lg:inset-8"
-      : "absolute inset-0";
-
-  return (
-    <div className={variant === "modal" ? "fixed inset-0 z-40 bg-text/40" : "fixed inset-0 z-40"} onMouseDown={variant === "modal" ? backdrop : undefined}>
-      <div className={`${frame} flex flex-col overflow-hidden bg-ground`}>
+  const body = (
+    <>
       {/*
         The title band is the header rather than the top of the left pane: it belongs to both
         panes, and putting it inside one of them would either shrink the preview or scroll away
@@ -78,23 +58,87 @@ export function DocumentFrame({
       */}
       <header className="flex h-[68px] shrink-0 items-center gap-6 border-b border-border px-5 lg:px-8">
         <div className="min-w-0 flex-1">{header}</div>
-        <button
-          type="button"
-          onClick={close}
-          aria-label="Close (Esc)"
-          className="flex size-9 shrink-0 items-center justify-center rounded-md text-muted transition-colors hover:bg-surface hover:text-text"
-        >
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" className="size-5" aria-hidden="true">
-            <path d="M6 6l12 12M18 6L6 18" />
-          </svg>
-        </button>
+        {variant === "modal" ? (
+          <Dialog.Close
+            aria-label="Close (Esc)"
+            className="flex size-9 shrink-0 items-center justify-center rounded-md text-muted transition-colors hover:bg-surface hover:text-text"
+          >
+            <CloseIcon />
+          </Dialog.Close>
+        ) : (
+          <button
+            type="button"
+            onClick={close}
+            aria-label="Close (Esc)"
+            className="flex size-9 shrink-0 items-center justify-center rounded-md text-muted transition-colors hover:bg-surface hover:text-text"
+          >
+            <CloseIcon />
+          </button>
+        )}
       </header>
       {/*
         No scrolling here. The two panes below own the remaining height and scroll separately, so
         reading the last page of a PDF never drags the details out of view.
       */}
       <div className="flex min-h-0 flex-1">{children}</div>
-      </div>
-    </div>
+    </>
+  );
+
+  if (variant === "page") {
+    // Not a dialog: there is nothing behind it to trap focus away from, and a page that announced
+    // itself as modal would be lying to a screen reader.
+    return <PageFrame onClose={close}>{body}</PageFrame>;
+  }
+
+  return (
+    <Dialog.Root
+      open
+      onOpenChange={(next) => {
+        // Radix reports Escape, the close button and an outside press the same way. Closing is a
+        // navigation here, so the route is what actually dismisses it.
+        if (!next) close();
+      }}
+    >
+      <Dialog.Portal>
+        <Dialog.Overlay className="dialog-overlay fixed inset-0 z-40 bg-text/40" />
+        <Dialog.Content
+          className="dialog-panel fixed inset-4 z-50 flex flex-col overflow-hidden rounded-card border border-border bg-ground shadow-[0_24px_64px_rgba(13,22,34,0.28)] outline-none lg:inset-8"
+          // The document is the thing to read; the frame should not read its own title aloud first.
+          onOpenAutoFocus={(e) => e.preventDefault()}
+        >
+          <Dialog.Title className="sr-only">{title}</Dialog.Title>
+          {body}
+        </Dialog.Content>
+      </Dialog.Portal>
+    </Dialog.Root>
+  );
+}
+
+/** The full-window variant: same bands, no dialog semantics, Escape by hand. */
+function PageFrame({ onClose, children }: { onClose: () => void; children: ReactNode }) {
+  useEffect(() => {
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const onKey = (e: KeyboardEvent) => {
+      // Not while someone is typing a title or a note — Escape there belongs to the field.
+      const el = document.activeElement;
+      const typing = el instanceof HTMLElement && (el.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(el.tagName));
+      if (e.key === "Escape" && !typing) onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => {
+      document.body.style.overflow = previous;
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [onClose]);
+
+  return <div className="fixed inset-0 z-40 flex flex-col bg-ground">{children}</div>;
+}
+
+function CloseIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" className="size-5" aria-hidden="true">
+      <path d="M6 6l12 12M18 6L6 18" />
+    </svg>
   );
 }
