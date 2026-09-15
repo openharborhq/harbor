@@ -17,6 +17,29 @@ export function formatRelative(iso: string, now = Date.now()): string {
   return new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
 }
 
+/**
+ * How much of a deadline is left — "6 days left", "18 hours left".
+ *
+ * `formatRelative` cannot answer this: it clamps to the past, so a date in the future comes back
+ * as "just now". Every active share read "until just now" until this existed.
+ */
+export function formatTimeLeft(iso: string, now = Date.now()): string {
+  const ms = new Date(iso).getTime() - now;
+  if (ms <= 0) return "no time left";
+  const minutes = Math.round(ms / 60_000);
+  if (minutes < 1) return "under a minute left";
+  if (minutes < 60) return `${minutes} minute${minutes === 1 ? "" : "s"} left`;
+  const hours = Math.round(minutes / 60);
+  if (hours < 48) return `${hours} hour${hours === 1 ? "" : "s"} left`;
+  return `${Math.round(hours / 24)} days left`;
+}
+
+/** Inside a day: worth drawing attention to, because a share this close is about to stop working. */
+export function endingSoon(iso: string, now = Date.now()): boolean {
+  const ms = new Date(iso).getTime() - now;
+  return ms > 0 && ms < 24 * 60 * 60 * 1000;
+}
+
 export function formatDate(iso: string | null): string {
   if (!iso) return "—";
   return new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });

@@ -5,7 +5,7 @@ import { SHARE_EVENT_LABEL, type ShareAccessEvent, type ShareDelivery, type Shar
 import { BackLink } from "@/components/BackLink";
 import { TopBar } from "@/components/shell/TopBar";
 import { ApiError, apiFetch } from "@/lib/api-server";
-import { formatBytes, formatRelative } from "@/lib/format";
+import { formatBytes, formatRelative, formatTimeLeft } from "@/lib/format";
 import { RevokeShare } from "./RevokeShare";
 
 export const metadata: Metadata = { title: "Share" };
@@ -73,7 +73,7 @@ export default async function SharePage(props: PageProps<"/shares/[id]">) {
           <p className="mt-1 text-body text-muted">
             {share.fileCount} document{share.fileCount === 1 ? "" : "s"} · {formatBytes(share.byteSize)} ·{" "}
             {share.status === "active"
-              ? `available until ${formatRelative(share.expiresAt)}`
+              ? formatTimeLeft(share.expiresAt)
               : share.status === "revoked"
                 ? "withdrawn"
                 : "expired"}
