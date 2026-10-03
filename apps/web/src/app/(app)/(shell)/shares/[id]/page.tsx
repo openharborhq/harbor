@@ -66,7 +66,7 @@ export default async function SharePage(props: PageProps<"/shares/[id]">) {
   return (
     <>
       <TopBar />
-      <main className="mx-auto flex w-full max-w-[900px] flex-col gap-6 px-4 py-8 lg:px-14">
+      <main className="mx-auto flex w-full max-w-[900px] flex-col gap-6 px-4 py-8 sm:px-8 lg:px-14">
         <div>
           <BackLink href="/shares">Shared</BackLink>
           <h1 className="mt-2 text-title font-bold tracking-tight">{share.label}</h1>
@@ -119,7 +119,7 @@ export default async function SharePage(props: PageProps<"/shares/[id]">) {
             {share.files.map((file) => (
               <li key={file.filename} className="flex items-center gap-3 px-4 py-2.5">
                 <span className="min-w-0 flex-1 truncate text-row">{file.title ?? file.filename}</span>
-                <span className="shrink-0 font-mono text-small text-muted">{file.filename}</span>
+                <span className="hidden shrink-0 font-mono text-small text-muted sm:inline">{file.filename}</span>
                 {file.documentId && !file.deleted && (
                   <Link href={`/documents/${file.documentId}`} className="shrink-0 text-small text-accent">
                     Open

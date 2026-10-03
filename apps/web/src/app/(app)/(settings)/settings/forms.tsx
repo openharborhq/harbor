@@ -71,7 +71,7 @@ export function PasswordForm() {
   }
   return (
     <form onSubmit={submit} className="flex max-w-[520px] flex-col gap-3">
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid gap-3 sm:grid-cols-2">
         <input type="password" required autoComplete="current-password" placeholder="Current password" value={current} onChange={(e) => setCurrent(e.target.value)} className={input} />
         <input type="password" required minLength={12} autoComplete="new-password" placeholder="New password (12+ characters)" value={next} onChange={(e) => setNext(e.target.value)} className={input} />
       </div>
@@ -176,7 +176,7 @@ export function InviteForm() {
   }
   return (
     <form onSubmit={submit} className="flex max-w-[640px] flex-col gap-3">
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid gap-3 sm:grid-cols-2">
         <input type="email" required placeholder="Their email" value={email} onChange={(e) => setEmail(e.target.value)} className={input} />
         <input type="password" required autoComplete="current-password" placeholder="Your password, to confirm" value={password} onChange={(e) => setPassword(e.target.value)} className={input} />
       </div>

@@ -12,7 +12,7 @@ export default async function CategoriesPage() {
   return (
     <>
       <TopBar />
-      <main className="mx-auto flex w-full max-w-[880px] flex-col gap-8 px-14 py-14">
+      <main className="mx-auto flex w-full max-w-[880px] flex-col gap-8 px-4 py-8 sm:px-8 lg:px-14 lg:py-14">
         <div>
           <BackLink href="/library" className="text-small font-medium text-accent">
             ← Library

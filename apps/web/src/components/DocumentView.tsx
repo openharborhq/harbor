@@ -40,7 +40,7 @@ export async function DocumentView({ id, variant }: { id: string; variant: "page
       variant={variant}
       title={displayTitle(doc)}
       header={
-        <div className="flex min-w-0 items-center justify-between gap-5">
+        <div className="flex min-w-0 items-center justify-between gap-3 sm:gap-5">
           <div className="min-w-0">
             <DocumentTitle documentId={doc.id} title={displayTitle(doc)} />
             <p className="truncate text-small text-muted">
@@ -64,7 +64,8 @@ export async function DocumentView({ id, variant }: { id: string; variant: "page
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="size-3.5" aria-hidden="true">
                 <path d="M14 4h6v6M20 4l-8 8M18 14v4a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4" />
               </svg>
-              Full
+              {/* Icons alone on a phone, where the title needs the width more. */}
+              <span className="sr-only sm:not-sr-only">Full</span>
             </a>
             <a
               href={fileUrl}
@@ -74,7 +75,7 @@ export async function DocumentView({ id, variant }: { id: string; variant: "page
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="size-3.5" aria-hidden="true">
                 <path d="M12 5v14M5 12l7 7 7-7" />
               </svg>
-              Download
+              <span className="sr-only sm:not-sr-only">Download</span>
             </a>
           </span>
         </div>
@@ -87,7 +88,7 @@ export async function DocumentView({ id, variant }: { id: string; variant: "page
         that scrolled, which on a laptop meant scrolling to see the bottom of a page that would
         have fitted, and on a large screen meant grey space around a small one.
       */}
-      <div className="flex min-w-0 flex-1 flex-col bg-surface px-10 py-5 lg:px-20 lg:py-6">
+      <div className="flex h-[60svh] min-w-0 shrink-0 flex-col bg-surface px-4 py-4 sm:px-10 sm:py-5 lg:h-auto lg:flex-1 lg:shrink lg:px-20 lg:py-6">
         {/*
           The whole pane is the mat, not a rounded card floating on white. A page sitting on its
           own tone reads as a page; the same page inside a panel inside a window is two frames
@@ -119,8 +120,10 @@ export async function DocumentView({ id, variant }: { id: string; variant: "page
         exists and should grow with the screen; a details column that stayed put turned a wide
         monitor into a wide document and the same narrow panel. The floor is what the widest field
         label and a date need side by side.
+
+        Below lg it is under the document instead, full width, and scrolls with it.
       */}
-      <aside className="scrollbar-none flex w-[30%] min-w-[480px] shrink-0 flex-col overflow-y-auto border-l border-border py-5">
+      <aside className="scrollbar-none flex shrink-0 flex-col border-t border-border py-5 lg:w-[30%] lg:min-w-[480px] lg:overflow-y-auto lg:border-t-0 lg:border-l">
         <DocumentDetail doc={doc} text={text} versions={versions} activity={activity} categories={categories} items={items} tasks={tasks} />
       </aside>
     </DocumentFrame>

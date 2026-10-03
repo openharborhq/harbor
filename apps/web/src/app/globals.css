@@ -123,6 +123,22 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+/*
+ * Form text on a touchscreen.
+ *
+ * Safari on iOS zooms the whole page into any field whose text is under 16px the moment it takes
+ * focus, and leaves it zoomed after — every search, every note, every filing select. The design's
+ * 14 and 15px are kept wherever there is a mouse; under a finger the field is a point larger and
+ * the page stays where it was. Outside a layer on purpose, so it wins over the text utilities.
+ */
+@media (pointer: coarse) {
+  input,
+  select,
+  textarea {
+    font-size: 16px;
+  }
+}
+
 mark {
   background: var(--color-accent-soft);
   color: var(--color-accent);

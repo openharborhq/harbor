@@ -14,7 +14,7 @@ export default async function DeletedPage() {
   return (
     <>
       <TopBar />
-      <main className="mx-auto flex w-full max-w-[1192px] flex-col gap-8 px-14 py-14">
+      <main className="mx-auto flex w-full max-w-[1192px] flex-col gap-8 px-4 py-8 sm:px-8 lg:px-14 lg:py-14">
         <div>
           <BackLink href="/library" className="text-small font-medium text-accent">
             ← Library
@@ -33,12 +33,14 @@ export default async function DeletedPage() {
         )}
         <ul className="flex flex-col">
           {docs.map((d) => (
-            <li key={d.id} className="flex h-14 items-center gap-4 border-t border-border last:border-b">
+            <li key={d.id} className="flex min-h-14 items-center gap-4 border-t border-border py-2.5 last:border-b xl:py-0">
               <div className="h-[38px] w-[30px] shrink-0 rounded-sm border border-border bg-surface" />
-              <span className="w-[420px] truncate text-row font-semibold">{d.title}</span>
-              <span className="flex-1 truncate text-small text-muted">
-                {d.categoryPath ?? "Inbox"} · {d.originalFilename} · deleted {formatRelative(d.deletedAt)}
-              </span>
+              <div className="flex min-w-0 flex-1 flex-col gap-0.5 xl:flex-row xl:items-center xl:gap-4">
+                <span className="truncate text-row font-semibold xl:flex-[0_1_420px]">{d.title}</span>
+                <span className="min-w-0 truncate text-small text-muted xl:flex-1">
+                  {d.categoryPath ?? "Inbox"} · {d.originalFilename} · deleted {formatRelative(d.deletedAt)}
+                </span>
+              </div>
               <RestoreButton id={d.id} />
             </li>
           ))}

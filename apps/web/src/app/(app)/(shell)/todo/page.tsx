@@ -42,11 +42,11 @@ export default async function TodoPage() {
   return (
     <>
       <TopBar />
-      <main className="mx-auto flex w-full max-w-[1192px] flex-col px-14 py-11">
+      <main className="mx-auto flex w-full max-w-[1192px] flex-col px-4 py-8 sm:px-8 lg:px-14 lg:py-11">
         <div className="flex flex-wrap items-end gap-6 pb-2">
-          <div className="flex min-w-[320px] flex-1 flex-col gap-2">
+          <div className="flex min-w-[280px] flex-1 flex-col gap-2">
             <h1 className="text-title font-bold tracking-snug">To do</h1>
-            <div className="flex items-center gap-2 text-body">
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-body">
               {count.pressing > 0 ? (
                 <span className="font-medium text-danger">
                   {count.pressing} overdue or due today

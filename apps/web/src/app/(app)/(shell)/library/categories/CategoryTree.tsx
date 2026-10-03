@@ -158,7 +158,8 @@ function Row({
         ) : (
           <>
             <span className={`flex-1 truncate ${nested ? "text-row" : "text-row font-semibold"}`}>{category.name}</span>
-            <span className="shrink-0 text-small text-muted">{count === 0 ? "empty" : `${count} document${count === 1 ? "" : "s"}`}</span>
+            {/* The count gives way on a phone, where Rename, Add and Remove need the row more. */}
+            <span className="hidden shrink-0 text-small text-muted sm:inline">{count === 0 ? "empty" : `${count} document${count === 1 ? "" : "s"}`}</span>
             <button type="button" disabled={busy} onClick={() => setEditing(true)} className="shrink-0 text-small font-medium text-accent">
               Rename
             </button>
@@ -203,7 +204,7 @@ function Row({
             setAdding(false);
           }}
         >
-          <input autoFocus value={childName} onChange={(e) => setChildName(e.target.value)} maxLength={60} placeholder={`A subcategory of ${category.name}`} className="h-8 w-64 rounded-md border border-border-strong px-2 text-small" />
+          <input autoFocus value={childName} onChange={(e) => setChildName(e.target.value)} maxLength={60} placeholder={`A subcategory of ${category.name}`} className="h-8 w-full min-w-0 rounded-md sm:w-64 border border-border-strong px-2 text-small" />
           <button type="submit" className="text-small font-semibold text-accent">
             Add
           </button>
@@ -236,7 +237,7 @@ function NewTopLevel({ onAdd }: { onAdd: (name: string) => void }) {
         setOpen(false);
       }}
     >
-      <input autoFocus value={name} onChange={(e) => setName(e.target.value)} maxLength={60} placeholder="Pets, Boat, Grandparents…" className="h-9 w-64 rounded-md border border-border-strong px-3 text-row" />
+      <input autoFocus value={name} onChange={(e) => setName(e.target.value)} maxLength={60} placeholder="Pets, Boat, Grandparents…" className="h-9 w-full min-w-0 rounded-md sm:w-64 border border-border-strong px-3 text-row" />
       <button type="submit" className="h-9 rounded-md bg-accent-fill px-4 text-row font-semibold text-white">
         Add
       </button>

@@ -14,7 +14,7 @@ export default function AppError({ error, reset }: { error: Error & { digest?: s
   }, [error]);
 
   return (
-    <main className="flex max-w-[720px] flex-col gap-4 px-14 py-20">
+    <main className="flex max-w-[720px] flex-col gap-4 px-4 py-12 sm:px-8 lg:px-14 lg:py-20">
       <h1 className="text-title font-bold tracking-snug">This page didn&apos;t load</h1>
       <p className="text-body text-muted">
         Something went wrong reading from the vault. Usually that means the API isn&apos;t reachable — your documents are

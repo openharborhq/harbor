@@ -94,7 +94,8 @@ export function ItemPicker({
       </button>
 
       {open && (
-        <div className={`absolute top-[68px] z-20 flex w-[420px] max-w-[95vw] ${flip ? "right-0" : "left-0"} flex-col rounded-lg border border-border-strong bg-ground p-2.5 shadow-[0_8px_24px_rgba(13,22,34,0.1)]`}>
+        // The field's own width on a phone, where the field spans the screen and 420px would not fit.
+        <div className={`absolute top-[68px] z-20 flex w-full sm:w-[420px] sm:max-w-[95vw] ${flip ? "right-0" : "left-0"} flex-col rounded-lg border border-border-strong bg-ground p-2.5 shadow-[0_8px_24px_rgba(13,22,34,0.1)]`}>
           <label className="mb-1.5 flex h-9 items-center gap-2.5 rounded-md border border-border px-3">
             <SearchIcon />
             <input

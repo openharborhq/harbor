@@ -56,11 +56,58 @@ export default async function LibraryPage(props: PageProps<"/library">) {
   const activeTop = activeCat ? (activeCat.parentId ? categories.find((c) => c.id === activeCat.parentId) : activeCat) : undefined;
   const bySource = { upload: all.filter((d) => d.source === "upload").length, email: all.filter((d) => d.source === "email").length };
   const inbox = all.filter((d) => !d.category).length;
+  const activeItem = items.find((i) => i.id === itemId);
+  const filterSummary =
+    [activeCat?.name, activeItem?.label, source === "upload" ? "Upload" : source === "email" ? "Email" : undefined].filter(Boolean).join(" · ") || "Everything";
+
+  const rail = (
+    <>
+      <div className="flex flex-col gap-1">
+        <div className="label mb-1.5">Category</div>
+        <RailLink href={href({ category: "" })} active={!category} label="Everything" count={all.length} />
+        <RailLink href="/inbox" active={false} label="Inbox" count={inbox} muted />
+        {tops.map((t) => (
+          <div key={t.id}>
+            <RailLink href={href({ category: t.id })} active={category === t.id} label={t.name} count={countTop(t.id)} />
+            {activeTop?.id === t.id &&
+              kids(t.id).map((c) => <RailLink key={c.id} href={href({ category: c.id })} active={category === c.id} label={c.name} count={c.documentCount} nested />)}
+          </div>
+        ))}
+      </div>
+      <div className="flex flex-col gap-1">
+        <div className="label mb-1.5">About</div>
+        <RailLink href={href({ item: "" })} active={!itemId} label="Anything" />
+        {/* Same shape as the FOR picker: kinds first, things inside a thing last (spec §6). */}
+        {itemGroups(items).map((g) => (
+          <div key={g.title}>
+            <div className="mt-2 px-3 text-label text-muted">{g.title}</div>
+            {g.rows.map((i) => (
+              <RailLink key={i.id} href={href({ item: i.id })} active={itemId === i.id} label={i.label} count={i.documentCount} />
+            ))}
+          </div>
+        ))}
+      </div>
+      <div className="flex flex-col gap-1">
+        <div className="label mb-1.5">Arrived by</div>
+        <RailLink href={href({ source: "" })} active={!source} label="Any" />
+        <RailLink href={href({ source: "upload" })} active={source === "upload"} label="Upload" count={bySource.upload} />
+        <RailLink href={href({ source: "email" })} active={source === "email"} label="Email" count={bySource.email} />
+      </div>
+      <div className="flex flex-col gap-1.5">
+        <Link href="/library/categories" className="text-small font-medium text-muted hover:text-text">
+          Manage categories
+        </Link>
+        <Link href="/library/deleted" className="text-small font-medium text-muted hover:text-text">
+          Recently deleted
+        </Link>
+      </div>
+    </>
+  );
 
   return (
     <>
       <TopBar />
-      <main className="mx-auto flex w-full max-w-[1192px] flex-col gap-8 px-14 py-14">
+      <main className="mx-auto flex w-full max-w-[1192px] flex-col gap-8 px-4 py-8 sm:px-8 lg:px-14 lg:py-14">
         <div>
           <h1 className="text-title font-bold tracking-snug">Library</h1>
           <p className="mt-1.5 text-body text-muted">
@@ -69,51 +116,28 @@ export default async function LibraryPage(props: PageProps<"/library">) {
           </p>
         </div>
 
+        {/*
+          The filters are a rail beside the list where there is room for both, and a disclosure
+          above it where there is not — on a phone, forty filter rows stacked over the list would
+          put every document a long scroll away. Keyed by the query so choosing a filter closes it
+          again and the results are what you see.
+        */}
+        <details key={params.toString()} className="group rounded-md border border-border xl:hidden">
+          <summary className="flex h-11 cursor-pointer list-none items-center gap-2 px-3.5 text-row [&::-webkit-details-marker]:hidden">
+            <span className="font-semibold">Filters</span>
+            <span className="min-w-0 flex-1 truncate text-muted">{filterSummary}</span>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 text-muted transition-transform group-open:rotate-180" aria-hidden="true">
+              <path d="m6 9 6 6 6-6" />
+            </svg>
+          </summary>
+          <div className="flex flex-col gap-7 border-t border-border px-2 pt-4 pb-5">{rail}</div>
+        </details>
+
         <div className="flex items-start gap-12">
-          <aside className="flex w-[220px] shrink-0 flex-col gap-7">
-            <div className="flex flex-col gap-1">
-              <div className="label mb-1.5">Category</div>
-              <RailLink href={href({ category: "" })} active={!category} label="Everything" count={all.length} />
-              <RailLink href="/inbox" active={false} label="Inbox" count={inbox} muted />
-              {tops.map((t) => (
-                <div key={t.id}>
-                  <RailLink href={href({ category: t.id })} active={category === t.id} label={t.name} count={countTop(t.id)} />
-                  {activeTop?.id === t.id &&
-                    kids(t.id).map((c) => <RailLink key={c.id} href={href({ category: c.id })} active={category === c.id} label={c.name} count={c.documentCount} nested />)}
-                </div>
-              ))}
-            </div>
-            <div className="flex flex-col gap-1">
-              <div className="label mb-1.5">About</div>
-              <RailLink href={href({ item: "" })} active={!itemId} label="Anything" />
-              {/* Same shape as the FOR picker: kinds first, things inside a thing last (spec §6). */}
-              {itemGroups(items).map((g) => (
-                <div key={g.title}>
-                  <div className="mt-2 px-3 text-label text-muted">{g.title}</div>
-                  {g.rows.map((i) => (
-                    <RailLink key={i.id} href={href({ item: i.id })} active={itemId === i.id} label={i.label} count={i.documentCount} />
-                  ))}
-                </div>
-              ))}
-            </div>
-            <div className="flex flex-col gap-1">
-              <div className="label mb-1.5">Arrived by</div>
-              <RailLink href={href({ source: "" })} active={!source} label="Any" />
-              <RailLink href={href({ source: "upload" })} active={source === "upload"} label="Upload" count={bySource.upload} />
-              <RailLink href={href({ source: "email" })} active={source === "email"} label="Email" count={bySource.email} />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <Link href="/library/categories" className="text-small font-medium text-muted hover:text-text">
-                Manage categories
-              </Link>
-              <Link href="/library/deleted" className="text-small font-medium text-muted hover:text-text">
-                Recently deleted
-              </Link>
-            </div>
-          </aside>
+          <aside className="hidden w-[220px] shrink-0 flex-col gap-7 xl:flex">{rail}</aside>
 
           <div className="flex min-w-0 flex-1 flex-col gap-3">
-            <div className="flex items-baseline justify-between">
+            <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-2">
               <h2 className="text-section font-semibold tracking-snug">
                 {activeCat ? activeCat.name : "Everything"} <span className="text-body font-normal text-muted">· {docs.length}</span>
               </h2>
@@ -139,17 +163,22 @@ export default async function LibraryPage(props: PageProps<"/library">) {
             {docs.length === 0 && <p className="border-t border-border pt-4 text-body text-muted">Nothing matches these filters.</p>}
             <ul className="flex flex-col">
               {docs.map((d) => (
-                <li key={d.id} className="flex h-14 items-center gap-4 border-t border-border last:border-b">
+                <li key={d.id} className="flex min-h-14 items-center gap-4 border-t border-border py-2.5 last:border-b xl:py-0">
                   <ShareCheckbox id={d.id} title={d.title} />
-                  <Link href={`/documents/${d.id}`} className="w-[340px] truncate text-row font-semibold hover:text-accent">
-                    {d.title}
-                  </Link>
-                  <span className="min-w-0 flex-1 truncate text-small text-muted">
-                    {d.category ? d.category.path : "Inbox"}
-                    {d.items.length ? ` · ${d.items.map((p) => p.label).join(", ")}` : ""}
-                  </span>
-                  <span className="w-24 shrink-0 text-small text-muted">{d.documentDate ? formatDate(d.documentDate) : ""}</span>
-                  <span className="w-32 shrink-0 text-small text-muted">{d.expiresAt ? `exp. ${formatDate(d.expiresAt)}` : ""}</span>
+                  {/* One line where the columns fit, two where they do not: the title above where
+                      it is filed. The title gives way before the category does at the narrow end
+                      of a desktop window, rather than the row running off the side. */}
+                  <div className="flex min-w-0 flex-1 flex-col gap-0.5 xl:flex-row xl:items-center xl:gap-4">
+                    <Link href={`/documents/${d.id}`} className="truncate text-row font-semibold hover:text-accent xl:flex-[0_1_340px]">
+                      {d.title}
+                    </Link>
+                    <span className="min-w-0 truncate text-small text-muted xl:flex-1">
+                      {d.category ? d.category.path : "Inbox"}
+                      {d.items.length ? ` · ${d.items.map((p) => p.label).join(", ")}` : ""}
+                    </span>
+                  </div>
+                  <span className="hidden w-24 shrink-0 text-small text-muted sm:block">{d.documentDate ? formatDate(d.documentDate) : ""}</span>
+                  <span className="hidden w-32 shrink-0 text-small text-muted md:block">{d.expiresAt ? `exp. ${formatDate(d.expiresAt)}` : ""}</span>
                   <span className="w-20 shrink-0 text-small text-muted">{formatRelative(d.createdAt)}</span>
                   <ListStatusPill status={d.file.processingStatus} />
                 </li>
@@ -192,13 +221,13 @@ async function SearchResults({ q }: { q: string }) {
   return (
     <>
       <TopBar query={q} />
-      <main className="mx-auto flex w-full max-w-[1192px] flex-col gap-8 px-14 py-14">
+      <main className="mx-auto flex w-full max-w-[1192px] flex-col gap-8 px-4 py-8 sm:px-8 lg:px-14 lg:py-14">
         <div>
           <h1 className="text-title font-bold tracking-snug">Library</h1>
           <p className="mt-1.5 text-body text-muted">Every document in the vault, including the words inside them.</p>
         </div>
-        <div className="flex items-baseline justify-between">
-          <div className="flex items-baseline gap-2.5">
+        <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-2">
+          <div className="flex flex-wrap items-baseline gap-x-2.5 gap-y-1">
             <h2 className="text-section font-semibold tracking-snug">
               {result.total} result{result.total === 1 ? "" : "s"} for &ldquo;{q}&rdquo;
             </h2>
@@ -235,7 +264,7 @@ async function SearchResults({ q }: { q: string }) {
                 <ShareCheckbox id={h.documentId} title={h.title} />
               </span>
               <div className="flex min-w-0 flex-1 flex-col gap-1.5">
-                <div className="flex items-baseline gap-2.5">
+                <div className="flex flex-wrap items-baseline gap-x-2.5 gap-y-0.5">
                   <Link href={`/documents/${h.documentId}`} className="text-row font-semibold hover:text-accent">
                     {h.title}
                   </Link>
@@ -271,7 +300,8 @@ async function SearchResults({ q }: { q: string }) {
               </div>
               <Link
                 href={`/documents/${h.documentId}`}
-                className="flex h-8 shrink-0 items-center self-center rounded-md border border-border px-3 text-small font-medium text-text hover:border-accent hover:text-accent"
+                // The title is already the link; on a phone the snippet needs this width more.
+                className="hidden h-8 shrink-0 items-center self-center rounded-md border border-border px-3 text-small font-medium text-text hover:border-accent hover:text-accent sm:flex"
               >
                 View
               </Link>

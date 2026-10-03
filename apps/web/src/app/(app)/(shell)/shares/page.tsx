@@ -52,7 +52,7 @@ export default async function SharesPage() {
   return (
     <>
       <TopBar />
-      <main className="mx-auto flex w-full max-w-[900px] flex-col gap-6 px-4 py-8 lg:px-14">
+      <main className="mx-auto flex w-full max-w-[900px] flex-col gap-6 px-4 py-8 sm:px-8 lg:px-14">
         <div>
           <h1 className="text-title font-bold tracking-tight">Shared</h1>
           <p className="mt-1 max-w-[64ch] text-body text-muted">

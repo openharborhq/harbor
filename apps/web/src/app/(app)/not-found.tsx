@@ -2,7 +2,7 @@ import Link from "next/link";
 
 export default function AppNotFound() {
   return (
-    <main className="flex max-w-[720px] flex-col gap-4 px-14 py-20">
+    <main className="flex max-w-[720px] flex-col gap-4 px-4 py-12 sm:px-8 lg:px-14 lg:py-20">
       <h1 className="text-title font-bold tracking-snug">Not here</h1>
       <p className="text-body text-muted">
         That document or item doesn&apos;t exist. It may have been deleted — documents wait in Recently deleted before

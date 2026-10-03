@@ -21,7 +21,7 @@ export function Stats({ children }: { children: React.ReactNode }) {
 /** One number worth reading from across the room, with the detail that makes it checkable. */
 export function Stat({ label, value, sub }: { label: string; value: React.ReactNode; sub?: React.ReactNode }) {
   return (
-    <div className="flex min-w-[200px] grow basis-0 flex-col gap-1.5 rounded-md border border-border px-5 py-[18px]">
+    <div className="flex min-w-[200px] grow basis-0 flex-col gap-1.5 rounded-md border border-border px-4 py-[18px] sm:px-5">
       <div className="label">{label}</div>
       <div className="text-[22px] font-bold leading-7 tracking-snug">{value}</div>
       {sub && <div className="text-small text-muted">{sub}</div>}
@@ -33,13 +33,18 @@ export function Facts({ children }: { children: React.ReactNode }) {
   return <div className="flex max-w-[620px] flex-col rounded-md border border-border">{children}</div>;
 }
 
-/** A labelled row. `action` is the right-hand lane — kept reserved so rows line up without it. */
+/**
+ * A labelled row. `action` is the right-hand lane — kept reserved so rows line up without it.
+ *
+ * On a phone the three lanes do not fit beside each other: the label and action share the first
+ * line and the value takes the full width under them.
+ */
 export function Fact({ k, action, children }: { k: string; action?: React.ReactNode; children: React.ReactNode }) {
   return (
-    <div className="flex items-start gap-5 border-b border-border px-5 py-3.5 last:border-b-0">
-      <div className="w-[132px] shrink-0 text-row leading-[18px] text-muted">{k}</div>
-      <div className="min-w-0 grow text-row leading-[21px]">{children}</div>
-      <div className="w-[52px] shrink-0 text-right text-small font-medium text-accent">{action}</div>
+    <div className="flex flex-wrap items-start gap-x-5 gap-y-1 border-b border-border px-4 py-3.5 last:border-b-0 sm:flex-nowrap sm:px-5">
+      <div className="min-w-0 flex-1 text-row leading-[18px] text-muted sm:w-[132px] sm:flex-none sm:shrink-0">{k}</div>
+      <div className="order-last w-full min-w-0 text-row leading-[21px] sm:order-none sm:w-auto sm:grow">{children}</div>
+      <div className="shrink-0 text-right text-small font-medium text-accent sm:w-[52px]">{action}</div>
     </div>
   );
 }
@@ -87,5 +92,5 @@ export function Rows({ children }: { children: React.ReactNode }) {
 }
 
 export function Row({ children }: { children: React.ReactNode }) {
-  return <div className="flex items-center gap-3 border-b border-border px-5 py-3.5 last:border-b-0">{children}</div>;
+  return <div className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-border px-4 py-3.5 last:border-b-0 sm:flex-nowrap sm:px-5">{children}</div>;
 }

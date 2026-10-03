@@ -13,10 +13,10 @@ export default async function JoinPage(props: PageProps<"/join">) {
   const check = token ? ((await (await fetch(`${API}/auth/invites/check?token=${encodeURIComponent(token)}`, { cache: "no-store" })).json()) as { valid: boolean; email?: string }) : { valid: false };
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-surface">
-      <div className="flex w-[480px] flex-col items-center gap-7">
+    <main className="flex min-h-screen items-center justify-center bg-surface px-4 py-10">
+      <div className="flex w-full max-w-[480px] flex-col items-center gap-7">
         <Brand />
-        <div className="w-full rounded-lg border border-border bg-ground p-8">
+        <div className="w-full rounded-lg border border-border bg-ground p-6 sm:p-8">
           {check.valid ? (
             <>
               <h1 className="text-[24px] font-bold leading-[30px] tracking-snug">You&rsquo;re invited</h1>

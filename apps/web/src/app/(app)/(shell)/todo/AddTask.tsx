@@ -124,7 +124,7 @@ export function AddTask({ items }: { items: Item[] }) {
             className="h-9 w-28 rounded-md border border-border-strong px-3 text-row"
           />
         </div>
-        <select value={itemId} onChange={(e) => setItemId(e.target.value)} className="h-9 max-w-[220px] rounded-md border border-border-strong px-2 text-row">
+        <select value={itemId} onChange={(e) => setItemId(e.target.value)} className="h-9 w-full rounded-md border border-border-strong px-2 text-row sm:w-auto sm:max-w-[220px]">
           <option value="">Not about anything in particular</option>
           {items.map((i) => (
             <option key={i.id} value={i.id}>

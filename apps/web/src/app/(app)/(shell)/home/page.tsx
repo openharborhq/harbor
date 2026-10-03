@@ -28,16 +28,16 @@ export default async function HomePage() {
   return (
     <>
       <TopBar />
-      <main className="mx-auto flex w-full max-w-[1192px] flex-col gap-16 px-14 py-14">
+      <main className="mx-auto flex w-full max-w-[1192px] flex-col gap-12 px-4 py-8 sm:px-8 lg:gap-16 lg:px-14 lg:py-14">
         {/* Family */}
         <section className="flex flex-col gap-5">
           <SectionHeader title="Family" meta={`${plural(h.family.length, "person", "people")} · ${plural(totalRecords, "record")}`} />
-          <div className="grid grid-cols-4 gap-6">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-6 lg:grid-cols-4">
             {h.family.map((p) => (
               <ItemCard key={p.id} item={p} />
             ))}
             {h.family.length === 0 && (
-              <Link href="/items" className="flex min-h-[200px] flex-col items-center justify-center rounded-card border border-dashed border-border-strong text-row font-medium text-muted">
+              <Link href="/items" className="flex min-h-[200px] flex-col items-center justify-center rounded-card border border-dashed border-border-strong px-4 text-center text-row font-medium text-muted">
                 + Add your family
               </Link>
             )}
@@ -47,11 +47,11 @@ export default async function HomePage() {
         {/* Property & things */}
         <section className="flex flex-col gap-5">
           <SectionHeader title="Property &amp; things" meta={`${plural(h.things.length, "item")} · ${plural(thingRecords, "record")}`} />
-          <div className="grid grid-cols-4 gap-6">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-6 lg:grid-cols-4">
             {h.things.map((t) => (
               <ItemCard key={t.id} item={t} />
             ))}
-            <Link href="/items" className="flex min-h-[200px] flex-col items-center justify-center rounded-card border border-dashed border-border-strong text-row font-medium text-muted hover:text-text">
+            <Link href="/items" className="flex min-h-[200px] flex-col items-center justify-center rounded-card border border-dashed border-border-strong px-4 text-center text-row font-medium text-muted hover:text-text">
               + Add a house, car or account
             </Link>
           </div>
@@ -60,7 +60,7 @@ export default async function HomePage() {
         {/* Categories */}
         <section className="flex flex-col gap-5">
           <SectionHeader title="Categories" meta={`${tops.length} categories · ${h.totalDocuments} documents · ${backupNote}`} />
-          <div className="grid grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4">
             {tops.map((c) => (
               <Link key={c.id} href={`/library?category=${c.id}`} className="flex flex-col gap-2 rounded-lg border border-border px-5 py-4 hover:bg-surface">
                 <div className="flex items-center justify-between">
@@ -76,7 +76,7 @@ export default async function HomePage() {
           </div>
         </section>
 
-        <div className="grid grid-cols-[1.6fr_1fr] gap-12">
+        <div className="grid grid-cols-1 gap-12 xl:grid-cols-[1.6fr_1fr]">
           {/* Needs attention — to-dos and expiries in one list (spec §8) */}
           <section className="flex flex-col gap-4">
             <SectionHeader title="Needs attention" meta="to-dos and expiries" small />
@@ -104,10 +104,18 @@ export default async function HomePage() {
                     ) : (
                       <span className="block truncate text-row font-semibold">{e.title}</span>
                     )}
-                    <div className="truncate text-small text-muted">{e.subtitle ?? (e.kind === "task" ? "Nothing filed yet" : "Inbox")}</div>
+                    <div className="truncate text-small text-muted">
+                      {e.subtitle ?? (e.kind === "task" ? "Nothing filed yet" : "Inbox")}
+                      {/* The amount and date columns do not fit beside the title on a phone; they
+                          join the line under it instead. */}
+                      <span className="sm:hidden">
+                        {formatAmount(e.amountCents, e.currency) ? ` · ${formatAmount(e.amountCents, e.currency)}` : ""}
+                        {e.dueOn ? ` · ${formatDate(e.dueOn)}` : ""}
+                      </span>
+                    </div>
                   </div>
-                  <div className="w-24 shrink-0 text-right text-row">{formatAmount(e.amountCents, e.currency) ?? ""}</div>
-                  <div className="w-28 shrink-0 text-row">{e.dueOn ? formatDate(e.dueOn) : "No date"}</div>
+                  <div className="hidden w-24 shrink-0 text-right text-row sm:block">{formatAmount(e.amountCents, e.currency) ?? ""}</div>
+                  <div className="hidden w-28 shrink-0 text-row sm:block">{e.dueOn ? formatDate(e.dueOn) : "No date"}</div>
                   <span
                     className={`inline-flex h-[22px] shrink-0 items-center rounded-pill px-2.5 text-label font-semibold ${
                       e.daysLeft === null
@@ -164,11 +172,11 @@ export default async function HomePage() {
 /** One tile in Family or Property & things — the same card, since both are items (spec §6). */
 function ItemCard({ item }: { item: HomeData["family"][number] }) {
   return (
-    <Link href={`/items/${item.id}`} className="flex flex-col items-center gap-1 rounded-card border border-border px-4 py-7 text-center hover:bg-surface">
+    <Link href={`/items/${item.id}`} className="flex min-w-0 flex-col items-center gap-1 rounded-card border border-border px-3 py-5 text-center hover:bg-surface sm:px-4 sm:py-7">
       <div className="mb-3">
         <ItemAvatar item={item} size={76} textSize="text-[26px]" />
       </div>
-      <div className="text-section font-semibold tracking-snug">{item.label}</div>
+      <div className="line-clamp-2 break-words text-section font-semibold tracking-snug">{item.label}</div>
       {item.subtitle && <div className="line-clamp-1 text-small text-muted">{item.subtitle}</div>}
       <div className="text-body text-muted">
         {item.documentCount} record{item.documentCount === 1 ? "" : "s"}
@@ -187,7 +195,7 @@ function plural(n: number, one: string, many = `${one}s`): string {
 
 function SectionHeader({ title, meta, small = false }: { title: string; meta?: string; small?: boolean }) {
   return (
-    <div className="flex items-baseline gap-3">
+    <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
       <h2 className={`${small ? "text-section" : "text-[26px] leading-8"} font-bold tracking-snug`}>{title}</h2>
       {meta && <span className="text-body text-muted">{meta}</span>}
     </div>

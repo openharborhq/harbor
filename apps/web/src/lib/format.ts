@@ -1,3 +1,5 @@
+import { SHORT_MONTHS } from "@harbor/shared";
+
 export function formatBytes(n: number): string {
   if (n < 1024) return `${n} B`;
   if (n < 1024 * 1024) return `${Math.round(n / 1024)} KB`;
@@ -14,7 +16,7 @@ export function formatRelative(iso: string, now = Date.now()): string {
   const d = Math.round(h / 24);
   if (d === 1) return "Yesterday";
   if (d < 7) return `${d}d ago`;
-  return new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+  return dayMonthYear(new Date(iso));
 }
 
 /**
@@ -42,7 +44,16 @@ export function endingSoon(iso: string, now = Date.now()): boolean {
 
 export function formatDate(iso: string | null): string {
   if (!iso) return "—";
-  return new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+  return dayMonthYear(new Date(iso));
+}
+
+/**
+ * "30 Sep 2026", built by hand for the same reason as `shortDate`: asked of `toLocaleDateString`,
+ * Node and Chrome say "Sept" and Safari "Sep", so a client component rendered on the server failed
+ * to hydrate on an iPhone for every date in September.
+ */
+function dayMonthYear(d: Date): string {
+  return `${d.getDate()} ${SHORT_MONTHS[d.getMonth()]} ${d.getFullYear()}`;
 }
 
 /**

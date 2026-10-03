@@ -250,7 +250,7 @@ function Option({
       <div className="flex items-start gap-3">
         <input type="radio" name="share-delivery" checked={selected} onChange={onSelect} className="mt-1.5" />
         <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
             <span className="text-row font-semibold">{title}</span>
             <Badge tone={selected ? "accent" : "muted"}>{needs}</Badge>
           </div>

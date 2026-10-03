@@ -228,10 +228,17 @@ function weekdayOf(iso: string): string {
   return WEEKDAYS[new Date(`${iso}T00:00:00Z`).getUTCDay()] ?? iso;
 }
 
+/**
+ * Spelled out here rather than asked of `toLocaleString`: the runtimes disagree. Node and Chrome
+ * say "Sept" for en-GB, Safari says "Sep", and a to-do rendered on the server and hydrated on an
+ * iPhone failed on every row that fell in September.
+ */
+export const SHORT_MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
 /** "2 Sep", "30 Nov 2027" — the short form used beside every relative label. */
 export function shortDate(iso: string, today: string = todayIso()): string {
   const d = new Date(`${iso}T00:00:00Z`);
-  const month = d.toLocaleString("en-GB", { month: "short", timeZone: "UTC" });
+  const month = SHORT_MONTHS[d.getUTCMonth()];
   const sameYear = iso.slice(0, 4) === today.slice(0, 4);
   return sameYear ? `${d.getUTCDate()} ${month}` : `${d.getUTCDate()} ${month} ${d.getUTCFullYear()}`;
 }

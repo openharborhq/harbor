@@ -161,34 +161,39 @@ export function UploadQueue({ categories, items }: { categories: Category[]; ite
           if (e.dataTransfer.files.length) void add(e.dataTransfer.files);
         }}
         onClick={() => inputRef.current?.click()}
-        className={`flex h-[236px] cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed bg-surface ${dragging ? "border-accent" : "border-border-strong"}`}
+        className={`flex h-[236px] cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed bg-surface px-4 text-center ${dragging ? "border-accent" : "border-border-strong"}`}
       >
         <svg width="36" height="36" viewBox="0 0 36 36" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-accent">
           <path d="M18 23V8.5M11.5 15 18 8.5l6.5 6.5M7 22.5v3.5a3 3 0 0 0 3 3h16a3 3 0 0 0 3-3v-3.5" />
         </svg>
-        <div className="mt-1.5 text-section font-semibold tracking-snug">Drop files or folders here</div>
-        <div className="text-body">
+        {/* A phone has nothing to drag from and no computer to browse: the same box is a button
+            that opens its file and photo picker. */}
+        <div className="mt-1.5 text-section font-semibold tracking-snug pointer-coarse:hidden">Drop files or folders here</div>
+        <div className="text-body pointer-coarse:hidden">
           <span className="text-muted">or </span>
           <span className="font-semibold text-accent">browse this computer</span>
         </div>
+        <div className="mt-1.5 hidden text-section font-semibold tracking-snug text-accent pointer-coarse:block">Choose files or photos</div>
         <div className="mt-2.5 text-small text-muted">PDF, JPG, PNG, HEIC · up to 200 MB each · scanned pages are made searchable automatically</div>
         <input ref={inputRef} type="file" multiple accept={ACCEPT} className="hidden" onChange={(e) => e.target.files && void add(e.target.files)} />
       </div>
 
-      <div className="flex items-center gap-6 rounded-md border border-border px-5 py-4">
-        <div className="w-[200px] shrink-0">
+      {/* Wraps rather than overflowing: one control per line on a phone, as many as fit beside
+          each other above that, and the original single row once the window is wide enough. */}
+      <div className="flex flex-wrap items-end gap-x-6 gap-y-4 rounded-md border border-border px-4 py-4 sm:px-5 xl:flex-nowrap xl:items-center">
+        <div className="w-full xl:w-[200px] xl:shrink-0">
           <div className="text-row font-semibold">Apply to this batch</div>
           <div className="text-small text-muted">Files with a category skip the Inbox.</div>
         </div>
-        <div className="w-[260px] shrink-0">
+        <div className="w-full sm:w-[260px] sm:shrink-0">
           <ItemPicker items={items} selected={defaults.itemIds} onChange={(ids) => setDefaults((d) => ({ ...d, itemIds: ids }))} />
         </div>
-        <label className="flex flex-col gap-1.5">
+        <label className="flex w-full flex-col gap-1.5 sm:w-auto">
           <span className="label">File to</span>
           <select
             value={defaults.categoryId}
             onChange={(e) => setDefaults((d) => ({ ...d, categoryId: e.target.value }))}
-            className={`h-9 w-[220px] rounded-md border border-border bg-ground px-3 text-row ${defaults.categoryId ? "" : "text-muted"}`}
+            className={`h-9 w-full rounded-md border border-border bg-ground px-3 text-row sm:w-[220px] ${defaults.categoryId ? "" : "text-muted"}`}
           >
             <option value="">Inbox — decide later</option>
             {categories
@@ -207,21 +212,21 @@ export function UploadQueue({ categories, items }: { categories: Category[]; ite
               ))}
           </select>
         </label>
-        <label className="flex flex-col gap-1.5">
+        <label className="flex w-full flex-col gap-1.5 sm:w-auto">
           <span className="label">Tags</span>
           <input
             value={defaults.tags}
             onChange={(e) => setDefaults((d) => ({ ...d, tags: e.target.value }))}
             placeholder="+ Tag, another"
-            className="h-9 w-[200px] rounded-md border border-dashed border-border-strong bg-ground px-3 text-row placeholder:text-muted"
+            className="h-9 w-full rounded-md border border-dashed border-border-strong bg-ground px-3 text-row placeholder:text-muted sm:w-[200px]"
           />
         </label>
       </div>
 
       {queue.length > 0 && (
         <section className="flex flex-col gap-3.5">
-          <div className="flex items-baseline justify-between">
-            <div className="flex items-baseline gap-2.5">
+          <div className="flex flex-wrap items-baseline justify-between gap-x-5 gap-y-2">
+            <div className="flex flex-wrap items-baseline gap-x-2.5 gap-y-1">
               <h2 className="text-section font-semibold tracking-snug">Uploading</h2>
               <span className="text-small text-muted">
                 {done} of {queue.length} done
@@ -270,13 +275,16 @@ export function UploadQueue({ categories, items }: { categories: Category[]; ite
 function Row({ item, paused, onDecide, onRetry }: { item: QueueEntry; paused: boolean; onDecide: (keep: boolean) => void; onRetry: () => void }) {
   const { file, phase } = item;
   return (
-    <li className="flex h-16 items-center gap-3.5 border-t border-border">
+    // Name, progress and actions side by side where there is room; stacked beside the thumbnail
+    // where there is not.
+    <li className="flex min-h-16 items-start gap-3.5 border-t border-border py-3 xl:h-16 xl:items-center xl:py-0">
       {phase.kind === "ready" || phase.kind === "processing" ? (
         <DocThumb documentId={phase.doc.id} hasThumbnail={phase.doc.file.hasThumbnail} version={phase.doc.file.version} width={30} height={38} className="rounded-sm" />
       ) : (
         <div className="h-[38px] w-[30px] shrink-0 rounded-sm border border-border bg-surface" />
       )}
-      <div className="w-[340px] shrink-0">
+      <div className="flex min-w-0 flex-1 flex-col gap-2 xl:flex-row xl:items-center xl:gap-3.5">
+      <div className="min-w-0 xl:w-[340px] xl:shrink-0">
         <div className="truncate text-row font-semibold">{file.name}</div>
         <div className="text-small text-muted">
           {formatBytes(file.size)}
@@ -321,7 +329,7 @@ function Row({ item, paused, onDecide, onRetry }: { item: QueueEntry; paused: bo
         {phase.kind === "skipped" && <span className="text-muted">Skipped</span>}
         {phase.kind === "cancelled" && <span className="text-muted">Cancelled</span>}
       </div>
-      <div className="flex w-[196px] shrink-0 items-center justify-end gap-3.5">
+      <div className="flex shrink-0 flex-wrap items-center gap-3.5 xl:w-[196px] xl:flex-nowrap xl:justify-end">
         {phase.kind === "duplicate" ? (
           <>
             <button type="button" onClick={() => onDecide(true)} className="h-[30px] rounded-md border border-border bg-ground px-3 text-small font-medium">
@@ -341,6 +349,7 @@ function Row({ item, paused, onDecide, onRetry }: { item: QueueEntry; paused: bo
         ) : (
           <Pill phase={phase} />
         )}
+      </div>
       </div>
     </li>
   );
@@ -366,7 +375,7 @@ function Pill({ phase }: { phase: Phase }) {
 
 function Bar({ fraction }: { fraction: number }) {
   return (
-    <div className="h-1 w-[260px] overflow-hidden rounded-pill bg-surface">
+    <div className="h-1 w-full max-w-[260px] overflow-hidden rounded-pill bg-surface">
       <div className="h-1 rounded-pill bg-accent transition-[width]" style={{ width: `${Math.round(Math.min(1, fraction) * 100)}%` }} />
     </div>
   );

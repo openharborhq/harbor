@@ -12,10 +12,10 @@ export default async function SignInPage(props: PageProps<"/sign-in">) {
   // A vault with no owner has nobody who could sign in: first run goes to /setup instead.
   if (await setupNeeded()) redirect("/setup");
   return (
-    <main className="flex min-h-screen items-center justify-center bg-surface">
-      <div className="flex w-[420px] flex-col items-center gap-7">
+    <main className="flex min-h-screen items-center justify-center bg-surface px-4 py-10">
+      <div className="flex w-full max-w-[420px] flex-col items-center gap-7">
         <Brand />
-        <div className="w-full rounded-lg border border-border bg-ground p-8">
+        <div className="w-full rounded-lg border border-border bg-ground p-6 sm:p-8">
           <h1 className="text-[24px] font-bold leading-[30px] tracking-snug">Sign in</h1>
           <p className="mt-1 text-body text-muted">The family vault</p>
           <SignInForm next={next} />

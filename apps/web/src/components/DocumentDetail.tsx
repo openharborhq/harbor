@@ -64,7 +64,10 @@ export function DocumentDetail({
         spacing them with a gap. The padding is the target: a tab is a thing you point at, and at
         `px-4` the first one's label lands where the content below it starts.
       */}
-      <div className="-mx-5 flex border-b border-border">
+      {/* Scrolls sideways on a phone, where five tabs are wider than the screen. The rule sits on
+          the inner row so the active tab's underline can still overlap it inside the scroller. */}
+      <div className="scrollbar-none -mx-5 overflow-x-auto">
+      <div className="flex w-max min-w-full border-b border-border">
         {(["details", "filing", "text", "versions", "activity"] as Tab[]).map((t) => (
           <button
             key={t}
@@ -75,6 +78,7 @@ export function DocumentDetail({
             {t === "details" ? "Details" : t === "filing" ? "Filing" : t === "text" ? "Extracted text" : t === "versions" ? "Versions" : "Activity"}
           </button>
         ))}
+      </div>
       </div>
 
       {(tab === "details" || tab === "filing") && !editing && (

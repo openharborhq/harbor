@@ -156,7 +156,7 @@ export function TaskRow({ task, showClosed = false }: { task: Task; showClosed?:
         {error && <div className="mt-1 text-small text-danger">{error}</div>}
       </div>
 
-      <div className="flex w-[110px] shrink-0 justify-end pt-px text-body">
+      <div className="hidden w-[110px] shrink-0 justify-end pt-px text-body sm:flex">
         {amount && <span className={closed ? "text-muted" : "font-medium"}>{amount}</span>}
       </div>
 
@@ -165,19 +165,22 @@ export function TaskRow({ task, showClosed = false }: { task: Task; showClosed?:
         overdue or merely coming, and the colour repeats it — so "in 3 weeks" beside "1 Oct" was
         the same fact told twice in a row that had no room for it.
       */}
-      <div className="flex w-[110px] shrink-0 justify-end">
+      {/* On a phone the amount has no column of its own and sits under the date instead. */}
+      <div className="flex shrink-0 flex-col items-end gap-0.5 sm:w-[110px]">
         {closed ? (
           task.dueOn && <span className="text-small text-muted">was due {shortDate(task.dueOn)}</span>
         ) : (
           <span className={`text-row ${TONE[due.tone]}`}>{task.dueOn ? shortDate(task.dueOn) : "No date"}</span>
         )}
+        {amount && <span className={`text-small sm:hidden ${closed ? "text-muted" : "font-medium"}`}>{amount}</span>}
       </div>
 
       {/*
         Straight to the paperwork. Only offered when there is a document behind the to-do — a
         fetch reminder has none yet, and the row already says "Link a document" in its place.
       */}
-      <div className="flex w-[62px] shrink-0 justify-end">
+      {/* Not on a phone: the document's title in the line under the to-do is the same link. */}
+      <div className="hidden w-[62px] shrink-0 justify-end sm:flex">
         {task.document && (
           <Link
             href={`/documents/${task.document.id}`}
