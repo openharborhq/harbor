@@ -1,13 +1,50 @@
 # Harbor
 
+**[openharbor.app](https://openharbor.app)** · [Documentation](https://openharbor.app/docs) ·
+[Releases](https://github.com/openharborhq/harbor/releases) · [Changelog](CHANGELOG.md)
+
 A self-hosted family document vault. Bulk-upload or email in your paperwork; it's OCR'd,
 searchable by every word inside, organised by category, family member and tag, encrypted at
 rest and backed up offsite with a tested restore path. Runs on a small Linux box at home,
 reachable only over your tailnet.
 
+![Harbor's home screen: the family's four people and four properties, each with a record count and the next expiry date](docs/images/home.png)
+
 **Status:** working v1 — upload, OCR, search, suggestions, items, categories, email-in with
 sender triage, nightly encrypted backups with a monthly automated restore test, a browser-based
 first run, and tailnet-only networking. The design is in [`docs/spec`](docs/spec/00-overview.md).
+
+## What it does
+
+<table>
+  <tr>
+    <td width="50%" valign="top">
+      <img src="docs/images/inbox.png" alt="The Inbox: three documents, each with a summary and a suggested category and owner">
+      <p><b>Inbox.</b> Uploads, phone photos and forwarded email land here, read and summarised,
+      each with a suggested place to file it. One click accepts it; <i>Change</i> files it
+      somewhere else.</p>
+    </td>
+    <td width="50%" valign="top">
+      <img src="docs/images/document.png" alt="A homeowners policy with its summary, tags, a note and its expiry date">
+      <p><b>Documents.</b> The original beside its summary, tags, notes and the dates that
+      matter. The extracted text and earlier versions are a tab away.</p>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" valign="top">
+      <img src="docs/images/todo.png" alt="To do: a property tax payment due today and two later tasks, each linked to its document">
+      <p><b>To do.</b> Due dates and amounts found in documents become to-dos, each linked back
+      to the paper it came from.</p>
+    </td>
+    <td width="50%" valign="top">
+      <img src="docs/images/search.png" alt="Search for furnace warranty matching three documents, one of them in German">
+      <p><b>Search.</b> Every word on every page, with the matching passage shown in the result.
+      OCR reads English and German.</p>
+    </td>
+  </tr>
+</table>
+
+<sub>Screens from the design, filled with an invented household. Nobody's real paperwork is in this repository.</sub>
 
 ## Install
 
