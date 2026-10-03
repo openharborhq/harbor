@@ -56,7 +56,7 @@ export function DocumentFrame({
         panes, and putting it inside one of them would either shrink the preview or scroll away
         while the details stayed.
       */}
-      <header className="flex h-[68px] shrink-0 items-center gap-6 border-b border-border px-5 lg:px-8">
+      <header className="flex h-[68px] shrink-0 items-center gap-3 border-b border-border px-4 sm:gap-6 sm:px-5 lg:px-8">
         <div className="min-w-0 flex-1">{header}</div>
         {variant === "modal" ? (
           <Dialog.Close
@@ -77,10 +77,13 @@ export function DocumentFrame({
         )}
       </header>
       {/*
-        No scrolling here. The two panes below own the remaining height and scroll separately, so
-        reading the last page of a PDF never drags the details out of view.
+        No scrolling here at lg. The two panes below own the remaining height and scroll separately,
+        so reading the last page of a PDF never drags the details out of view.
+
+        Narrower than that there is no room for them side by side, so they stack — the document on
+        top at a fixed height, the details under it — and this is what scrolls.
       */}
-      <div className="flex min-h-0 flex-1">{children}</div>
+      <div className="flex min-h-0 flex-1 flex-col overflow-y-auto lg:flex-row lg:overflow-visible">{children}</div>
     </>
   );
 
@@ -102,7 +105,8 @@ export function DocumentFrame({
       <Dialog.Portal>
         <Dialog.Overlay className="dialog-overlay fixed inset-0 z-40 bg-scrim/40" />
         <Dialog.Content
-          className="dialog-panel fixed inset-4 z-50 flex flex-col overflow-hidden rounded-card border border-border bg-ground shadow-[0_24px_64px_rgba(13,22,34,0.28)] outline-none lg:inset-8"
+          // On a phone a 16px inset only takes width from the document; the sheet takes the screen.
+          className="dialog-panel fixed inset-0 z-50 flex flex-col overflow-hidden bg-ground shadow-[0_24px_64px_rgba(13,22,34,0.28)] outline-none sm:inset-4 sm:rounded-card sm:border sm:border-border lg:inset-8"
           // The document is the thing to read; the frame should not read its own title aloud first.
           onOpenAutoFocus={(e) => e.preventDefault()}
         >

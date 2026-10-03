@@ -41,6 +41,7 @@ export function SearchBox({ query = "" }: { query?: string }) {
         placeholder="Search inside every document"
         className="min-w-0 flex-1 bg-transparent text-row outline-none placeholder:text-muted"
         autoComplete="off"
+        enterKeyHint="search"
         aria-label="Search inside every document"
       />
       {value ? (
@@ -56,7 +57,8 @@ export function SearchBox({ query = "" }: { query?: string }) {
           ✕
         </button>
       ) : (
-        <kbd className="text-label text-muted">⌘K</kbd>
+        // No keyboard shortcut to hint at on a touchscreen.
+        <kbd className="text-label text-muted pointer-coarse:hidden">⌘K</kbd>
       )}
     </form>
   );

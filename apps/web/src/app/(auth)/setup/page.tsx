@@ -14,10 +14,10 @@ export const metadata: Metadata = { title: "Set up your vault" };
 export default async function SetupPage() {
   if (!(await setupNeeded())) redirect("/sign-in");
   return (
-    <main className="flex min-h-screen items-center justify-center bg-surface">
-      <div className="flex w-[480px] flex-col items-center gap-7">
+    <main className="flex min-h-screen items-center justify-center bg-surface px-4 py-10">
+      <div className="flex w-full max-w-[480px] flex-col items-center gap-7">
         <Brand />
-        <div className="w-full rounded-lg border border-border bg-ground p-8">
+        <div className="w-full rounded-lg border border-border bg-ground p-6 sm:p-8">
           {/* The heading belongs to the form: once the account exists, "no owner yet" is a lie. */}
           <SetupForm />
         </div>

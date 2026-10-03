@@ -32,6 +32,35 @@ The doorman's landing page (§10.6) carries the same values inline. It had its o
 first, drifted a shade or two on all seven colours, and its Download button was white on the lifted
 accent at 2.44:1 — on the one page a stranger ever sees.
 
+## 4.2 Phone and tablet widths (2026-10-04)
+
+**The desktop artboards are unchanged from 1440 down to `lg`; below it the same screens reflow.**
+There are no separate mobile screens and no second set of routes — a phone opens the same URL and
+gets the same page with its columns stacked. Checked at 360, 390, 768, 1024 and 1440: no page
+scrolls sideways at any of them.
+
+- **Gutters** are 16 px on a phone, 32 from `sm`, the drawn 56 from `lg`.
+- **The vault's sidebar** is a drawer below `lg` (it already was). **Settings' sidebar** becomes a
+  band across the top: Back to Harbor, then the sections as a row that scrolls sideways and keeps
+  the current one in view.
+- **Card grids** go 2 → 3 → 4 columns (`sm`, `lg`). Home's Needs attention / Recently added pair sits
+  side by side only from `xl`; at 1024 the right-hand column was 240 px of truncated titles.
+- **Document lists** (Library, an item's records, Recently deleted) are one line from `xl` and two
+  below — title over where it is filed — with the date columns dropping out as width runs short.
+  The Library filter rail is a disclosure above the list below `xl`: forty filter rows stacked over
+  the documents would put every document a long scroll away.
+- **Reading a document** stacks below `lg`: the page on top at 60% of the screen height, the details
+  under it, the whole sheet scrolling. A phone gets the sheet edge to edge rather than inset 16 px.
+- **Under a finger** (`pointer: coarse`): form text is 16 px, because Safari on iOS zooms the whole
+  page into any smaller field on focus and leaves it there; the ⌘K hint is gone; the Add page says
+  "Choose files or photos" instead of dropping folders and browsing a computer.
+- **The Inbox card** drops its 200 px thumbnail on a phone. The title and summary say what the
+  document is, and Open document shows it.
+
+Dates are spelled from a fixed month table (`SHORT_MONTHS`), not `toLocaleString`: Node and Chrome
+abbreviate September as "Sept" in en-GB and Safari as "Sep", so every client component that showed a
+September date failed to hydrate on an iPhone.
+
 ## Inventory
 
 | Surface | Status | Backed by | Gap |

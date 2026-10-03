@@ -39,7 +39,7 @@ export default async function ItemPage(props: PageProps<"/items/[id]">) {
   return (
     <>
       <TopBar />
-      <main className="mx-auto flex w-full max-w-[1192px] flex-col gap-12 px-14 py-14">
+      <main className="mx-auto flex w-full max-w-[1192px] flex-col gap-12 px-4 py-8 sm:px-8 lg:px-14 lg:py-14">
         <div className="flex flex-col gap-5">
           {/*
             Where you came from sits above what you arrived at, across the whole block. Tucked
@@ -66,7 +66,7 @@ export default async function ItemPage(props: PageProps<"/items/[id]">) {
               beside the face, because centring the avatar against two lines of different weight
               aligns it with the gap between them and looks a few pixels low against the name.
             */}
-            <div className="flex items-center gap-4">
+            <div className="flex min-w-0 items-center gap-4">
               <AvatarPicker item={item} />
               <ItemHeader item={item} />
             </div>
@@ -81,11 +81,11 @@ export default async function ItemPage(props: PageProps<"/items/[id]">) {
 
         {children.length > 0 && (
           <section className="flex flex-col gap-4">
-            <div className="flex items-baseline gap-3">
+            <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
               <h2 className="text-section font-bold tracking-snug">Inside {item.label}</h2>
               <span className="text-body text-muted">their records count towards this page too</span>
             </div>
-            <div className="grid grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4">
               {children.map((c) => (
                 <Link key={c.id} href={`/items/${c.id}`} className="flex flex-col gap-1 rounded-card border border-border p-4 hover:bg-surface">
                   <div className="label">{ITEM_KIND_LABEL[c.kind].one}</div>
@@ -100,7 +100,7 @@ export default async function ItemPage(props: PageProps<"/items/[id]">) {
         )}
 
         <section className="flex flex-col gap-4">
-          <div className="flex items-baseline justify-between">
+          <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-2">
             <h2 className="text-section font-bold tracking-snug">
               All records <span className="font-normal text-muted">· {documents.length}</span>
             </h2>
@@ -113,14 +113,17 @@ export default async function ItemPage(props: PageProps<"/items/[id]">) {
           )}
           <ul className="flex flex-col">
             {shown.map((d) => (
-              <li key={d.id} className="flex h-14 items-center gap-4 border-t border-border last:border-b">
+              <li key={d.id} className="flex min-h-14 items-center gap-4 border-t border-border py-2.5 last:border-b xl:py-0">
                 <ShareCheckbox id={d.id} title={d.title} />
-                <Link href={`/documents/${d.id}`} className="w-[380px] truncate text-row font-semibold hover:text-accent">
-                  {d.title}
-                </Link>
-                <span className="flex-1 truncate text-small text-muted">{d.category?.path ?? "Inbox"}</span>
-                <span className="w-28 shrink-0 text-small text-muted">{d.documentDate ? formatDate(d.documentDate) : "—"}</span>
-                <span className="w-28 shrink-0 text-small text-muted">{d.expiresAt ? `exp. ${formatDate(d.expiresAt)}` : ""}</span>
+                {/* Two lines where the columns do not fit, as on Library. */}
+                <div className="flex min-w-0 flex-1 flex-col gap-0.5 xl:flex-row xl:items-center xl:gap-4">
+                  <Link href={`/documents/${d.id}`} className="truncate text-row font-semibold hover:text-accent xl:flex-[0_1_380px]">
+                    {d.title}
+                  </Link>
+                  <span className="min-w-0 truncate text-small text-muted xl:flex-1">{d.category?.path ?? "Inbox"}</span>
+                </div>
+                <span className="hidden w-28 shrink-0 text-small text-muted sm:block">{d.documentDate ? formatDate(d.documentDate) : "—"}</span>
+                <span className="hidden w-28 shrink-0 text-small text-muted md:block">{d.expiresAt ? `exp. ${formatDate(d.expiresAt)}` : ""}</span>
                 <span className="w-20 shrink-0 text-small text-muted">{formatRelative(d.createdAt)}</span>
                 <ListStatusPill status={d.file.processingStatus} />
               </li>
@@ -177,7 +180,7 @@ function CategoryChips({
 }) {
   if (!show) return null;
   return (
-    <div className="flex gap-1.5">
+    <div className="flex flex-wrap gap-1.5">
       <Chip href={`/items/${itemId}`} active={!active} label={`All ${total}`} />
       {[...counts.entries()]
         .sort((a, b) => b[1] - a[1])

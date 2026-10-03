@@ -11,7 +11,7 @@ import { Badge } from "../ui";
 export function ReleaseNotes({ releases, offline }: { releases: ReleaseNote[]; offline: boolean }) {
   if (releases.length === 0) return null;
   return (
-    <aside className="flex w-[380px] shrink-0 flex-col gap-4">
+    <aside className="flex w-full shrink-0 flex-col gap-4 sm:w-[380px]">
       <div className="flex items-baseline justify-between">
         <h2 className="label">What&rsquo;s new</h2>
         {offline && <span className="text-small text-muted">This image only</span>}
@@ -31,7 +31,7 @@ export function ReleaseNotes({ releases, offline }: { releases: ReleaseNote[]; o
               {r.isNewer && <Badge tone="warn">Not installed</Badge>}
               {r.date && <span className="ml-auto shrink-0 pl-2 text-small text-muted">{r.date}</span>}
             </summary>
-            <div className="flex flex-col gap-2 pr-4 pb-4 pl-[30px] text-small leading-[19px] text-muted">{blocks(r.body, r.version)}</div>
+            <div className="flex flex-col gap-2 pr-4 pb-4 pl-[30px] text-small leading-[19px] text-muted wrap-break-word">{blocks(r.body, r.version)}</div>
           </details>
         ))}
       </div>
@@ -113,7 +113,7 @@ function inline(text: string, keyPrefix: string): React.ReactNode[] {
       }
       if (part.startsWith("`") && part.endsWith("`")) {
         return (
-          <code key={key} className="rounded-sm bg-surface px-1 font-mono text-[12px]">
+          <code key={key} className="rounded-sm bg-surface px-1 font-mono text-[12px] wrap-anywhere">
             {part.slice(1, -1)}
           </code>
         );

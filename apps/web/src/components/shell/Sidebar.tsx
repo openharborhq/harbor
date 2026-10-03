@@ -126,9 +126,9 @@ export function Sidebar({
               </>
             );
             return item.soon ? (
-              <span key={item.href} className={`flex h-[34px] items-center gap-3 rounded-md px-3 text-row ${cls}`}>{inner}</span>
+              <span key={item.href} className={`flex h-10 items-center gap-3 rounded-md px-3 text-row lg:h-[34px] ${cls}`}>{inner}</span>
             ) : (
-              <Link key={item.href} href={item.href} className={`flex h-[34px] items-center gap-3 rounded-md px-3 text-row ${cls}`}>{inner}</Link>
+              <Link key={item.href} href={item.href} className={`flex h-10 items-center gap-3 rounded-md px-3 text-row lg:h-[34px] ${cls}`}>{inner}</Link>
             );
           })}
         </nav>
@@ -142,7 +142,7 @@ export function Sidebar({
                 .slice(0, 8)
                 .map((c) => (
                   <li key={c.id}>
-                    <Link href={`/library?category=${c.id}`} className="flex h-8 items-center gap-3 rounded-md px-3 text-row text-text hover:bg-ground">
+                    <Link href={`/library?category=${c.id}`} className="flex h-9 items-center gap-3 rounded-md px-3 text-row text-text hover:bg-ground lg:h-8">
                       <span className="flex-1 truncate">{c.name}</span>
                       <span className="text-small text-muted">{countWithChildren(c, categories)}</span>
                     </Link>

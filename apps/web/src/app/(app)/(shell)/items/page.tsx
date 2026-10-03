@@ -16,7 +16,7 @@ export default async function ItemsPage() {
   return (
     <>
       <TopBar />
-      <main className="mx-auto flex w-full max-w-[1192px] flex-col gap-12 px-14 py-14">
+      <main className="mx-auto flex w-full max-w-[1192px] flex-col gap-12 px-4 py-8 sm:px-8 lg:px-14 lg:py-14">
         <div>
           <h1 className="text-title font-bold tracking-snug">People &amp; things</h1>
           <p className="mt-1.5 text-body text-muted">
@@ -36,7 +36,7 @@ export default async function ItemsPage() {
           return (
             <section key={kind} className="flex flex-col gap-4">
               <h2 className="text-section font-bold tracking-snug">{ITEM_KIND_LABEL[kind].many}</h2>
-              <div className="grid grid-cols-4 gap-4">
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4">
                 {inKind.map((i) => (
                   <ItemCard key={i.id} item={i} inside={items.filter((c) => c.parentId === i.id)} />
                 ))}
@@ -53,10 +53,10 @@ export default async function ItemsPage() {
 function ItemCard({ item, inside }: { item: Item; inside: Item[] }) {
   const subtitle = itemSubtitle(item);
   return (
-    <Link href={`/items/${item.id}`} className="flex min-h-[220px] flex-col items-center gap-1 rounded-card border border-border px-4 py-7 text-center hover:bg-surface">
+    <Link href={`/items/${item.id}`} className="flex min-h-[220px] min-w-0 flex-col items-center gap-1 rounded-card border border-border px-3 py-5 text-center hover:bg-surface sm:px-4 sm:py-7">
       <div className="mb-3"><ItemAvatar item={item} size={76} textSize="text-[26px]" /></div>
-      <div className="text-section font-semibold tracking-snug">{item.label}</div>
-      <div className="line-clamp-2 text-small text-muted">{subtitle ?? "—"}</div>
+      <div className="line-clamp-2 break-words text-section font-semibold tracking-snug">{item.label}</div>
+      <div className="line-clamp-2 break-words text-small text-muted">{subtitle ?? "—"}</div>
       <div className="mt-1 text-row text-muted">
         {item.documentCount} record{item.documentCount === 1 ? "" : "s"}
       </div>

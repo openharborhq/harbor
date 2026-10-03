@@ -122,14 +122,18 @@ export function InboxCard({ doc, categories, items, copies = [] }: { doc: Docume
   const shownTitle = displayTitle(doc);
 
   return (
-    <article className="flex items-start gap-6 rounded-card border border-border p-6">
-      <DocThumb documentId={doc.id} hasThumbnail={f.hasThumbnail} version={f.version} width={200} height={283} dim={processing} href={`/documents/${doc.id}`} label={shownTitle} />
+    <article className="flex items-start gap-6 rounded-card border border-border p-4 sm:p-6">
+      {/* A 200px page beside the card leaves a phone a column too narrow to file from. The title
+          and summary say what it is; Open document shows it. */}
+      <div className="hidden shrink-0 sm:block">
+        <DocThumb documentId={doc.id} hasThumbnail={f.hasThumbnail} version={f.version} width={200} height={283} dim={processing} href={`/documents/${doc.id}`} label={shownTitle} />
+      </div>
       <div className="flex min-w-0 flex-1 flex-col gap-[18px] self-stretch">
         <div>
           <Link href={`/documents/${doc.id}`} className="text-section font-semibold tracking-snug hover:text-accent">
             {shownTitle}
           </Link>
-          <div className="mt-1 flex items-center gap-2 text-small text-muted">
+          <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-small text-muted">
             {meta.map((m, i) => (
               <span key={i} className="flex items-center gap-2">
                 {i > 0 && <span className="size-[3px] rounded-pill bg-border-strong" />}
@@ -149,7 +153,7 @@ export function InboxCard({ doc, categories, items, copies = [] }: { doc: Docume
                   ? `Reading page ${Math.max(1, Math.round(f.pageProgress * f.pageCount))} of ${f.pageCount} — the summary and filing suggestion arrive when it's done.`
                   : "Reading the document — a few seconds per scanned page."}
             </p>
-            <div className="h-1 w-[280px] overflow-hidden rounded-pill bg-surface">
+            <div className="h-1 w-full max-w-[280px] overflow-hidden rounded-pill bg-surface">
               <div className="h-1 rounded-pill bg-accent transition-[width]" style={{ width: `${Math.round((f.processingStatus === "suggesting" ? 0.9 : (f.pageProgress ?? 0.05)) * 100)}%` }} />
             </div>
           </div>
@@ -192,7 +196,7 @@ export function InboxCard({ doc, categories, items, copies = [] }: { doc: Docume
           </div>
         )}
 
-        <div className="mt-auto flex items-end gap-3">
+        <div className="mt-auto flex flex-col gap-3 sm:flex-row sm:items-end">
           <label className="flex min-w-0 flex-1 flex-col gap-1.5">
             <span className="label">File to{s?.resolved.categoryId && categoryId === s.resolved.categoryId ? " · suggested" : ""}</span>
             <select
@@ -214,7 +218,7 @@ export function InboxCard({ doc, categories, items, copies = [] }: { doc: Docume
               ))}
             </select>
           </label>
-          <div className="w-[300px] shrink-0">
+          <div className="w-full sm:w-[300px] sm:shrink-0">
             <ItemPicker
               items={items}
               selected={itemIds}
@@ -293,8 +297,8 @@ export function InboxCard({ doc, categories, items, copies = [] }: { doc: Docume
           </label>
         )}
 
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
+        <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-3">
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
             <button
               type="button"
               onClick={fileIt}

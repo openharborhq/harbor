@@ -5,8 +5,13 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { AVATAR, type Item } from "@harbor/shared";
 import { ItemAvatar } from "@/components/ItemAvatar";
 
-/** The square you frame the photo in. The exported image is AVATAR.size, scaled from exactly this. */
-const VIEWPORT = 320;
+/**
+ * The square you frame the photo in. The exported image is AVATAR.size, scaled from exactly this.
+ * Smaller on a phone narrower than the dialog's 400px — the export scales from whatever it is.
+ */
+const MAX_VIEWPORT = 320;
+/** The dialog's padding and the screen margin around it, both sides. */
+const VIEWPORT_INSET = 72;
 const MAX_ZOOM = 4;
 
 /**
@@ -108,22 +113,24 @@ function CropDialog({
   onUse: (blob: Blob) => void;
 }) {
   const img = useRef<HTMLImageElement>(null);
+  // Only ever mounted in the browser, after a photo was chosen, so the window is there to measure.
+  const [viewport] = useState(() => Math.min(MAX_VIEWPORT, window.innerWidth - VIEWPORT_INSET));
   const [natural, setNatural] = useState<{ w: number; h: number } | null>(null);
   const [zoom, setZoom] = useState(1);
   const [offset, setOffset] = useState({ x: 0, y: 0 });
   const drag = useRef<{ x: number; y: number; ox: number; oy: number } | null>(null);
 
   // At zoom 1 the shorter edge exactly fills the square, so there is never a gap to crop into.
-  const base = natural ? VIEWPORT / Math.min(natural.w, natural.h) : 1;
+  const base = natural ? viewport / Math.min(natural.w, natural.h) : 1;
   const scale = base * zoom;
-  const drawn = natural ? { w: natural.w * scale, h: natural.h * scale } : { w: VIEWPORT, h: VIEWPORT };
+  const drawn = natural ? { w: natural.w * scale, h: natural.h * scale } : { w: viewport, h: viewport };
 
   const clamp = useCallback(
     (x: number, y: number, size: { w: number; h: number }) => ({
-      x: Math.min(0, Math.max(VIEWPORT - size.w, x)),
-      y: Math.min(0, Math.max(VIEWPORT - size.h, y)),
+      x: Math.min(0, Math.max(viewport - size.w, x)),
+      y: Math.min(0, Math.max(viewport - size.h, y)),
     }),
-    [],
+    [viewport],
   );
 
   useEffect(() => {
@@ -136,10 +143,10 @@ function CropDialog({
     const el = e.currentTarget;
     const w = el.naturalWidth;
     const h = el.naturalHeight;
-    const s = VIEWPORT / Math.min(w, h);
+    const s = viewport / Math.min(w, h);
     setNatural({ w, h });
     setZoom(1);
-    setOffset({ x: (VIEWPORT - w * s) / 2, y: (VIEWPORT - h * s) / 2 });
+    setOffset({ x: (viewport - w * s) / 2, y: (viewport - h * s) / 2 });
   }
 
   /** Zooming holds the middle of the circle still, which is where the face is. */
@@ -149,8 +156,8 @@ function CropDialog({
     if (!natural) return;
     const size = { w: natural.w * base * next, h: natural.h * base * next };
     const centred = {
-      x: VIEWPORT / 2 - (VIEWPORT / 2 - offset.x) * factor,
-      y: VIEWPORT / 2 - (VIEWPORT / 2 - offset.y) * factor,
+      x: viewport / 2 - (viewport / 2 - offset.x) * factor,
+      y: viewport / 2 - (viewport / 2 - offset.y) * factor,
     };
     setZoom(next);
     setOffset(clamp(centred.x, centred.y, size));
@@ -178,14 +185,14 @@ function CropDialog({
     // JPEG has no alpha, and a transparent PNG would otherwise come out black.
     ctx.fillStyle = "#ffffff";
     ctx.fillRect(0, 0, AVATAR.size, AVATAR.size);
-    const f = AVATAR.size / VIEWPORT;
+    const f = AVATAR.size / viewport;
     ctx.drawImage(el, offset.x * f, offset.y * f, drawn.w * f, drawn.h * f);
     canvas.toBlob((blob) => blob && onUse(blob), "image/jpeg", 0.9);
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-scrim/40 p-6" role="dialog" aria-modal="true" aria-label="Crop the photo">
-      <div className="flex w-[400px] flex-col gap-4 rounded-lg bg-ground p-6 shadow-xl">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-scrim/40 p-4 sm:p-6" role="dialog" aria-modal="true" aria-label="Crop the photo">
+      <div className="flex w-full max-w-[400px] flex-col gap-4 rounded-lg bg-ground p-5 shadow-xl sm:p-6">
         <div>
           <h2 className="text-section font-semibold tracking-snug">Crop the photo</h2>
           <p className="mt-0.5 text-small text-muted">Drag to move, and zoom until the circle holds what you want. Only the circle is kept.</p>
@@ -196,7 +203,7 @@ function CropDialog({
           onPointerMove={move}
           onPointerUp={() => (drag.current = null)}
           onPointerCancel={() => (drag.current = null)}
-          style={{ width: VIEWPORT, height: VIEWPORT }}
+          style={{ width: viewport, height: viewport }}
           className="relative touch-none self-center overflow-hidden rounded-pill bg-surface"
         >
           {/* eslint-disable-next-line @next/next/no-img-element -- a local object URL, never fetched. */}

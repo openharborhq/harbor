@@ -56,8 +56,8 @@ export default async function InboxPage(props: PageProps<"/inbox">) {
     <>
       <TopBar />
       <AutoRefresh active={processing > 0} />
-      <main className="mx-auto flex w-full max-w-[1192px] flex-col gap-10 px-14 py-14">
-        <div className="flex items-end justify-between">
+      <main className="mx-auto flex w-full max-w-[1192px] flex-col gap-8 px-4 py-8 sm:px-8 lg:gap-10 lg:px-14 lg:py-14">
+        <div className="flex flex-wrap items-end justify-between gap-4">
           <div>
             <h1 className="text-title font-bold tracking-snug">{clutterView ? "Probably not paperwork" : "Inbox"}</h1>
             <p className="mt-1.5 text-body text-muted">
@@ -83,7 +83,7 @@ export default async function InboxPage(props: PageProps<"/inbox">) {
         )}
 
         {!clutterView && counts.email > 0 && counts.upload > 0 && (
-          <nav className="-mt-4 flex gap-1.5">
+          <nav className="-mt-4 flex flex-wrap gap-1.5">
             <SourceTab label="Everything" count={counts.all} href="/inbox" active={source === null} />
             <SourceTab label="Uploaded" count={counts.upload} href="/inbox?source=upload" active={source === "upload"} />
             <SourceTab label="From email" count={counts.email} href="/inbox?source=email" active={source === "email"} />
