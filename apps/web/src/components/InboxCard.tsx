@@ -11,11 +11,18 @@ import { formatBytes, formatRelative, pages } from "@/lib/format";
 import { DocThumb } from "./DocThumb";
 import { StatusPill, isProcessing } from "./StatusPill";
 
+type CardProps = { doc: DocumentSummary; categories: Category[]; items: Item[]; copies?: DuplicateCandidate[] };
+
 /**
- * The Inbox card from the Paper design: summary, FILE TO, FOR, accept-or-adjust.
- * Four states: processing, suggestion, no-suggestion (heuristics only), failed.
+ * Everything an Inbox card knows and does, apart from how it is laid out.
+ *
+ * Two layouts read it: the desktop list below, and the one-at-a-time phone card (InboxFocusCard).
+ * They are different trees rather than one tree of breakpoint variants because the phone card is a
+ * different object — a page preview on top, a summary of the filing choice instead of two open
+ * fields, and the decision pinned to the bottom of the screen — but filing, deleting and merging
+ * must behave identically in both, so they live here once.
  */
-export function InboxCard({ doc, categories, items, copies = [] }: { doc: DocumentSummary; categories: Category[]; items: Item[]; copies?: DuplicateCandidate[] }) {
+export function useInboxCard({ doc, categories }: { doc: DocumentSummary; categories: Category[] }) {
   /** Who emailed it. On the document itself, so pruning the ingest log cannot take it away (§7). */
   const fromAddr = doc.mailFrom;
   const router = useRouter();
@@ -113,6 +120,11 @@ export function InboxCard({ doc, categories, items, copies = [] }: { doc: Docume
     }
   }
 
+  async function retry() {
+    await api(`/documents/${doc.id}/reprocess`, { method: "POST" });
+    router.refresh();
+  }
+
   const meta = [
     f.version > 1 ? `New version (v${f.version})` : doc.source === "email" ? "Forwarded by email" : "Uploaded",
     formatRelative(f.version > 1 ? doc.updatedAt : doc.createdAt),
@@ -120,6 +132,24 @@ export function InboxCard({ doc, categories, items, copies = [] }: { doc: Docume
   ];
 
   const shownTitle = displayTitle(doc);
+  const fileLabel = busy === "file" ? "Filing…" : s && unchanged && !s.rejectedAt ? "Accept & file" : "File it";
+
+  return {
+    fromAddr, f, s, processing, hasSummary, categoryId, setCategoryId, itemIds, setItemIds, busy, confirmDelete, setConfirmDelete,
+    createTasks, setCreateTasks, merging, error, grouped, obligations, currencies, setCurrencies, forIsSuggested,
+    mergeInto, fileIt, deleteItem, retry, meta, shownTitle, fileLabel,
+  };
+}
+
+export type InboxCardState = ReturnType<typeof useInboxCard>;
+
+/**
+ * The Inbox card from the Paper design: summary, FILE TO, FOR, accept-or-adjust.
+ * Four states: processing, suggestion, no-suggestion (heuristics only), failed.
+ */
+export function InboxCard({ doc, categories, items, copies = [] }: CardProps) {
+  const card = useInboxCard({ doc, categories });
+  const { fromAddr, f, s, processing, hasSummary, categoryId, setCategoryId, itemIds, setItemIds, busy, confirmDelete, setConfirmDelete, createTasks, setCreateTasks, merging, error, grouped, obligations, forIsSuggested, mergeInto, fileIt, deleteItem, retry, meta, shownTitle, fileLabel } = card;
 
   return (
     <article className="flex items-start gap-6 rounded-card border border-border p-4 sm:p-6">
@@ -145,17 +175,9 @@ export function InboxCard({ doc, categories, items, copies = [] }: { doc: Docume
 
         {processing && (
           <div className="flex flex-col gap-2">
-            <div className="label">{f.processingStatus === "suggesting" ? "Thinking about where it goes" : "Making searchable"}</div>
-            <p className="text-[16px] leading-6">
-              {f.processingStatus === "suggesting"
-                ? "The text is in. Reading it for a summary and a filing suggestion — a few seconds."
-                : f.processingStatus === "ocr" && f.pageProgress !== null && f.pageCount
-                  ? `Reading page ${Math.max(1, Math.round(f.pageProgress * f.pageCount))} of ${f.pageCount} — the summary and filing suggestion arrive when it's done.`
-                  : "Reading the document — a few seconds per scanned page."}
-            </p>
-            <div className="h-1 w-full max-w-[280px] overflow-hidden rounded-pill bg-surface">
-              <div className="h-1 rounded-pill bg-accent transition-[width]" style={{ width: `${Math.round((f.processingStatus === "suggesting" ? 0.9 : (f.pageProgress ?? 0.05)) * 100)}%` }} />
-            </div>
+            <div className="label">{processingHeading(f)}</div>
+            <p className="text-[16px] leading-6">{processingMessage(f)}</p>
+            <ProgressBar file={f} />
           </div>
         )}
 
@@ -163,13 +185,10 @@ export function InboxCard({ doc, categories, items, copies = [] }: { doc: Docume
           <div className="flex items-start gap-2.5 rounded-md bg-warn-soft px-3.5 py-3">
             <WarnIcon />
             <div className="flex flex-col gap-2">
-              <p className="text-row leading-5">Couldn&rsquo;t make this searchable — {f.processingError ?? "the reading step failed"}. The original is safe and can be filed as-is.</p>
+              <p className="text-row leading-5">{failedMessage(f)}</p>
               <button
                 type="button"
-                onClick={async () => {
-                  await api(`/documents/${doc.id}/reprocess`, { method: "POST" });
-                  router.refresh();
-                }}
+                onClick={retry}
                 className="self-start rounded-md border border-border-strong bg-ground px-3 py-1 text-small font-semibold"
               >
                 Try again
@@ -188,11 +207,7 @@ export function InboxCard({ doc, categories, items, copies = [] }: { doc: Docume
         {!processing && f.processingStatus !== "failed" && !hasSummary && (
           <div className="flex items-start gap-2.5 rounded-md bg-surface px-3.5 py-3">
             <InfoIcon />
-            <p className="text-row leading-5">
-              {s
-                ? "No summary — suggestions are running in offline mode, so this is a best guess from the file name and sender. File it by hand, or open it to check."
-                : "No suggestion for this one — too little readable text on the page to go on. File it by hand, or open it to check."}
-            </p>
+            <p className="text-row leading-5">{noSummaryMessage(s)}</p>
           </div>
         )}
 
@@ -205,17 +220,7 @@ export function InboxCard({ doc, categories, items, copies = [] }: { doc: Docume
               disabled={processing}
               className={`h-[42px] rounded-[10px] border bg-ground px-3.5 text-row ${categoryId ? "border-border-strong font-medium" : "border-border text-muted"}`}
             >
-              <option value="">Choose a category</option>
-              {grouped.map(([parent, children]) => (
-                <optgroup key={parent.id} label={parent.name}>
-                  <option value={parent.id}>{parent.name}</option>
-                  {children.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {parent.name} › {c.name}
-                    </option>
-                  ))}
-                </optgroup>
-              ))}
+              <CategoryOptions grouped={grouped} />
             </select>
           </label>
           <div className="w-full sm:w-[300px] sm:shrink-0">
@@ -224,7 +229,7 @@ export function InboxCard({ doc, categories, items, copies = [] }: { doc: Docume
               selected={itemIds}
               onChange={setItemIds}
               disabled={processing}
-              label={`For${forIsSuggested ? (s.provider === "none" ? " · from text" : " · suggested") : ""}`}
+              label={`For${forIsSuggested ? (s?.provider === "none" ? " · from text" : " · suggested") : ""}`}
             />
           </div>
         </div>
@@ -267,32 +272,7 @@ export function InboxCard({ doc, categories, items, copies = [] }: { doc: Docume
               className="h-[18px] w-[18px] shrink-0 accent-accent"
             />
             <span className="flex-1 text-row">
-              …and remind me to{" "}
-              {obligations.map((o, i) => (
-                <span key={`${o.title}-${i}`}>
-                  {i > 0 && ", then "}
-                  {o.amountCents !== null ? (
-                    <span className="inline-flex items-center gap-1 font-semibold">
-                      pay
-                      <CurrencySelect
-                        value={currencies[i] ?? null}
-                        onChange={(c) => setCurrencies((prev) => prev.map((x, j) => (j === i ? c : x)))}
-                        disabled={processing || !createTasks}
-                        className="h-7 text-small"
-                      />
-                      {formatAmount(o.amountCents, null)}
-                    </span>
-                  ) : (
-                    <span className="font-semibold">{o.title.toLowerCase()}</span>
-                  )}
-                  {o.dueOn && (
-                    <>
-                      {" by "}
-                      <span className="font-semibold">{shortDate(o.dueOn)}</span>
-                    </>
-                  )}
-                </span>
-              ))}
+              …and remind me to <ReminderClause card={card} currencyClassName="h-7 text-small" />
             </span>
           </label>
         )}
@@ -305,7 +285,7 @@ export function InboxCard({ doc, categories, items, copies = [] }: { doc: Docume
               disabled={!categoryId || busy !== null || processing}
               className="h-9 rounded-md bg-accent-fill px-4 text-row font-semibold text-white disabled:opacity-50"
             >
-              {busy === "file" ? "Filing…" : s && unchanged && !s.rejectedAt ? "Accept & file" : "File it"}
+              {fileLabel}
             </button>
             {confirmDelete ? (
               <span className="flex flex-wrap items-center gap-3 text-row">
@@ -348,6 +328,95 @@ export function InboxCard({ doc, categories, items, copies = [] }: { doc: Docume
   );
 }
 
+/** The category <select>'s options: each top-level category, then its children under it. */
+export function CategoryOptions({ grouped }: { grouped: [Category, Category[]][] }) {
+  return (
+    <>
+      <option value="">Choose a category</option>
+      {grouped.map(([parent, children]) => (
+        <optgroup key={parent.id} label={parent.name}>
+          <option value={parent.id}>{parent.name}</option>
+          {children.map((c) => (
+            <option key={c.id} value={c.id}>
+              {parent.name} › {c.name}
+            </option>
+          ))}
+        </optgroup>
+      ))}
+    </>
+  );
+}
+
+/**
+ * "pay € 120.00 by 3 Mar, then renew the policy" — the part of the reminder sentence that names
+ * what the model found. Each proposed payment carries its currency as a control, because this is
+ * the moment the page and the proposal are side by side.
+ */
+export function ReminderClause({ card, currencyClassName }: { card: InboxCardState; currencyClassName: string }) {
+  const { obligations, currencies, setCurrencies, processing, createTasks } = card;
+  return (
+    <>
+      {obligations.map((o, i) => (
+        <span key={`${o.title}-${i}`}>
+          {i > 0 && ", then "}
+          {o.amountCents !== null ? (
+            <span className="inline-flex items-center gap-1 font-semibold">
+              pay
+              <CurrencySelect
+                value={currencies[i] ?? null}
+                onChange={(c) => setCurrencies((prev) => prev.map((x, j) => (j === i ? c : x)))}
+                disabled={processing || !createTasks}
+                className={currencyClassName}
+              />
+              {formatAmount(o.amountCents, null)}
+            </span>
+          ) : (
+            <span className="font-semibold">{o.title.toLowerCase()}</span>
+          )}
+          {o.dueOn && (
+            <>
+              {" by "}
+              <span className="font-semibold">{shortDate(o.dueOn)}</span>
+            </>
+          )}
+        </span>
+      ))}
+    </>
+  );
+}
+
+type CardFile = DocumentSummary["file"];
+
+export function processingHeading(f: CardFile): string {
+  return f.processingStatus === "suggesting" ? "Thinking about where it goes" : "Making searchable";
+}
+
+export function processingMessage(f: CardFile): string {
+  return f.processingStatus === "suggesting"
+    ? "The text is in. Reading it for a summary and a filing suggestion — a few seconds."
+    : f.processingStatus === "ocr" && f.pageProgress !== null && f.pageCount
+      ? `Reading page ${Math.max(1, Math.round(f.pageProgress * f.pageCount))} of ${f.pageCount} — the summary and filing suggestion arrive when it's done.`
+      : "Reading the document — a few seconds per scanned page.";
+}
+
+export function failedMessage(f: CardFile): string {
+  return `Couldn’t make this searchable — ${f.processingError ?? "the reading step failed"}. The original is safe and can be filed as-is.`;
+}
+
+export function noSummaryMessage(s: DocumentSummary["suggestion"]): string {
+  return s
+    ? "No summary — suggestions are running in offline mode, so this is a best guess from the file name and sender. File it by hand, or open it to check."
+    : "No suggestion for this one — too little readable text on the page to go on. File it by hand, or open it to check.";
+}
+
+export function ProgressBar({ file: f }: { file: CardFile }) {
+  return (
+    <div className="h-1 w-full max-w-[280px] overflow-hidden rounded-pill bg-surface">
+      <div className="h-1 rounded-pill bg-accent transition-[width]" style={{ width: `${Math.round((f.processingStatus === "suggesting" ? 0.9 : (f.pageProgress ?? 0.05)) * 100)}%` }} />
+    </div>
+  );
+}
+
 function groupCategories(cats: Category[]): [Category, Category[]][] {
   const tops = cats.filter((c) => c.parentId === null).sort((a, b) => a.sortOrder - b.sortOrder);
   return tops.map((t) => [t, cats.filter((c) => c.parentId === t.id).sort((a, b) => a.sortOrder - b.sortOrder)]);
@@ -357,7 +426,7 @@ function sameSet(a: string[], b: string[]): boolean {
   return a.length === b.length && a.every((x) => b.includes(x));
 }
 
-function WarnIcon() {
+export function WarnIcon() {
   return (
     <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" className="mt-0.5 shrink-0 text-warn">
       <path d="M8 2.5 14 13H2L8 2.5Z" strokeLinejoin="round" />
@@ -366,7 +435,7 @@ function WarnIcon() {
   );
 }
 
-function InfoIcon() {
+export function InfoIcon() {
   return (
     <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.3" className="mt-0.5 shrink-0 text-muted">
       <circle cx="8" cy="8" r="6" />

@@ -31,7 +31,7 @@ export function DocumentFrame({
 }: {
   variant: "page" | "modal";
   header?: ReactNode;
-  /** Names the dialog for a screen reader; the visible title is inside `header`. */
+  /** Names the dialog for a screen reader; the visible title is inside `header` (in the sheet, on a phone). */
   title: string;
   children: ReactNode;
 }) {
@@ -56,12 +56,28 @@ export function DocumentFrame({
         panes, and putting it inside one of them would either shrink the preview or scroll away
         while the details stayed.
       */}
-      <header className="flex h-[68px] shrink-0 items-center gap-3 border-b border-border px-4 sm:gap-6 sm:px-5 lg:px-8">
-        <div className="min-w-0 flex-1">{header}</div>
+      {/*
+        On a phone the band is only a way back — the title moves into the sheet over the page, where
+        it has the width to wrap, and the two file actions move to the foot of it. "Back" rather
+        than a cross because on a phone this is a screen you go into, not a layer you dismiss.
+      */}
+      <header className="flex h-[52px] shrink-0 items-center gap-3 border-border bg-surface px-1.5 sm:gap-6 sm:px-3 lg:h-[68px] lg:border-b lg:bg-transparent lg:px-8">
+        {variant === "modal" ? (
+          <Dialog.Close className={BACK}>
+            <BackIcon />
+            Back
+          </Dialog.Close>
+        ) : (
+          <button type="button" onClick={close} className={BACK}>
+            <BackIcon />
+            Back
+          </button>
+        )}
+        <div className="hidden min-w-0 flex-1 lg:block">{header}</div>
         {variant === "modal" ? (
           <Dialog.Close
             aria-label="Close (Esc)"
-            className="flex size-9 shrink-0 items-center justify-center rounded-md text-muted transition-colors hover:bg-surface hover:text-text"
+            className="hidden size-9 shrink-0 items-center justify-center rounded-md text-muted transition-colors hover:bg-surface hover:text-text lg:flex"
           >
             <CloseIcon />
           </Dialog.Close>
@@ -70,7 +86,7 @@ export function DocumentFrame({
             type="button"
             onClick={close}
             aria-label="Close (Esc)"
-            className="flex size-9 shrink-0 items-center justify-center rounded-md text-muted transition-colors hover:bg-surface hover:text-text"
+            className="hidden size-9 shrink-0 items-center justify-center rounded-md text-muted transition-colors hover:bg-surface hover:text-text lg:flex"
           >
             <CloseIcon />
           </button>
@@ -137,6 +153,16 @@ function PageFrame({ onClose, children }: { onClose: () => void; children: React
   }, [onClose]);
 
   return <div className="fixed inset-0 z-40 flex flex-col bg-ground">{children}</div>;
+}
+
+const BACK = "flex h-11 shrink-0 items-center gap-0.5 rounded-md pl-1 pr-2.5 text-copy font-medium text-accent lg:hidden";
+
+function BackIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className="size-6" aria-hidden="true">
+      <path d="M15 5l-7 7 7 7" />
+    </svg>
+  );
 }
 
 function CloseIcon() {

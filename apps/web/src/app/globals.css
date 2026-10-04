@@ -47,6 +47,15 @@
   --text-title--line-height: 38px;
   --text-section: 19px;
   --text-section--line-height: 24px;
+  /*
+   * The phone steps (spec §4.2). Both are in the Paper file already — the site uses them — and
+   * they are what a phone screen is built from: 21 for a section heading, 17 for the line you
+   * read in a row. Below lg the app sets no text under 15px (`body`).
+   */
+  --text-lead: 21px;
+  --text-lead--line-height: 26px;
+  --text-copy: 17px;
+  --text-copy--line-height: 22px;
   --text-body: 15px;
   --text-body--line-height: 22px;
   --text-row: 14px;

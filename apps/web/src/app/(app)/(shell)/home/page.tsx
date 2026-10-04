@@ -1,16 +1,21 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { formatAmount, type HomeData } from "@harbor/shared";
+import { formatAmount, type HomeData, type InboxCount } from "@harbor/shared";
 import { TopBar } from "@/components/shell/TopBar";
 import { apiFetch } from "@/lib/api-server";
 import { formatDate, formatRelative } from "@/lib/format";
 import { EmptyState } from "@/components/EmptyState";
 import { ItemAvatar } from "@/components/ItemAvatar";
+import { HomeToday } from "@/components/home/HomeToday";
 
 export const metadata: Metadata = { title: "Home" };
 
 export default async function HomePage() {
-  const h = await apiFetch<HomeData>("/home");
+  // The Inbox count only feeds the phone's headline; a failure there is not worth failing Home.
+  const [h, inbox] = await Promise.all([
+    apiFetch<HomeData>("/home"),
+    apiFetch<InboxCount>("/documents/inbox-count").catch(() => ({ needsReview: 0, notPaperwork: 0 })),
+  ]);
   const backupNote =
     h.backup.state === "ok" && h.backup.at
       ? `backed up ${formatRelative(h.backup.at).toLowerCase()}`
@@ -28,7 +33,11 @@ export default async function HomePage() {
   return (
     <>
       <TopBar />
-      <main className="mx-auto flex w-full max-w-[1192px] flex-col gap-12 px-4 py-8 sm:px-8 lg:gap-16 lg:px-14 lg:py-14">
+      {/* Two layouts rather than one with variants: the phone answers "what needs me today" and
+          the desktop is an overview of everything, so they differ in what they show, not only in
+          how it is arranged. */}
+      <HomeToday h={h} inboxCount={inbox.needsReview} />
+      <main className="mx-auto hidden w-full max-w-[1192px] flex-col gap-12 px-4 py-8 sm:px-8 lg:flex lg:gap-16 lg:px-14 lg:py-14">
         {/* Family */}
         <section className="flex flex-col gap-5">
           <SectionHeader title="Family" meta={`${plural(h.family.length, "person", "people")} · ${plural(totalRecords, "record")}`} />

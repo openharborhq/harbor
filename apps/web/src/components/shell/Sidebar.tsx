@@ -66,25 +66,25 @@ export function Sidebar({
         // Following a link should leave the drawer behind, not sitting over the page you just
         // asked for. Delegated, so recent documents and categories close it too.
         onClick={(e) => e.target instanceof Element && e.target.closest("a") && setOpen(false)}
-        className={`fixed inset-y-0 left-0 z-40 flex h-screen w-sidebar shrink-0 flex-col border-r border-border bg-surface px-5 py-6 transition-[transform,visibility] duration-200 lg:visible lg:sticky lg:top-0 lg:translate-x-0 ${
+        className={`fixed inset-y-0 left-0 z-40 flex h-dvh w-[318px] max-w-[85vw] shrink-0 flex-col border-r border-border bg-ground px-3 pt-4 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-[8px_0_30px_rgba(13,22,34,0.12)] transition-[transform,visibility] duration-200 lg:visible lg:sticky lg:top-0 lg:h-screen lg:w-sidebar lg:max-w-none lg:translate-x-0 lg:bg-surface lg:px-5 lg:py-6 lg:shadow-none ${
           open ? "visible translate-x-0" : "invisible -translate-x-full"
         }`}
       >
-        <div className="flex shrink-0 items-center justify-between">
+        <div className="flex shrink-0 items-center justify-between pl-2.5 lg:pl-0">
           <Brand />
           <button
             type="button"
             onClick={() => setOpen(false)}
             aria-label="Close menu"
-            className="-mr-1 flex size-8 shrink-0 items-center justify-center rounded-md text-muted hover:bg-ground hover:text-text lg:hidden"
+            className="flex size-11 shrink-0 items-center justify-center rounded-md text-muted hover:bg-surface hover:text-text lg:hidden"
           >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true">
               <path d="M6 6l12 12M18 6 6 18" />
             </svg>
           </button>
         </div>
         <div className="scrollbar-none flex min-h-0 flex-1 flex-col overflow-y-auto">
-        <nav className="mt-9 flex flex-col gap-1">
+        <nav className="mt-5 flex flex-col gap-0.5 lg:mt-9 lg:gap-1">
           {NAV.map((item) => {
             const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
             const cls = active
@@ -94,7 +94,7 @@ export function Sidebar({
                 : "text-text font-medium hover:bg-ground";
             const inner = (
               <>
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" className="size-6 shrink-0 lg:size-[18px]">
                   <path d={item.icon} />
                 </svg>
                 <span className="flex-1">{item.label}</span>
@@ -105,7 +105,7 @@ export function Sidebar({
                 {item.href === "/inbox" && waiting > 0 && (
                   <span
                     aria-label={`${waiting} to review`}
-                    className={`inline-flex h-[18px] min-w-[18px] shrink-0 items-center justify-center rounded-pill px-1.5 text-[10px] font-bold leading-none ${
+                    className={`inline-flex h-[22px] min-w-[22px] shrink-0 items-center justify-center rounded-pill px-1.5 text-[12px] font-bold leading-none lg:h-[18px] lg:min-w-[18px] lg:text-[10px] ${
                       active ? "bg-accent-fill text-white" : "bg-accent-soft text-accent"
                     }`}
                   >
@@ -115,7 +115,7 @@ export function Sidebar({
                 {item.href === "/todo" && pressing > 0 && (
                   <span
                     aria-label={`${pressing} overdue or due today`}
-                    className={`inline-flex h-[18px] min-w-[18px] shrink-0 items-center justify-center rounded-pill px-1.5 text-[10px] font-bold leading-none ${
+                    className={`inline-flex h-[22px] min-w-[22px] shrink-0 items-center justify-center rounded-pill px-1.5 text-[12px] font-bold leading-none lg:h-[18px] lg:min-w-[18px] lg:text-[10px] ${
                       active ? "bg-danger text-white" : "bg-danger/10 text-danger"
                     }`}
                   >
@@ -126,15 +126,16 @@ export function Sidebar({
               </>
             );
             return item.soon ? (
-              <span key={item.href} className={`flex h-10 items-center gap-3 rounded-md px-3 text-row lg:h-[34px] ${cls}`}>{inner}</span>
+              <span key={item.href} className={`flex h-[52px] items-center gap-3.5 rounded-lg px-3 text-copy lg:h-[34px] lg:gap-3 lg:rounded-md lg:text-row ${item.href === "/settings" ? "max-lg:hidden" : ""} ${cls}`}>{inner}</span>
             ) : (
-              <Link key={item.href} href={item.href} className={`flex h-10 items-center gap-3 rounded-md px-3 text-row lg:h-[34px] ${cls}`}>{inner}</Link>
+              <Link key={item.href} href={item.href} className={`flex h-[52px] items-center gap-3.5 rounded-lg px-3 text-copy lg:h-[34px] lg:gap-3 lg:rounded-md lg:text-row ${item.href === "/settings" ? "max-lg:hidden" : ""} ${cls}`}>{inner}</Link>
             );
           })}
         </nav>
         <RecentDocuments initial={recent} />
+        {/* Not in the drawer: on a phone the categories are a Library filter, one tap further in. */}
         {categories.length > 0 && (
-          <div className="mt-8">
+          <div className="mt-8 hidden lg:block">
             <div className="label px-3">Categories</div>
             <ul className="mt-2 flex flex-col">
               {categories
@@ -152,7 +153,32 @@ export function Sidebar({
           </div>
         )}
         </div>
-        <div className="mt-auto shrink-0 border-t border-border pt-4">
+        {/*
+          On a phone the foot of the drawer is where the account lives: who is signed in, the way
+          to Settings, and Sign out — each a full-height row rather than a word at the edge. The
+          avatar is centred on the icon lane above, so the name starts where the nav labels do.
+        */}
+        <div className="mt-auto shrink-0 border-t border-border pt-2 lg:hidden">
+          <Link href="/settings" className="flex h-16 items-center gap-2.5 rounded-lg px-2 hover:bg-surface">
+            <div className="flex size-8 shrink-0 items-center justify-center rounded-pill bg-surface text-[13px] font-semibold text-muted">
+              {initials(user.displayName)}
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="truncate text-copy font-semibold">{user.displayName}</div>
+              <div className="text-body text-muted">Settings</div>
+            </div>
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 text-muted" aria-hidden="true">
+              <path d={NAV.find((n) => n.href === "/settings")!.icon} />
+            </svg>
+          </Link>
+          <button type="button" onClick={signOut} className="flex h-[52px] w-full items-center gap-3.5 rounded-lg px-3 text-copy font-medium text-muted hover:bg-surface hover:text-text">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" className="shrink-0" aria-hidden="true">
+              <path d="M9 21H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3M16 17l5-5-5-5M21 12H9" />
+            </svg>
+            Sign out
+          </button>
+        </div>
+        <div className="mt-auto hidden shrink-0 border-t border-border pt-4 lg:block">
           <div className="flex items-center gap-3">
             <div className="flex size-7 items-center justify-center rounded-pill bg-ground text-label font-bold text-muted">
               {initials(user.displayName)}

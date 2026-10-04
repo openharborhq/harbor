@@ -38,8 +38,10 @@ export function RecentDocuments({ initial }: { initial: RecentDocument[] }) {
   if (recent.length === 0) return null;
 
   return (
-    <div className="mt-8 flex shrink-0 flex-col">
-      <div className="label px-3">Recent</div>
+    <div className="mt-6 flex shrink-0 flex-col lg:mt-8">
+      {/* A heading people read on a phone, the small caps label beside the desktop sidebar's. */}
+      <div className="px-3 text-copy font-semibold lg:hidden">Recent</div>
+      <div className="label hidden px-3 lg:block">Recent</div>
       <ul
         className={`mt-2 flex flex-col ${recent.length > VISIBLE ? "scrollbar-none overflow-y-auto" : ""}`}
         style={recent.length > VISIBLE ? { maxHeight: VISIBLE * ROW_PX } : undefined}
@@ -51,7 +53,7 @@ export function RecentDocuments({ initial }: { initial: RecentDocument[] }) {
               <Link
                 href={`/documents/${r.documentId}`}
                 title={`${r.title}${r.categoryPath ? ` · ${r.categoryPath}` : ""}`}
-                className={`flex h-9 items-center gap-3 rounded-md px-3 text-row hover:bg-ground lg:h-8 ${
+                className={`flex h-12 items-center gap-3 rounded-lg px-3 text-copy hover:bg-surface lg:h-8 lg:rounded-md lg:text-row lg:hover:bg-ground ${
                   active ? "bg-accent-soft font-semibold text-accent" : "text-text"
                 }`}
               >
