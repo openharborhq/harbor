@@ -7,6 +7,7 @@ import { AutoRefresh } from "@/components/AutoRefresh";
 import { DeleteClutter } from "@/components/DeleteClutter";
 import { InboxCard } from "@/components/InboxCard";
 import { InboxFocusCard } from "@/components/InboxFocus";
+import { InboxSwipe } from "@/components/InboxSwipe";
 import { isProcessing } from "@/components/StatusPill";
 import { TopBar } from "@/components/shell/TopBar";
 import { apiFetch } from "@/lib/api-server";
@@ -62,6 +63,7 @@ export default async function InboxPage(props: PageProps<"/inbox">) {
   const at = docs.length ? Math.min(Math.max(Number.parseInt(String(sp.at ?? "0"), 10) || 0, 0), docs.length - 1) : 0;
   const focused = docs[at];
   const nextHref = docs.length > 1 ? inboxHref({ source, clutterView, at: (at + 1) % docs.length }) : undefined;
+  const prevHref = docs.length > 1 ? inboxHref({ source, clutterView, at: (at - 1 + docs.length) % docs.length }) : undefined;
 
   return (
     <>
@@ -70,7 +72,7 @@ export default async function InboxPage(props: PageProps<"/inbox">) {
       {/* Below lg the foot of the page is padded for the decision bar the focused card pins there,
           plus the safe area it sits above. */}
       <main
-        className={`mx-auto flex w-full max-w-[1192px] flex-col gap-5 px-5 pt-1 sm:px-8 lg:gap-10 lg:px-14 lg:py-14 ${focused ? "pb-[calc(104px+env(safe-area-inset-bottom))]" : "pb-8"}`}
+        className={`mx-auto flex w-full max-w-[1192px] flex-col gap-5 px-5 pt-1 max-lg:overflow-x-clip sm:px-8 lg:gap-10 lg:px-14 lg:py-14 ${focused ? "pb-[calc(104px+env(safe-area-inset-bottom))]" : "pb-8"}`}
       >
         <div className="flex flex-col gap-3 lg:hidden">
           <div className="flex items-center justify-between gap-4">
@@ -145,15 +147,20 @@ export default async function InboxPage(props: PageProps<"/inbox">) {
         )}
 
         {focused && (
+          // Swipe left for the next document, right for the one before; the card slides out under
+          // the finger and the next slides in. `overflow-x-clip` on <main> keeps a card that is
+          // halfway off the screen from widening the page.
           <div className="lg:hidden">
-            <InboxFocusCard
-              key={`${focused.id}-${focused.file.processingStatus}-${focused.suggestion?.id ?? "none"}`}
-              doc={focused}
-              categories={categories}
-              items={items}
-              copies={copiesOf.get(focused.id) ?? []}
-              nextHref={nextHref}
-            />
+            <InboxSwipe itemKey={focused.id} prevHref={prevHref} nextHref={nextHref}>
+              <InboxFocusCard
+                key={`${focused.id}-${focused.file.processingStatus}-${focused.suggestion?.id ?? "none"}`}
+                doc={focused}
+                categories={categories}
+                items={items}
+                copies={copiesOf.get(focused.id) ?? []}
+                nextHref={nextHref}
+              />
+            </InboxSwipe>
           </div>
         )}
 

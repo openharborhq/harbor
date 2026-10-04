@@ -182,7 +182,7 @@ export function InboxFocusCard({
 
       {/* The decision, pinned under the thumb. The page leaves room for it at the foot (see the
           Inbox page), so nothing scrolls out of reach beneath it. */}
-      <div className="fixed inset-x-0 bottom-0 z-20 bg-ground px-5 pt-3 pb-[calc(12px+env(safe-area-inset-bottom))] sm:px-8 lg:hidden">
+      <div data-no-swipe className="fixed inset-x-0 bottom-0 z-20 bg-ground px-5 pt-3 pb-[calc(12px+env(safe-area-inset-bottom))] sm:px-8 lg:hidden">
         <div className="flex flex-col gap-2.5">
           {error && <p className="text-body text-danger">{error}</p>}
           {confirmDelete ? (
