@@ -55,7 +55,42 @@ scrolls sideways at any of them.
   page into any smaller field on focus and leaves it there; the ⌘K hint is gone; the Add page says
   "Choose files or photos" instead of dropping folders and browsing a computer.
 - **The Inbox card** drops its 200 px thumbnail on a phone. The title and summary say what the
-  document is, and Open document shows it.
+  document is, and Open document shows it. *Superseded by §4.3: the phone Inbox shows one document
+  at a time, with its page on top.*
+
+## 4.3 Mobile first, not mobile fitted (2026-10-04)
+
+§4.2 made every page fit a phone; it did not make any page *for* one. The core screens were then
+redesigned phone-first in Paper (page "Mobile — core screens": Home, Inbox, Document, Library, To
+do, Add, Menu) and built below `lg`. Desktop is untouched.
+
+**Navigation stays a drawer behind the burger.** A bottom tab bar was drawn and dropped: a bar fixed
+to the bottom of a mobile web page fights Safari's own toolbar as it collapses, the keyboard as it
+rises, and a different safe-area inset on every device. The top bar on a phone is the menu and a
+round cobalt Add, nothing else. The drawer is the account's home too — who is signed in, Settings,
+Sign out — and leaves the category list to Library.
+
+**Nothing on a phone is set under 15 px.** The first pass carried the desktop's 11 px uppercase
+labels and 13 px sub-lines down to a 390 px screen, where they are the hardest thing on it to read
+and make every row look busy. The rule now: a row has one 17 px line (`text-copy`) and at most one
+15 px line under it; a section heading is a 21 px sentence (`text-lead`), not a tracked capital
+label; a number that matters is large and its label is a word under it; anything tappable is at
+least 44 px. What does not help someone recognise or decide on the thing in front of them — "12 min
+ago", page counts, a category's full path — is cut rather than shrunk. `text-copy` and `text-lead`
+were already in the Paper file (the site uses them) and joined the app's tokens for this.
+
+- **Home** opens with a sentence — how many things need you — then those things, most urgent first,
+  with the Inbox among them. Search is a field on the page, not in the top bar. People and things
+  are a strip that scrolls sideways.
+- **The Inbox is one document at a time** on a phone, with Accept & file fixed at the bottom where
+  the thumb is. A queue of cards each carrying its own controls is a desktop shape; on a phone it
+  is a long scroll of forms.
+- **A document** is its page with a sheet over it: the title, up to three facts, the open to-dos,
+  Download and Full size. The five tabs are one tap further, under All details.
+- **Library** carries its own search field and filters results by the categories they fall in.
+- **Add** is a page, not the sheet the design drew: an upload runs for as long as the page that
+  started it is open, and a sheet is closed with a swipe. Its three ways in — take a photo, choose
+  from Photos, browse files — replace the drop zone, which a phone has nothing to drop onto.
 
 **On a home screen Harbor is an app, not a bookmark** (2026-10-04): `display: standalone` in the
 manifest and `apple-mobile-web-app-capable`, so it opens without Safari around it. Chosen knowing

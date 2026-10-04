@@ -72,7 +72,12 @@ export function ItemPicker({
 
   return (
     <div ref={wrap} className="relative flex flex-col gap-1.5">
-      <span className="label">
+      {/* A sentence on a phone, the design's small caps label beside it on a desktop (spec §4.3). */}
+      <span className="text-body font-semibold lg:hidden">
+        {label}
+        {suggested ? " · suggested" : ""}
+      </span>
+      <span className="label hidden lg:block">
         {label}
         {suggested ? " · suggested" : ""}
       </span>
@@ -80,23 +85,25 @@ export function ItemPicker({
         type="button"
         disabled={disabled}
         onClick={openList}
-        className="flex h-[42px] w-full items-center gap-2 overflow-hidden rounded-[10px] border border-border-strong bg-ground px-2.5 text-left disabled:opacity-60"
+        className="flex h-12 w-full items-center gap-2 overflow-hidden rounded-lg border border-border-strong bg-ground px-3 text-left disabled:opacity-60 lg:h-[42px] lg:rounded-[10px] lg:px-2.5"
       >
-        {chips.length === 0 && <span className="text-small text-muted">Nobody yet</span>}
+        {chips.length === 0 && <span className="text-body text-muted lg:text-small">Nobody yet</span>}
         {chips.map((c) => (
-          <span key={c.id} className="flex h-[26px] shrink-0 items-center gap-1.5 rounded-sm bg-accent-soft px-2.5 text-small font-semibold text-accent">
+          <span key={c.id} className="flex h-8 shrink-0 items-center gap-1.5 rounded-sm bg-accent-soft px-2.5 text-body font-semibold text-accent lg:h-[26px] lg:text-small">
             <ItemIcon kind={c.kind} />
             {c.label}
           </span>
         ))}
         <span className="flex-1" />
-        <span className="shrink-0 text-small font-medium text-muted">+ Add</span>
+        <span className="shrink-0 text-body font-medium text-muted lg:text-small">+ Add</span>
       </button>
 
       {open && (
-        // The field's own width on a phone, where the field spans the screen and 420px would not fit.
-        <div className={`absolute top-[68px] z-20 flex w-full sm:w-[420px] sm:max-w-[95vw] ${flip ? "right-0" : "left-0"} flex-col rounded-lg border border-border-strong bg-ground p-2.5 shadow-[0_8px_24px_rgba(13,22,34,0.1)]`}>
-          <label className="mb-1.5 flex h-9 items-center gap-2.5 rounded-md border border-border px-3">
+        // In the flow on a phone and a tablet — the list pushes what is under it down rather than
+        // floating over the next field or a bar pinned to the bottom of the screen. A panel beside
+        // the field from lg, where there is room for one.
+        <div className={`z-20 mt-1 flex w-full lg:absolute lg:top-[68px] lg:mt-0 lg:w-[420px] lg:max-w-[95vw] ${flip ? "right-0" : "left-0"} flex-col rounded-lg border border-border-strong bg-ground p-2.5 shadow-[0_8px_24px_rgba(13,22,34,0.1)]`}>
+          <label className="mb-1.5 flex h-11 items-center gap-2.5 rounded-md border border-border px-3 lg:h-9">
             <SearchIcon />
             <input
               autoFocus
@@ -109,7 +116,7 @@ export function ItemPicker({
           <div className="scrollbar-none max-h-[320px] overflow-y-auto">
             <Groups items={items} query={query} selected={selected} onToggle={toggle} />
           </div>
-          <Link href="/items" className="mt-1.5 border-t border-border px-3 pb-1 pt-2.5 text-row font-medium text-accent">
+          <Link href="/items" className="mt-1.5 flex min-h-11 items-center border-t border-border px-3 pt-1 text-copy font-medium text-accent lg:min-h-0 lg:pb-1 lg:pt-2.5 lg:text-row">
             + Add a person or thing
           </Link>
         </div>
@@ -132,7 +139,7 @@ function Groups({ items, query, selected, onToggle }: { items: Item[]; query: st
     .reduce<Map<string, Item[]>>((m, i) => m.set(i.parentLabel ?? "Inside", [...(m.get(i.parentLabel ?? "Inside") ?? []), i]), new Map());
   const nestedGroups = [...nested.entries()].map(([parent, rows]) => ({ parent, rows: rows.filter(match) })).filter((g) => g.rows.length > 0);
 
-  if (top.length === 0 && nestedGroups.length === 0) return <p className="px-3 py-4 text-row text-muted">Nothing matches “{query}”.</p>;
+  if (top.length === 0 && nestedGroups.length === 0) return <p className="px-3 py-4 text-body text-muted lg:text-row">Nothing matches “{query}”.</p>;
 
   return (
     <>
@@ -149,7 +156,8 @@ function Groups({ items, query, selected, onToggle }: { items: Item[]; query: st
 function Section({ title, rows, selected, onToggle }: { title: string; rows: Item[]; selected: string[]; onToggle: (i: Item) => void }) {
   return (
     <>
-      <div className="label px-3 pb-1 pt-3">{title}</div>
+      <div className="px-3 pt-3 pb-1 text-body font-semibold text-muted lg:hidden">{title}</div>
+      <div className="label hidden px-3 pb-1 pt-3 lg:block">{title}</div>
       {rows.map((i) => {
         const on = selected.includes(i.id);
         return (
@@ -157,11 +165,11 @@ function Section({ title, rows, selected, onToggle }: { title: string; rows: Ite
             key={i.id}
             type="button"
             onClick={() => onToggle(i)}
-            className={`flex h-[34px] w-full items-center gap-2.5 rounded-md px-3 text-left ${on ? "bg-accent-soft" : "hover:bg-surface"}`}
+            className={`flex h-11 w-full items-center gap-2.5 rounded-md px-3 text-left lg:h-[34px] ${on ? "bg-accent-soft" : "hover:bg-surface"}`}
           >
             <Check on={on} />
-            <span className={`min-w-0 flex-1 truncate text-row ${on ? "font-semibold text-accent" : "text-text"}`}>{i.label}</span>
-            {i.documentCount > 0 && <span className={`shrink-0 text-small ${on ? "text-accent" : "text-muted"}`}>{i.documentCount}</span>}
+            <span className={`min-w-0 flex-1 truncate text-copy lg:text-row ${on ? "font-semibold text-accent" : "text-text"}`}>{i.label}</span>
+            {i.documentCount > 0 && <span className={`shrink-0 text-body lg:text-small ${on ? "text-accent" : "text-muted"}`}>{i.documentCount}</span>}
           </button>
         );
       })}

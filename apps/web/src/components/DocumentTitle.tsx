@@ -65,20 +65,22 @@ export function DocumentTitle({ documentId, title }: { documentId: string; title
 
   if (!editing) {
     return (
-      <div className="mt-2 flex min-w-0 items-center gap-2">
-        <h1 className="truncate text-[24px] font-bold leading-[30px] tracking-snug">{shown}</h1>
+      // Wraps on a phone, where it is the top of the sheet and has lines to spare; one truncated
+      // line in the desktop header band, which has a fixed height.
+      <div className="flex min-w-0 items-start gap-1 lg:mt-2 lg:items-center lg:gap-2">
+        <h1 className="min-w-0 break-words text-lead font-bold tracking-snug lg:truncate lg:text-[24px] lg:leading-[30px]">{shown}</h1>
         <button
           type="button"
           onClick={startEditing}
           aria-label={`Rename ${shown}`}
           title="Rename"
-          className="shrink-0 rounded-sm p-1 text-muted hover:bg-surface hover:text-text"
+          className="-my-2.5 flex size-11 shrink-0 items-center justify-center rounded-sm text-muted hover:bg-surface hover:text-text lg:my-0 lg:size-auto lg:p-1"
         >
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" />
           </svg>
         </button>
-        {error && <span className="shrink-0 text-small text-danger">{error}</span>}
+        {error && <span className="shrink-0 text-body text-danger lg:text-small">{error}</span>}
       </div>
     );
   }
@@ -89,7 +91,7 @@ export function DocumentTitle({ documentId, title }: { documentId: string; title
         e.preventDefault();
         void save(value);
       }}
-      className="mt-2 flex items-center gap-2"
+      className="flex items-center gap-2 lg:mt-2"
     >
       <input
         ref={input}
@@ -108,12 +110,12 @@ export function DocumentTitle({ documentId, title }: { documentId: string; title
           }
         }}
         onBlur={() => void save(value)}
-        className="h-[34px] w-full max-w-[640px] rounded-md border border-border-strong px-2.5 text-[24px] font-bold leading-[30px] tracking-snug"
+        className="h-11 w-full min-w-0 max-w-[640px] rounded-md border border-border-strong px-2.5 text-lead font-bold tracking-snug lg:h-[34px] lg:text-[24px] lg:leading-[30px]"
       />
-      <button type="submit" disabled={busy} className="h-[34px] shrink-0 rounded-md bg-accent-fill px-3 text-row font-semibold text-white disabled:opacity-60">
+      <button type="submit" disabled={busy} className="h-11 shrink-0 rounded-md bg-accent-fill px-4 text-copy font-semibold text-white disabled:opacity-60 lg:h-[34px] lg:px-3 lg:text-row">
         {busy ? "Saving…" : "Save"}
       </button>
-      {error && <span className="shrink-0 text-small text-danger">{error}</span>}
+      {error && <span className="shrink-0 text-body text-danger lg:text-small">{error}</span>}
     </form>
   );
 }

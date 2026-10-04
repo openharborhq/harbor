@@ -6,6 +6,8 @@ import { AcceptAll } from "@/components/AcceptAll";
 import { AutoRefresh } from "@/components/AutoRefresh";
 import { DeleteClutter } from "@/components/DeleteClutter";
 import { InboxCard } from "@/components/InboxCard";
+import { InboxFocusCard } from "@/components/InboxFocus";
+import { InboxSwipe } from "@/components/InboxSwipe";
 import { isProcessing } from "@/components/StatusPill";
 import { TopBar } from "@/components/shell/TopBar";
 import { apiFetch } from "@/lib/api-server";
@@ -52,17 +54,60 @@ export default async function InboxPage(props: PageProps<"/inbox">) {
    */
   const groups = groupByDay(docs);
 
+  /**
+   * A phone shows one document at a time (Paper: "02 Inbox — One at a time"). Which one is in the
+   * URL rather than in state so a filed card, which refreshes the page, lands on whatever slid
+   * into its place, and the position survives opening a document and coming back. Clamped, so
+   * filing the last card shows the one before it instead of nothing.
+   */
+  const at = docs.length ? Math.min(Math.max(Number.parseInt(String(sp.at ?? "0"), 10) || 0, 0), docs.length - 1) : 0;
+  const focused = docs[at];
+  const nextHref = docs.length > 1 ? inboxHref({ source, clutterView, at: (at + 1) % docs.length }) : undefined;
+  const prevHref = docs.length > 1 ? inboxHref({ source, clutterView, at: (at - 1 + docs.length) % docs.length }) : undefined;
+
   return (
     <>
       <TopBar />
       <AutoRefresh active={processing > 0} />
-      <main className="mx-auto flex w-full max-w-[1192px] flex-col gap-8 px-4 py-8 sm:px-8 lg:gap-10 lg:px-14 lg:py-14">
-        <div className="flex flex-wrap items-end justify-between gap-4">
+      {/* Below lg the foot of the page is padded for the decision bar the focused card pins there,
+          plus the safe area it sits above. */}
+      <main
+        className={`mx-auto flex w-full max-w-[1192px] flex-col gap-5 px-5 pt-1 max-lg:overflow-x-clip sm:px-8 lg:gap-10 lg:px-14 lg:py-14 ${focused ? "pb-[calc(104px+env(safe-area-inset-bottom))]" : "pb-8"}`}
+      >
+        <div className="flex flex-col gap-3 lg:hidden">
+          <div className="flex items-center justify-between gap-4">
+            <h1 className="text-title font-extrabold tracking-tight">{clutterView ? "Probably not paperwork" : "Inbox"}</h1>
+            {focused && (
+              <div className="flex shrink-0 items-center gap-1">
+                <span className="text-copy font-medium text-muted">
+                  {at + 1} of {docs.length}
+                </span>
+                {nextHref && (
+                  <Link href={nextHref} aria-label="Next document" className="-mr-2.5 flex size-11 items-center justify-center rounded-pill text-text">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                      <path d="m9 5 7 7-7 7" />
+                    </svg>
+                  </Link>
+                )}
+              </div>
+            )}
+          </div>
+          {clutterView && (
+            <>
+              <p className="text-body text-muted">{clutterBlurb(docs.length)}</p>
+              <div className="[&_button]:h-11 [&_button]:text-body [&_span]:text-body">
+                <DeleteClutter ids={docs.map((d) => d.id)} />
+              </div>
+            </>
+          )}
+        </div>
+
+        <div className="hidden flex-wrap items-end justify-between gap-4 lg:flex">
           <div>
             <h1 className="text-title font-bold tracking-snug">{clutterView ? "Probably not paperwork" : "Inbox"}</h1>
             <p className="mt-1.5 text-body text-muted">
               {clutterView
-                ? `${docs.length} attachment${docs.length === 1 ? "" : "s"} that arrived by email and ${docs.length === 1 ? "does" : "do"} not look like something to keep — leaflets, newsletters, notices. Open any to check; deleting is reversible.`
+                ? clutterBlurb(docs.length)
                 : docs.length === 0
                   ? "Nothing to review."
                   : `${docs.length} document${docs.length === 1 ? "" : "s"} to review${suggested ? ` · ${suggested} ${suggested === 1 ? "has" : "have"} a suggested filing location` : ""}${processing ? ` · ${processing} still being read` : ""}`}
@@ -75,15 +120,15 @@ export default async function InboxPage(props: PageProps<"/inbox">) {
             a glance, a fortnight of emailed invoices needs a sitting. Splitting them is the
             difference between the Inbox being a queue and being a pile. */}
         {clutterView && (
-          <p className="-mt-4 text-row">
-            <Link href="/inbox" className="font-medium text-accent">
+          <p className="-mt-2 text-body lg:-mt-4 lg:text-row">
+            <Link href="/inbox" className="inline-flex min-h-11 items-center font-medium text-accent lg:inline lg:min-h-0">
               Back to the Inbox
             </Link>
           </p>
         )}
 
         {!clutterView && counts.email > 0 && counts.upload > 0 && (
-          <nav className="-mt-4 flex flex-wrap gap-1.5">
+          <nav className="flex flex-wrap gap-2 lg:-mt-4 lg:gap-1.5">
             <SourceTab label="Everything" count={counts.all} href="/inbox" active={source === null} />
             <SourceTab label="Uploaded" count={counts.upload} href="/inbox?source=upload" active={source === "upload"} />
             <SourceTab label="From email" count={counts.email} href="/inbox?source=email" active={source === "email"} />
@@ -93,7 +138,7 @@ export default async function InboxPage(props: PageProps<"/inbox">) {
         {docs.length === 0 && <EmptyInbox source={source} connections={connections} />}
 
         {!clutterView && clutter.length > 0 && (
-          <p className="-mt-4 text-row text-muted">
+          <p className="text-body text-muted lg:-mt-4 lg:text-row">
             {clutter.length} emailed attachment{clutter.length === 1 ? "" : "s"} {clutter.length === 1 ? "does" : "do"} not look like paperwork and {clutter.length === 1 ? "is" : "are"} held back.{" "}
             <Link href="/inbox?show=not-paperwork" className="font-medium text-accent">
               Review {clutter.length === 1 ? "it" : "them"}
@@ -101,8 +146,34 @@ export default async function InboxPage(props: PageProps<"/inbox">) {
           </p>
         )}
 
+        {focused && (
+          // Swipe left for the next document, right for the one before; the card slides out under
+          // the finger and the next slides in. `overflow-x-clip` on <main> keeps a card that is
+          // halfway off the screen from widening the page.
+          <div className="lg:hidden">
+            <InboxSwipe itemKey={focused.id} prevHref={prevHref} nextHref={nextHref}>
+              <InboxFocusCard
+                key={`${focused.id}-${focused.file.processingStatus}-${focused.suggestion?.id ?? "none"}`}
+                doc={focused}
+                categories={categories}
+                items={items}
+                copies={copiesOf.get(focused.id) ?? []}
+                nextHref={nextHref}
+              />
+            </InboxSwipe>
+          </div>
+        )}
+
+        {/* Filing in bulk is a sitting's worth of decisions at once; on a phone it waits under the
+            card rather than competing with it at the top. Hidden when there is nothing it could file. */}
+        {!clutterView && eligible > 0 && (
+          <div className="lg:hidden [&_button]:h-11 [&_button]:w-full [&_button]:text-body [&_span]:text-body [&>div]:flex-col [&>div]:items-stretch">
+            <AcceptAll eligible={eligible} />
+          </div>
+        )}
+
         {groups.map(([heading, groupDocs]) => (
-          <section key={heading} className="flex flex-col gap-4">
+          <section key={heading} className="hidden flex-col gap-4 lg:flex">
             <h2 className="text-body font-semibold">{heading}</h2>
             {groupDocs.map((d) => (
               <InboxCard
@@ -133,8 +204,8 @@ function EmptyInbox({ source, connections }: { source: "email" | "upload" | null
   const ailing = connections.filter((c) => c.status !== "ok");
 
   return (
-    <div className="rounded-card border border-dashed border-border-strong p-12 text-center">
-      <p className="text-section font-semibold tracking-snug">
+    <div className="rounded-card border border-dashed border-border-strong px-5 py-10 text-center lg:p-12">
+      <p className="text-lead font-semibold tracking-snug lg:text-section">
         {source === "email" ? "Nothing from email to review" : source === "upload" ? "Nothing uploaded to review" : "Your Inbox is empty"}
       </p>
       <p className="mx-auto mt-2 max-w-[520px] text-body text-muted">
@@ -181,7 +252,7 @@ function EmptyInbox({ source, connections }: { source: "email" | "upload" | null
         </div>
       )}
       {ailing.length > 0 && (
-        <p className="mx-auto mt-3 max-w-[520px] rounded-md bg-warn-soft px-3 py-2 text-small text-warn">
+        <p className="mx-auto mt-3 max-w-[520px] rounded-md bg-warn-soft px-3 py-2 text-body text-warn lg:text-small">
           {ailing.map((c) => c.label).join(", ")} {ailing.length === 1 ? "is" : "are"} not connected, so nothing is being
           read from {ailing.length === 1 ? "it" : "them"}.{" "}
           <Link href="/settings/mail" className="font-semibold underline underline-offset-2">
@@ -198,12 +269,26 @@ function SourceTab({ label, count, href, active }: { label: string; count: numbe
     <Link
       href={href}
       aria-current={active ? "page" : undefined}
-      className={`inline-flex h-8 items-center gap-1.5 rounded-pill px-3 text-row font-medium ${active ? "bg-accent-fill text-white" : "border border-border text-muted"}`}
+      className={`inline-flex h-11 items-center gap-1.5 rounded-pill px-4 text-body font-medium lg:h-8 lg:px-3 lg:text-row ${active ? "bg-accent-fill text-white" : "border border-border text-muted"}`}
     >
       {label}
       <span className={active ? "opacity-70" : "opacity-60"}>{count}</span>
     </Link>
   );
+}
+
+function clutterBlurb(n: number): string {
+  return `${n} attachment${n === 1 ? "" : "s"} that arrived by email and ${n === 1 ? "does" : "do"} not look like something to keep — leaflets, newsletters, notices. Open any to check; deleting is reversible.`;
+}
+
+/** The Inbox at position `at`, keeping whichever view and source filter is open. */
+function inboxHref({ source, clutterView, at }: { source: "email" | "upload" | null; clutterView: boolean; at: number }): string {
+  const q = new URLSearchParams();
+  if (clutterView) q.set("show", "not-paperwork");
+  if (source) q.set("source", source);
+  if (at > 0) q.set("at", String(at));
+  const qs = q.toString();
+  return qs ? `/inbox?${qs}` : "/inbox";
 }
 
 /** A heading and the documents under it. */

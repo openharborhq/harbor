@@ -278,6 +278,20 @@ Convention: `[ ]` open, `[x]` done and left in place until its milestone doc abs
               writes the serve config and prints the share hostname. This is the difference
               between shippable and not for a non-technical owner.
 
+11. [~] **Mobile first, not mobile fitted** (agreed 2026-10-04; spec
+       [§4.3](../spec/04-ui-surfaces.md)). Designed in Paper ("Mobile — core screens"), built on
+       `mobile-first-ui`: top bar and drawer, Home, Inbox one at a time, Document sheet, Library
+       search, To do, Add. Desktop unchanged.
+
+       Still owed on it:
+       - [ ] The screens outside the core set still carry desktop type on a phone — 11 px labels
+             and 13 px lines: Settings (all sections), People & things and an item's page,
+             Shared and a share's page, Manage categories, Recently deleted, sign-in, setup and
+             join. Same rules as §4.3: nothing under 15 px, 17 px rows, 21 px headings, 44 px
+             targets.
+       - [ ] Home's "Recently added" and the Inbox preview could show real page thumbnails where
+             the design drew a blank page.
+
 ## Waiting on Kai
 
 - [ ] **Protectli deploy** — M1 step 11. Runbook at `docs/deploy.md`, never once executed.

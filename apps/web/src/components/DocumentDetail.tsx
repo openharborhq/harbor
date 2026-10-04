@@ -5,6 +5,7 @@ import { useState } from "react";
 import type { ActivityEntry, Category, DocumentSummary, DocumentText, DocumentVersion, Item, Task, UpdateDocument } from "@harbor/shared";
 import { DocumentNotes } from "./DocumentNotes";
 import { DocumentTasks } from "./DocumentTasks";
+import { FIELD_LABEL } from "./fieldLabel";
 import { ItemPicker } from "./ItemPicker";
 import { api } from "@/lib/api-client";
 import { formatBytes, formatDate, formatRelative, pages } from "@/lib/format";
@@ -73,7 +74,7 @@ export function DocumentDetail({
             key={t}
             type="button"
             onClick={() => setTab(t)}
-            className={`-mb-px whitespace-nowrap border-b-2 px-4 pb-3 pt-1 text-row font-medium transition-colors ${tab === t ? "border-accent text-accent" : "border-transparent text-muted hover:text-text"}`}
+            className={`-mb-px whitespace-nowrap border-b-2 px-4 pb-3 pt-2.5 text-copy font-medium transition-colors lg:pt-1 lg:text-row ${tab === t ? "border-accent text-accent" : "border-transparent text-muted hover:text-text"}`}
           >
             {t === "details" ? "Details" : t === "filing" ? "Filing" : t === "text" ? "Extracted text" : t === "versions" ? "Versions" : "Activity"}
           </button>
@@ -85,20 +86,23 @@ export function DocumentDetail({
         <div className="flex flex-1 flex-col">
           {tab === "details" && (
             <>
-              <DocumentTasks documentId={doc.id} tasks={tasks} />
+              {/* On a phone the to-dos are already at the top of the sheet this panel opens from. */}
+              <div className="hidden lg:contents">
+                <DocumentTasks documentId={doc.id} tasks={tasks} />
+              </div>
               {s?.payload.summary ? (
                 <div className="mt-4 rounded-lg bg-surface px-4 py-3.5">
-                  <div className="label">Summary</div>
+                  <div className={FIELD_LABEL}>Summary</div>
                   <p className="mt-1.5 text-body">{s.payload.summary}</p>
                 </div>
               ) : (
-                <div className="mt-4 rounded-lg bg-surface px-4 py-3.5 text-small text-muted">No summary for this document.</div>
+                <div className="mt-4 rounded-lg bg-surface px-4 py-3.5 text-body text-muted lg:text-small">No summary for this document.</div>
               )}
-              <div className="mt-4 flex gap-4 text-row">
-                <span className="w-32 shrink-0 label pt-0.5">Tags</span>
+              <div className="mt-4 flex gap-4 text-body lg:text-row">
+                <span className={`w-32 shrink-0 pt-0.5 ${FIELD_LABEL}`}>Tags</span>
                 <span className="flex flex-wrap gap-1.5">
                   {doc.tags.map((t) => (
-                    <span key={t} className="rounded-sm bg-surface px-2 py-0.5 text-small font-medium">
+                    <span key={t} className="rounded-sm bg-surface px-2 py-0.5 text-body font-medium lg:text-small">
                       {t}
                     </span>
                   ))}
@@ -110,15 +114,15 @@ export function DocumentDetail({
           )}
           {tab === "filing" && (
             <>
-              <div className="label mt-6">How it is filed</div>
-              <dl className="mt-2 divide-y divide-border border-t border-border text-row">
+              <div className={`mt-6 ${FIELD_LABEL}`}>How it is filed</div>
+              <dl className="mt-2 divide-y divide-border border-t border-border text-body lg:text-row">
                 <Row k="Category" v={doc.category ? doc.category.path : "Inbox — not filed yet"} />
                 <Row k="For" v={doc.items.length ? doc.items.map((p) => p.label).join(", ") : "—"} />
                 <div className="flex gap-4 py-3">
                   <dt className="w-32 shrink-0 text-muted">Tags</dt>
                   <dd className="flex flex-wrap gap-1.5">
                     {doc.tags.map((t) => (
-                      <span key={t} className="rounded-sm bg-surface px-2 py-0.5 text-small font-medium">
+                      <span key={t} className="rounded-sm bg-surface px-2 py-0.5 text-body font-medium lg:text-small">
                         {t}
                       </span>
                     ))}
@@ -129,8 +133,8 @@ export function DocumentDetail({
                 <Row k="Expires" v={formatDate(doc.expiresAt)} />
                 <Row k="To do" v={openTasks.length ? openTasks.map((t) => t.title).join(" · ") : "—"} />
               </dl>
-              <div className="label mt-7">Where it came from</div>
-              <dl className="mt-2 divide-y divide-border border-t border-border text-row">
+              <div className={`mt-7 ${FIELD_LABEL}`}>Where it came from</div>
+              <dl className="mt-2 divide-y divide-border border-t border-border text-body lg:text-row">
                 <Row k="Added" v={`${formatDate(doc.createdAt)} · ${doc.source === "email" ? "email" : "upload"}`} />
                 {doc.mailFrom && <Row k="Arrived by" v={`Email from ${doc.mailFrom}`} />}
                 <Row k="File" v={doc.file.originalFilename} />
@@ -143,25 +147,25 @@ export function DocumentDetail({
           )}
           <div className="mt-auto flex items-center justify-between pt-8">
             {confirmDelete ? (
-              <div className="flex items-center gap-3 text-row">
+              <div className="flex flex-wrap items-center gap-x-3 text-body lg:text-row">
                 <span className="text-muted">Move to Recently deleted?</span>
-                <button type="button" onClick={remove} disabled={busy} className="font-semibold text-danger">
+                <button type="button" onClick={remove} disabled={busy} className="min-h-11 font-semibold text-danger lg:min-h-0">
                   {busy ? "Deleting…" : "Yes, delete"}
                 </button>
-                <button type="button" onClick={() => setConfirmDelete(false)} className="font-medium text-muted">
+                <button type="button" onClick={() => setConfirmDelete(false)} className="min-h-11 font-medium text-muted lg:min-h-0">
                   Keep
                 </button>
               </div>
             ) : (
-              <button type="button" onClick={() => setConfirmDelete(true)} className="text-row font-medium text-danger">
+              <button type="button" onClick={() => setConfirmDelete(true)} className="min-h-11 text-body font-medium text-danger lg:min-h-0 lg:text-row">
                 Delete document
               </button>
             )}
-            <button type="button" onClick={() => setEditing(true)} className="h-10 rounded-md bg-accent-fill px-4 text-row font-semibold text-white">
+            <button type="button" onClick={() => setEditing(true)} className="h-11 rounded-md bg-accent-fill px-4 text-body font-semibold text-white lg:h-10 lg:text-row">
               Edit details
             </button>
           </div>
-          {error && <p className="mt-2 text-small text-danger">{error}</p>}
+          {error && <p className="mt-2 text-body text-danger lg:text-small">{error}</p>}
         </div>
       )}
 
@@ -169,11 +173,11 @@ export function DocumentDetail({
 
       {tab === "text" && (
         <div className="mt-6 flex flex-1 flex-col gap-3">
-          <div className="flex items-center gap-3 text-small text-muted">
+          <div className="flex items-center gap-3 text-body text-muted lg:text-small">
             <StatusPill status={doc.file.processingStatus} />
             {text.engine ? `${text.engine === "ocrmypdf" ? "OCR" : "Text layer"} · ${text.chars.toLocaleString()} characters` : "No text extracted"}
           </div>
-          <pre className="max-h-[560px] overflow-auto whitespace-pre-wrap rounded-lg bg-surface p-4 font-sans text-small leading-[18px]">{text.text || (isProcessing(doc.file.processingStatus) ? "Still being read — this fills in when processing finishes." : "Nothing readable was found on the pages. A photo of a photo, or a scan too faint to OCR, does this; re-uploading a sharper copy as a new version usually fixes it.")}</pre>
+          <pre className="max-h-[560px] overflow-auto whitespace-pre-wrap rounded-lg bg-surface p-4 font-sans text-body lg:text-small lg:leading-[18px]">{text.text || (isProcessing(doc.file.processingStatus) ? "Still being read — this fills in when processing finishes." : "Nothing readable was found on the pages. A photo of a photo, or a scan too faint to OCR, does this; re-uploading a sharper copy as a new version usually fixes it.")}</pre>
         </div>
       )}
 
@@ -186,16 +190,16 @@ export function DocumentDetail({
       {tab === "versions" && versions.length > 1 && (
         <ul className="mt-6 flex flex-col divide-y divide-border">
           {versions.map((v) => (
-            <li key={v.fileId} className="flex items-center gap-4 py-3.5 text-row">
+            <li key={v.fileId} className="flex items-center gap-4 py-3.5 text-body lg:text-row">
               <span className={`inline-flex h-[22px] items-center rounded-pill px-2.5 text-label font-semibold ${v.isCurrent ? "bg-accent-soft text-accent" : "bg-surface text-muted"}`}>v{v.version}</span>
               <div className="min-w-0 flex-1">
                 <div className="truncate font-medium">{v.originalFilename}</div>
-                <div className="text-small text-muted">
+                <div className="text-body text-muted lg:text-small">
                   {formatDate(v.createdAt)}
                   {v.uploadedBy ? ` by ${v.uploadedBy}` : ""} · {pages(v.pageCount) || "—"} · {formatBytes(v.byteSize)}
                 </div>
               </div>
-              <a href={`/api/documents/${doc.id}/file?version=${v.version}`} className="text-row font-medium text-accent">
+              <a href={`/api/documents/${doc.id}/file?version=${v.version}`} className="flex min-h-11 items-center text-body font-medium text-accent lg:min-h-0 lg:text-row">
                 Open
               </a>
             </li>
@@ -209,14 +213,14 @@ export function DocumentDetail({
       {tab === "activity" && activity.length > 0 && (
         <ul className="mt-6 flex flex-col divide-y divide-border">
           {activity.map((a) => (
-            <li key={a.id} className="flex items-baseline gap-4 py-3 text-row">
-              <span className="w-32 shrink-0 text-small text-muted">{formatRelative(a.createdAt)}</span>
+            <li key={a.id} className="flex items-baseline gap-4 py-3 text-body lg:text-row">
+              <span className="w-28 shrink-0 text-body text-muted lg:w-32 lg:text-small">{formatRelative(a.createdAt)}</span>
               <span className="min-w-0 flex-1">
                 <span className="font-medium">{a.actor ?? "System"}</span> <span className="text-muted">{describe(a)}</span>
               </span>
             </li>
           ))}
-          {activity.length === 0 && <li className="py-3 text-row text-muted">No activity recorded.</li>}
+          {activity.length === 0 && <li className="py-3 text-body text-muted lg:text-row">No activity recorded.</li>}
         </ul>
       )}
     </div>
@@ -283,10 +287,10 @@ function EditForm({ doc, categories, items, onDone }: { doc: DocumentSummary; ca
   return (
     <form onSubmit={save} className="mt-6 flex flex-col gap-4">
       <Field label="Title">
-        <input value={title} onChange={(e) => setTitle(e.target.value)} required className="h-10 w-full rounded-md border border-border-strong px-3 text-row" />
+        <input value={title} onChange={(e) => setTitle(e.target.value)} required className="h-11 w-full rounded-md border border-border-strong px-3 text-body lg:h-10 lg:text-row" />
       </Field>
       <Field label="Category">
-        <select value={categoryId} onChange={(e) => setCategoryId(e.target.value)} className="h-10 w-full rounded-md border border-border-strong bg-ground px-3 text-row">
+        <select value={categoryId} onChange={(e) => setCategoryId(e.target.value)} className="h-11 w-full rounded-md border border-border-strong bg-ground px-3 text-body lg:h-10 lg:text-row">
           <option value="">Inbox — not filed</option>
           {tops.map((t) => (
             <optgroup key={t.id} label={t.name}>
@@ -305,21 +309,21 @@ function EditForm({ doc, categories, items, onDone }: { doc: DocumentSummary; ca
       <ItemPicker items={items} selected={itemIds} onChange={setItemIds} />
       <div className="grid grid-cols-2 gap-4">
         <Field label="Document date">
-          <input type="date" value={documentDate} onChange={(e) => setDocumentDate(e.target.value)} className="h-10 w-full rounded-md border border-border-strong px-3 text-row" />
+          <input type="date" value={documentDate} onChange={(e) => setDocumentDate(e.target.value)} className="h-11 w-full rounded-md border border-border-strong px-3 text-body lg:h-10 lg:text-row" />
         </Field>
         <Field label="Expires">
-          <input type="date" value={expiresAt} onChange={(e) => setExpiresAt(e.target.value)} className="h-10 w-full rounded-md border border-border-strong px-3 text-row" />
+          <input type="date" value={expiresAt} onChange={(e) => setExpiresAt(e.target.value)} className="h-11 w-full rounded-md border border-border-strong px-3 text-body lg:h-10 lg:text-row" />
         </Field>
       </div>
       <Field label="Tags">
-        <input value={tags} onChange={(e) => setTags(e.target.value)} placeholder="school, vaccination" className="h-10 w-full rounded-md border border-border-strong px-3 text-row" />
+        <input value={tags} onChange={(e) => setTags(e.target.value)} placeholder="school, vaccination" className="h-11 w-full rounded-md border border-border-strong px-3 text-body lg:h-10 lg:text-row" />
       </Field>
-      {error && <p className="text-small text-danger">{error}</p>}
+      {error && <p className="text-body text-danger lg:text-small">{error}</p>}
       <div className="flex items-center justify-end gap-4 pt-2">
-        <button type="button" onClick={onDone} className="text-row font-medium text-muted">
+        <button type="button" onClick={onDone} className="min-h-11 text-body font-medium text-muted lg:min-h-0 lg:text-row">
           Cancel
         </button>
-        <button type="submit" disabled={busy} className="h-10 rounded-md bg-accent-fill px-4 text-row font-semibold text-white disabled:opacity-60">
+        <button type="submit" disabled={busy} className="h-11 rounded-md bg-accent-fill px-4 text-body font-semibold text-white disabled:opacity-60 lg:h-10 lg:text-row">
           {busy ? "Saving…" : "Save"}
         </button>
       </div>
@@ -330,7 +334,7 @@ function EditForm({ doc, categories, items, onDone }: { doc: DocumentSummary; ca
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <label className="flex flex-col gap-1.5">
-      <span className="label">{label}</span>
+      <span className={FIELD_LABEL}>{label}</span>
       {children}
     </label>
   );

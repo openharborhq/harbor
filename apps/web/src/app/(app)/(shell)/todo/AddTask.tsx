@@ -78,10 +78,19 @@ export function AddTask({ items }: { items: Item[] }) {
     }
   }
 
+  /*
+   * Below lg the TopBar's round "+" is already the screen's cobalt, and it adds documents, not
+   * to-dos. So on a phone this is a quiet full-width outline under the totals, 48px tall; from lg
+   * it is the filled button beside the title it always was.
+   */
   if (!open) {
     return (
-      <button type="button" onClick={() => setOpen(true)} className="flex h-9 shrink-0 items-center gap-2 rounded-md bg-accent-fill px-4 text-row font-medium text-white hover:opacity-90">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="flex h-12 w-full items-center justify-center gap-2 rounded-md border border-border-strong bg-ground text-copy font-semibold text-text hover:border-accent hover:text-accent lg:h-9 lg:w-auto lg:shrink-0 lg:justify-start lg:border-0 lg:bg-accent-fill lg:px-4 lg:text-row lg:font-medium lg:text-white lg:hover:text-white lg:hover:opacity-90"
+      >
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" className="h-[18px] w-[18px] lg:h-3.5 lg:w-3.5">
           <path d="M12 5v14M5 12h14" />
         </svg>
         Add a to-do
@@ -90,6 +99,8 @@ export function AddTask({ items }: { items: Item[] }) {
   }
 
   return (
+    // Every control is 44px below lg and the desktop's 36px from it; the picker is shared, so its
+    // field is raised from here rather than inside it.
     <form onSubmit={submit} className="flex w-full flex-col gap-3 rounded-card border border-border p-4">
       <input
         autoFocus
@@ -97,34 +108,34 @@ export function AddTask({ items }: { items: Item[] }) {
         onChange={(e) => setTitle(e.target.value)}
         placeholder="What has to happen?"
         maxLength={120}
-        className="h-9 rounded-md border border-border-strong px-3 text-body outline-none focus:border-accent"
+        className="h-11 rounded-md border border-border-strong px-3 text-body outline-none focus:border-accent lg:h-9"
       />
       <div className="flex items-center gap-2">
-        <span className="w-[92px] shrink-0 label">Document</span>
-        <div className="min-w-0 flex-1">
+        <span className="hidden w-[92px] shrink-0 label lg:block">Document</span>
+        <div className="min-w-0 flex-1 [&_input]:h-11 lg:[&_input]:h-9">
           <DocumentPicker value={doc} onChange={setDoc} placeholder="Which document is this about? (optional)" />
         </div>
       </div>
       <div className="flex flex-wrap items-center gap-2">
-        <select value={kind} onChange={(e) => setKind(e.target.value as TaskKind)} className="h-9 rounded-md border border-border-strong px-2 text-row">
+        <select value={kind} onChange={(e) => setKind(e.target.value as TaskKind)} className="h-11 rounded-md border border-border-strong px-2 text-body lg:h-9 lg:text-row">
           {TaskKind.options.map((k) => (
             <option key={k} value={k}>
               {TASK_KIND_VERB[k]}
             </option>
           ))}
         </select>
-        <input type="date" value={dueOn} onChange={(e) => setDueOn(e.target.value)} className="h-9 rounded-md border border-border-strong px-2 text-row" />
+        <input type="date" value={dueOn} onChange={(e) => setDueOn(e.target.value)} aria-label="Due on" className="h-11 rounded-md border border-border-strong px-2 text-body lg:h-9 lg:text-row" />
         <div className="flex items-center gap-1">
-          <CurrencySelect value={currency} onChange={setCurrency} />
+          <CurrencySelect value={currency} onChange={setCurrency} className="h-11 text-body lg:h-9 lg:text-row" />
           <input
             value={amount}
             onChange={(e) => setAmount(e.target.value)}
             inputMode="decimal"
             placeholder="Amount"
-            className="h-9 w-28 rounded-md border border-border-strong px-3 text-row"
+            className="h-11 w-28 rounded-md border border-border-strong px-3 text-body lg:h-9 lg:text-row"
           />
         </div>
-        <select value={itemId} onChange={(e) => setItemId(e.target.value)} className="h-9 w-full rounded-md border border-border-strong px-2 text-row sm:w-auto sm:max-w-[220px]">
+        <select value={itemId} onChange={(e) => setItemId(e.target.value)} className="h-11 w-full rounded-md border border-border-strong px-2 text-body lg:h-9 lg:w-auto lg:max-w-[220px] lg:text-row">
           <option value="">Not about anything in particular</option>
           {items.map((i) => (
             <option key={i.id} value={i.id}>
@@ -133,14 +144,14 @@ export function AddTask({ items }: { items: Item[] }) {
           ))}
         </select>
         <div className="flex-1" />
-        <button type="button" onClick={() => setOpen(false)} className="h-9 rounded-md px-3 text-row text-muted hover:text-text">
+        <button type="button" onClick={() => setOpen(false)} className="h-11 rounded-md px-3 text-body text-muted hover:text-text lg:h-9 lg:text-row">
           Cancel
         </button>
-        <button type="submit" disabled={busy || !title.trim()} className="h-9 rounded-md bg-accent-fill px-4 text-row font-medium text-white disabled:opacity-50">
+        <button type="submit" disabled={busy || !title.trim()} className="h-11 rounded-md bg-accent-fill px-5 text-copy font-semibold text-white disabled:opacity-50 lg:h-9 lg:px-4 lg:text-row lg:font-medium">
           {busy ? "Adding…" : "Add"}
         </button>
       </div>
-      {error && <div className="text-small text-danger">{error}</div>}
+      {error && <div className="text-body text-danger lg:text-small">{error}</div>}
     </form>
   );
 }
