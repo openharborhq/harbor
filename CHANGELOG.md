@@ -17,6 +17,19 @@ migrations, on purpose, because a half-reversed schema is worse than a restore. 
 wrong, follow [`docs/restore.md`](docs/restore.md) with the backup `harbor upgrade` took
 immediately before it. That is why the upgrade refuses to run without one.
 
+## v0.8.3 — 2026-10-04
+
+- **New feature: Harbor goes on a phone's home screen as an app.** Added from Safari's Share menu,
+  it carries the Harbor icon and name and opens on its own, without the address bar or Safari's
+  toolbar. Until now iOS found no icon it could use, drew a screenshot of the page instead, and
+  named it after whichever page it was added from — "Inbox · Harbor". Android and desktop Chrome
+  read the same from a web app manifest, and the status bar takes the page's own colour in both
+  themes.
+
+**Worth knowing:** a Harbor already on a home screen keeps its screenshot until it is removed and
+added again. The app also signs in separately from Safari — iOS gives it storage of its own — so
+it asks for the password and authenticator code once.
+
 ## v0.8.2 — 2026-10-04
 
 - **New feature: Harbor fits a phone.** Every page now reflows below laptop width instead of
