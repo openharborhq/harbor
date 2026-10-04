@@ -57,6 +57,13 @@ scrolls sideways at any of them.
 - **The Inbox card** drops its 200 px thumbnail on a phone. The title and summary say what the
   document is, and Open document shows it.
 
+**On a home screen Harbor is an app, not a bookmark** (2026-10-04): `display: standalone` in the
+manifest and `apple-mobile-web-app-capable`, so it opens without Safari around it. Chosen knowing
+the cost — no browser back button, so every screen has to carry its own way out, which the drawer,
+the document's close button and Settings' Back to Harbor already do. The icon is the tab mark
+reversed: a white shield and cobalt anchor on a full cobalt tile, square and opaque, since iOS
+rounds the corners itself and fills transparency with black.
+
 Dates are spelled from a fixed month table (`SHORT_MONTHS`), not `toLocaleString`: Node and Chrome
 abbreviate September as "Sept" in en-GB and Safari as "Sep", so every client component that showed a
 September date failed to hydrate on an iPhone.

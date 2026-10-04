@@ -21,6 +21,8 @@ export function proxy(request: NextRequest) {
 }
 
 export const config = {
-  // Everything except the API proxy, Next internals and static assets.
-  matcher: ["/((?!api|_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|ico)$).*)"],
+  // Everything except the API proxy, Next internals and static assets. The web app manifest counts
+  // as one: a phone fetches it without the session cookie, and a redirect to sign-in in its place
+  // would leave Harbor added to the home screen as a plain bookmark.
+  matcher: ["/((?!api|_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|ico|webmanifest)$).*)"],
 };
