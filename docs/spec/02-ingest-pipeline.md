@@ -23,13 +23,59 @@ Route by sniffed content type, not extension:
 |---|---|
 | PDF **with** text layer | `pdftotext`; **skip OCR entirely** |
 | PDF without text layer | → Stage 2 |
-| HEIC (iPhone) | `libheif` → JPEG → wrap in PDF |
-| JPEG / PNG | wrap in PDF |
+| HEIC (iPhone) | `libheif` → JPEG → Stage 1b → wrap in PDF |
+| JPEG / PNG | Stage 1b → wrap in PDF |
 | Office documents | **stored as-is, not searchable** (LibreOffice is ~500 MB for a rare case; not in v1) |
 
 Skipping OCR on born-digital PDFs is the most important performance decision in the build —
 statements, policies and tax forms mostly arrive with a text layer, and on a low-TDP box
 wasted OCR is measured in minutes.
+
+## Stage 1b — Photo to scan
+
+A phone photo of a letter is not a scan: the page is a trapezoid on a table, lit unevenly, often
+still bent where it was folded for the envelope. Printed again it comes out grey, skewed and
+smaller than the paper was. Before OCR, every photo goes through
+`apps/api/src/processing/scan_cleanup.py` (OpenCV, in the worker image at `/opt/scan`):
+
+1. **Find the page.** Several outlines are tried — edges, brightness, "bright and colourless",
+   local contrast — and the largest convincing four-cornered one wins. A page that runs off the
+   photo's edge (the usual close-up) is found as a *partial* outline: the table is cropped away,
+   the cut edge kept.
+2. **Flatten it to its real proportions.** The page's true aspect is recovered from the
+   perspective (Zhang & He, 2007) and snapped to A4 or US Letter when within 4%, so it prints at
+   its real size; the script reports the DPI that does that, and ocrmypdf gets it as
+   `--image-dpi`.
+3. **Straighten folds.** A letter folded in three does not lie flat; its side edges bend at each
+   fold. When they do, the page is cut along the folds and each panel is flattened on its own.
+4. **Whiten.** The paper is estimated per colour channel with a window wider than any logo, and
+   divided out: shadows and colour cast go, ink and stamps keep their colour.
+5. **Drop show-through.** The back of a thin page shows through it as faint mirrored text, which
+   whitening leaves as light grey that reads like content. Marks lighter than any ink's core,
+   with no dark ink near them, on white paper, become paper. Halftone fills — the grey boxes on a
+   bill — are faint dots too, but grey on average, and are kept.
+
+The scan replaces the photo as the input to Stage 2, so the searchable PDF *is* the scan.
+ocrmypdf runs without `--deskew` on it: the scan is square to the page's own edges, and on a
+folded letter with show-through, deskew's guess from the text lines turned it 3° askew. The
+photo is never touched and stays the file's original. `document_files.scan_outline` records which
+outline was used (`page`, `partial`, or `none` for a photo that is all paper and was only
+whitened); it is null for everything else.
+
+**Best-effort, never a failure.** When no outline holds — a receipt on a patterned table — the
+script declines and the photo is OCR'd as it was taken: whitening a table along with the page
+turns it grey. A crash, a missing venv (`pnpm dev`), or a result the worker does not understand
+does the same. Photos uploaded before this stage existed are **not reprocessed**.
+
+**What people see.** When a file has a scan, the app shows, opens, downloads and shares the scan
+(`GET /documents/:id/file?copy=scan`, named after the document).
+
+**Two controls, no knobs.** Each document with a scan has a **Scan | Photo** switch
+(`document_files.prefer_original`): choosing Photo makes the view, Download, Full size and shares
+use the original, for when a scan came out wrong. Search keeps reading the scan's text.
+**Settings → Documents → Turn photos into scans** (`documents.photosToScans`, on unless set to
+`false`) is read by the worker per job; off, new photos are OCR'd as taken and existing scans stay.
+The thresholds are deliberately not settings: a wrong value is fixed in code, for everyone.
 
 ## Stage 2 — OCR (only when Stage 1 says so)
 
@@ -90,4 +136,5 @@ common floor; §7 says where a connected inbox differs and why.
 
 A dedicated mobile scan flow was designed (two artboards, marked *Parked* in Paper) and then
 deferred. The phone path is: scan with the phone's own scanner, email it to the vault.
-Emailed photos arrive as HEIC/JPEG and hit the Stage 1 conversion path.
+Emailed photos arrive as HEIC/JPEG and hit the Stage 1 conversion path, and Stage 1b turns them
+into scans — so a photo taken with the camera, not only the phone's scanner, comes out as one.

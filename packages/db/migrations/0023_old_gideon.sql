@@ -1,0 +1,1 @@
+ALTER TABLE "document_files" ADD COLUMN "scan_outline" text;

@@ -1,8 +1,10 @@
 import { Body, Controller, Get, Patch, Post } from "@nestjs/common";
 import {
   SetShareDelivery,
+  UpdateDocumentSettings,
   UpdateShareBucketSettings,
   UpdateSuggestionSettings,
+  type DocumentSettings,
   type ShareBucketSettings,
   type ShareBucketTestResult,
   type ShareDeliverySettings,
@@ -10,6 +12,7 @@ import {
   type SuggestionTestResult,
 } from "@harbor/shared";
 import { ZodPipe } from "../common/zod.pipe";
+import { DocumentSettingsService } from "./document-settings.service";
 import { ShareBucketSettingsService } from "./share-bucket-settings.service";
 import { SuggestionSettingsService } from "./suggestion-settings.service";
 
@@ -19,7 +22,19 @@ export class SettingsController {
   constructor(
     private readonly suggestions: SuggestionSettingsService,
     private readonly shareBucket: ShareBucketSettingsService,
+    private readonly documents: DocumentSettingsService,
   ) {}
+
+  /** How arriving documents are handled — today, whether photos are turned into scans. */
+  @Get("documents")
+  getDocuments(): Promise<DocumentSettings> {
+    return this.documents.view();
+  }
+
+  @Patch("documents")
+  updateDocuments(@Body(new ZodPipe(UpdateDocumentSettings)) body: UpdateDocumentSettings): Promise<DocumentSettings> {
+    return this.documents.update(body);
+  }
 
   @Get("suggestions")
   get(): Promise<SuggestionSettings> {

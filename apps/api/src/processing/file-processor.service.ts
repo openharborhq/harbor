@@ -4,7 +4,7 @@ import { UnrecoverableError } from "bullmq";
 import { eq } from "drizzle-orm";
 import { open, readFile, rm, mkdir } from "node:fs/promises";
 import path from "node:path";
-import { documentFiles, documentText, documents, type Db } from "@harbor/db";
+import { documentFiles, documentText, documents, settings, type Db } from "@harbor/db";
 import type { ProcessingStatus } from "@harbor/shared";
 import { sniffKind, type FileKind } from "../common/sniff";
 import type { Env } from "../config/env";
@@ -12,8 +12,10 @@ import { InjectDb } from "../db/db.module";
 import { InjectSuggestQueue, type SuggestJob } from "../queue/queue.module";
 import type { Queue } from "bullmq";
 import { SearchIndexService } from "../search/search-index.service";
+import { SETTING } from "../settings/settings.service";
 import { BlobStore } from "../storage/blob-store.service";
 import { ExecError, run } from "./exec";
+import { parseScanResult, type ScanResult } from "./scan";
 import { hasUsableTextLayer, pageFromOcrLine, pagesFromPdfInfo } from "./text-quality";
 
 /** Hard ceiling per job; a 100-page scan on a fanless box fits comfortably (spec §2 stage 2). */
@@ -40,6 +42,8 @@ export interface ProcessResult {
 export class FileProcessor {
   private readonly log = new Logger(FileProcessor.name);
   private readonly ocrLanguages: string;
+  private readonly scanPython: string;
+  private readonly scanScript: string;
 
   constructor(
     @InjectDb() private readonly db: Db,
@@ -49,6 +53,8 @@ export class FileProcessor {
     config: ConfigService<Env, true>,
   ) {
     this.ocrLanguages = config.get("OCR_LANGUAGES", { infer: true });
+    this.scanPython = config.get("SCAN_CLEANUP_PYTHON", { infer: true });
+    this.scanScript = config.get("SCAN_CLEANUP_SCRIPT", { infer: true });
   }
 
   async process(documentFileId: string, ctx: ProcessContext): Promise<ProcessResult> {
@@ -76,6 +82,7 @@ export class FileProcessor {
       let engine: ProcessResult["engine"] = null;
       let pageCount: number | null = null;
       let searchable: { key: string; iv: Buffer; tag: Buffer } | null = null;
+      let scan: ScanResult | null = null;
 
       if (kind === "unknown") {
         // Stored as-is, not searchable (spec §2 stage 1: office files etc. are out of scope for v1).
@@ -86,6 +93,10 @@ export class FileProcessor {
           const jpg = path.join(work, "converted.jpg");
           await run("heif-convert", [original, jpg], { signal: ctx.signal });
           pdfIn = jpg;
+        }
+        if (kind !== "pdf" && (await this.photosToScans())) {
+          scan = await this.toScan(df.id, pdfIn, path.join(work, "scan.jpg"), ctx.signal);
+          if (scan) pdfIn = path.join(work, "scan.jpg");
         }
         if (kind === "pdf") {
           pageCount = pagesFromPdfInfo((await run("pdfinfo", [pdfIn], { signal: ctx.signal })).stdout);
@@ -105,8 +116,12 @@ export class FileProcessor {
           // detector calls "facing up" is never rotated whatever the threshold, so the only risk
           // of going low is a page it misreads as rotated with confidence above 2: measured
           // 2026-09-10 on desk-scanner output, not seen.
-          const args = ["--skip-text", "--rotate-pages", "--rotate-pages-threshold", "2", "--deskew", "--optimize", "1", "-l", this.ocrLanguages, "--jobs", "1", "-v", "1"];
-          if (kind !== "pdf") args.push("--image-dpi", "300");
+          const args = ["--skip-text", "--rotate-pages", "--rotate-pages-threshold", "2", "--optimize", "1", "-l", this.ocrLanguages, "--jobs", "1", "-v", "1"];
+          // A scan is already square to the page's own edges, which beats a guess from its text
+          // lines: on a folded letter showing its back through the paper, --deskew turned a
+          // straight scan 3° askew.
+          if (!scan) args.push("--deskew");
+          if (kind !== "pdf") args.push("--image-dpi", String(scan?.dpi ?? 300));
           args.push(pdfIn, out);
           let lastPage = 0;
           await run("ocrmypdf", args, {
@@ -177,6 +192,7 @@ export class FileProcessor {
             processingError: null,
             pageProgress: null,
             pageCount,
+            scanOutline: scan?.outline ?? null,
             ...(thumb ? { thumbnailKey: thumb.key, thumbnailIv: thumb.iv, thumbnailTag: thumb.tag } : {}),
           })
           .where(eq(documentFiles.id, df.id));
@@ -197,6 +213,36 @@ export class FileProcessor {
     } finally {
       await rm(work, { recursive: true, force: true });
     }
+  }
+
+  /**
+   * Turns a phone photo into a scan before OCR (spec §2 stage 1b): flattened, cropped to the page,
+   * folds straightened, shadows and colour cast removed. The scan becomes the searchable PDF; the
+   * original upload is untouched. Best-effort: a photo the script leaves alone, or any failure of
+   * the script itself, is OCR'd as it was taken.
+   */
+  private async toScan(id: string, photo: string, out: string, signal: AbortSignal): Promise<ScanResult | null> {
+    try {
+      const { stdout } = await run(this.scanPython, [this.scanScript, photo, out], { signal });
+      const scan = parseScanResult(stdout);
+      this.log.log(`${id}: ${scan ? `scan · ${scan.outline} outline · ${scan.folds} folds · ${scan.dpi} dpi` : "photo left as taken"}`);
+      return scan;
+    } catch (err) {
+      // A timeout is the job's, not the step's: let it fail the job as it would anywhere else.
+      if (signal.aborted) throw err;
+      this.log.warn(`${id}: no scan, photo OCR'd as taken: ${(err as Error).message.slice(0, 200)}`);
+      return null;
+    }
+  }
+
+  /**
+   * Settings → Documents. Read here rather than through SettingsService, which the worker does
+   * not load: this is one plain key, and reading it per job means a change applies to the next
+   * upload without restarting anything.
+   */
+  private async photosToScans(): Promise<boolean> {
+    const [row] = await this.db.select({ value: settings.value }).from(settings).where(eq(settings.key, SETTING.photosToScans));
+    return row?.value !== "false";
   }
 
   private async setStatus(id: string, status: ProcessingStatus, progress: number | null = null, error: string | null = null) {

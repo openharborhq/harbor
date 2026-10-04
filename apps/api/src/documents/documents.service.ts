@@ -354,12 +354,7 @@ export class DocumentsService {
 
   /** Decrypted original, streamed. Audited: downloads of family paperwork are worth a row each. */
   async openOriginal(documentId: string, userId: string, ip: string | null, version?: number): Promise<{ stream: Readable; filename: string; mimeType: string; byteSize: number }> {
-    const current = await this.loadRow(documentId);
-    const df =
-      version === undefined || version === current.df.version
-        ? current.df
-        : await this.db.query.documentFiles.findFirst({ where: and(eq(documentFiles.documentId, documentId), eq(documentFiles.version, version)) });
-    if (!df) throw new NotFoundException("Version not found");
+    const { df } = await this.fileVersion(documentId, version);
     const dek = this.blobs.unwrapDek(df.dekWrapped, df.storageKey);
     const stream = this.blobs.openStream(df.storageKey, dek, df.iv, df.authTag);
     dek.fill(0);
@@ -367,10 +362,40 @@ export class DocumentsService {
     return { stream, filename: df.originalFilename, mimeType: df.mimeType, byteSize: df.byteSize };
   }
 
+  /**
+   * The scan a photo was turned into (spec §2 stage 1b): the searchable PDF made from the
+   * flattened, whitened page, sealed under the file's own DEK. Only for files that have one — a
+   * PDF's searchable copy is the same pages with a text layer and is not offered as a "scan".
+   * Named after the document, since the photo's own name (IMG_4127.HEIC) says nothing.
+   */
+  async openScan(documentId: string, userId: string, ip: string | null, version?: number): Promise<{ stream: Readable; filename: string; mimeType: string }> {
+    const { df, title } = await this.fileVersion(documentId, version);
+    const text = df.scanOutline === null ? undefined : await this.db.query.documentText.findFirst({ where: eq(documentText.documentFileId, df.id) });
+    if (!text?.searchablePdfKey || !text.searchablePdfIv || !text.searchablePdfTag) throw new NotFoundException("No scan for this file");
+    const dek = this.blobs.unwrapDek(df.dekWrapped, df.storageKey);
+    const stream = this.blobs.openStream(text.searchablePdfKey, dek, text.searchablePdfIv, text.searchablePdfTag);
+    dek.fill(0);
+    await this.audit.record({ action: "document.download", actorUserId: userId, entityType: "document", entityId: documentId, metadata: { version: df.version, copy: "scan" }, ip });
+    const name = (title || "Scan").replace(/[\\/:*?"<>|]+/g, " ").trim().slice(0, 120) || "Scan";
+    return { stream, filename: `${name}.pdf`, mimeType: "application/pdf" };
+  }
+
+  /** The current file of a document, or the given version of it. */
+  private async fileVersion(documentId: string, version?: number) {
+    const current = await this.loadRow(documentId);
+    const df =
+      version === undefined || version === current.df.version
+        ? current.df
+        : await this.db.query.documentFiles.findFirst({ where: and(eq(documentFiles.documentId, documentId), eq(documentFiles.version, version)) });
+    if (!df) throw new NotFoundException("Version not found");
+    return { df, title: current.doc.title };
+  }
+
   // ---------- filing ----------
 
   async update(documentId: string, patch: UpdateDocument, userId: string, ip: string | null): Promise<DocumentSummary> {
-    await this.loadRow(documentId);
+    const { df } = await this.loadRow(documentId);
+    if (patch.preferOriginal !== undefined && df.scanOutline === null) throw new BadRequestException("This file has no scan to choose over");
     if (patch.categoryId) {
       const exists = await this.db.query.categories.findFirst({ where: eq(categories.id, patch.categoryId) });
       if (!exists) throw new BadRequestException("Unknown category");
@@ -388,6 +413,7 @@ export class DocumentsService {
         if (patch.itemIds.length) await tx.insert(documentItems).values(patch.itemIds.map((itemId: string) => ({ documentId, itemId })));
       }
       if (patch.tags !== undefined) await this.tagsService.setForDocument(documentId, patch.tags, tx);
+      if (patch.preferOriginal !== undefined) await tx.update(documentFiles).set({ preferOriginal: patch.preferOriginal }).where(eq(documentFiles.id, df.id));
       // Title is weight A; items, tags, notes and the category path are weight B. All of them are
       // stale in the index until the file is reprocessed otherwise, so a retitled or refiled
       // document — or one whose note says what the scan doesn't — would not be found.
@@ -714,6 +740,8 @@ export function toSummary(
       processingError: df.processingError,
       pageProgress: df.pageProgress,
       hasThumbnail: df.thumbnailKey !== null,
+      hasScan: df.scanOutline !== null,
+      preferOriginal: df.preferOriginal,
     },
   };
 }

@@ -292,6 +292,21 @@ Convention: `[ ]` open, `[x]` done and left in place until its milestone doc abs
        - [ ] Home's "Recently added" and the Inbox preview could show real page thumbnails where
              the design drew a blank page.
 
+12. [~] **Photos become scans** (agreed 2026-10-04; spec
+       [§2 stage 1b](../spec/02-ingest-pipeline.md)). OpenCV in the worker finds the page,
+       flattens it to A4/Letter, straightens the folds of a trifold letter and whitens it before
+       OCR. The scan is the default everywhere — view, download, share — and the photo stays as
+       *Original*. Built on `scan-cleanup`.
+
+       Still owed on it:
+       - [ ] **Not reprocessing, by Kai's decision.** Photos already in the vault keep the photo
+             as their only copy. A reprocess would need its own command and a look at the
+             results first.
+       - [ ] Show-through is removed only on white paper: next to a grey box, or in the darker
+             band along a fold, some survives. A strongly creased fold can leave a faint line.
+       - [ ] A page on a table the same white as the paper is often not found; the photo is then
+             used as taken.
+
 ## Waiting on Kai
 
 - [ ] **Protectli deploy** — M1 step 11. Runbook at `docs/deploy.md`, never once executed.

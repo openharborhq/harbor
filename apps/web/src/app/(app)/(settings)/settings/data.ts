@@ -1,6 +1,7 @@
 import { cache } from "react";
 import type {
   BackupStatus,
+  DocumentSettings,
   InviteInfo,
   MailConnectionView,
   OwnerInfo,
@@ -33,6 +34,10 @@ export const getSuggestions = cache(() =>
   apiFetch<SuggestionSettings>("/settings/suggestions").catch(
     () => ({ provider: "none", model: "", baseUrl: null, apiKeySet: false, sendPeople: true, readerLanguage: "en", fromEnvironment: true }) as SuggestionSettings,
   ),
+);
+// On, when the api cannot be asked: it is the default, and the switch saves what is flipped anyway.
+export const getDocumentSettings = cache(() =>
+  apiFetch<DocumentSettings>("/settings/documents").catch(() => ({ photosToScans: true }) satisfies DocumentSettings),
 );
 export const getShareDelivery = cache(() =>
   apiFetch<ShareDeliverySettings>("/settings/share-delivery").catch(

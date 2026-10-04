@@ -76,6 +76,8 @@ export const SETTING = {
   suggestApiKey: "suggest.apiKey",
   suggestSendPeople: "suggest.sendPeople",
   suggestReaderLanguage: "suggest.readerLanguage",
+  /** "false" turns off photo-to-scan for new uploads (spec §2 stage 1b); absent means on. */
+  photosToScans: "documents.photosToScans",
   /**
    * The share bucket (spec §10.10). Stored here rather than left to the environment for the same
    * reason the suggestion provider is: an owner who can create a bucket in a web console should

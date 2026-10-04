@@ -162,6 +162,20 @@
       "when": 1789388331077,
       "tag": "0022_worthless_spiral",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1791112423171,
+      "tag": "0023_old_gideon",
+      "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1791114822821,
+      "tag": "0024_lame_korvac",
+      "breakpoints": true
     }
   ]
 }

@@ -6,6 +6,7 @@ import { DocumentDetail } from "@/components/DocumentDetail";
 import { DocumentSheet } from "@/components/DocumentSheet";
 import { DocumentTasks } from "@/components/DocumentTasks";
 import { PdfPages } from "@/components/PdfPages";
+import { ScanChoice } from "@/components/ScanChoice";
 import { isProcessing } from "@/components/StatusPill";
 import { DocumentTitle } from "@/components/DocumentTitle";
 import { ApiError, apiFetch } from "@/lib/api-server";
@@ -34,8 +35,14 @@ export async function DocumentView({ id, variant }: { id: string; variant: "page
     apiFetch<Task[]>(`/tasks?document=${id}`).catch(() => [] as Task[]),
   ]);
   const f = doc.file;
-  const fileUrl = `/api/documents/${doc.id}/file`;
-  const isImage = f.mimeType.startsWith("image/");
+  const originalUrl = `/api/documents/${doc.id}/file`;
+  // A photo that was turned into a scan is shown, opened and downloaded as the scan (spec §2 stage
+  // 1b) — that is what the person meant to keep — unless they chose the photo for this document.
+  const showScan = f.hasScan && !f.preferOriginal;
+  const fileUrl = showScan ? `${originalUrl}?copy=scan` : originalUrl;
+  const isImage = !showScan && f.mimeType.startsWith("image/");
+  // The scan is named after the document by the server; the original keeps the name it came with.
+  const downloadAs = showScan ? true : f.originalFilename;
   const facts = keyFacts(doc, tasks);
 
   return (
@@ -56,12 +63,15 @@ export async function DocumentView({ id, variant }: { id: string; variant: "page
             belong. They were at the bottom of the preview, below the fold on a short window, and
             one of them was a second Download two inches from the first.
           */}
+          <span className="flex shrink-0 items-center gap-2.5">
+          {/* On a phone it is a row of the sheet instead, where there is room for it. */}
+          {f.hasScan && <ScanChoice documentId={doc.id} preferOriginal={f.preferOriginal} variant="header" />}
           <span className="flex h-9 shrink-0 items-stretch divide-x divide-border overflow-hidden rounded-md border border-border">
             <a
               href={fileUrl}
               target="_blank"
               rel="noreferrer"
-              title="Open the original in a new tab"
+              title={showScan ? "Open the scan in a new tab" : "Open the original in a new tab"}
               className="flex items-center gap-1.5 px-3 text-row font-medium transition-colors hover:bg-surface"
             >
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="size-3.5" aria-hidden="true">
@@ -72,7 +82,7 @@ export async function DocumentView({ id, variant }: { id: string; variant: "page
             </a>
             <a
               href={fileUrl}
-              download={f.originalFilename}
+              download={downloadAs}
               className="flex items-center gap-1.5 px-3 text-row font-medium transition-colors hover:bg-surface"
             >
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="size-3.5" aria-hidden="true">
@@ -80,6 +90,7 @@ export async function DocumentView({ id, variant }: { id: string; variant: "page
               </svg>
               <span className="sr-only sm:not-sr-only">Download</span>
             </a>
+          </span>
           </span>
         </div>
       }
@@ -104,7 +115,7 @@ export async function DocumentView({ id, variant }: { id: string; variant: "page
           {isImage ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img src={fileUrl} alt={doc.title} className="max-h-full max-w-full rounded-sm bg-white object-contain shadow-[0_1px_3px_rgba(13,22,34,0.12)]" />
-          ) : f.mimeType === "application/pdf" ? (
+          ) : showScan || f.mimeType === "application/pdf" ? (
             <PdfPages url={fileUrl} title={doc.title} />
           ) : (
             <p className="text-body text-muted">No preview for this file type. Download the original instead.</p>
@@ -164,7 +175,7 @@ export async function DocumentView({ id, variant }: { id: string; variant: "page
           <>
             <a
               href={fileUrl}
-              download={f.originalFilename}
+              download={downloadAs}
               className="flex h-[52px] flex-1 basis-0 items-center justify-center gap-2 rounded-lg border border-border-strong text-copy font-semibold transition-colors active:bg-surface"
             >
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="size-[19px]" aria-hidden="true">
@@ -183,6 +194,7 @@ export async function DocumentView({ id, variant }: { id: string; variant: "page
               </svg>
               Full size
             </a>
+            {f.hasScan && <ScanChoice documentId={doc.id} preferOriginal={f.preferOriginal} variant="sheet" />}
           </>
         }
       >

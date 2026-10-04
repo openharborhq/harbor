@@ -1,0 +1,1 @@
+ALTER TABLE "document_files" ADD COLUMN "prefer_original" boolean DEFAULT false NOT NULL;
