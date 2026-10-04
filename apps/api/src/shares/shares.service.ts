@@ -1,7 +1,7 @@
 import { BadRequestException, Injectable, Logger, NotFoundException } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { and, desc, eq, inArray, isNull, lte, sql } from "drizzle-orm";
-import { documentFiles, documents, shareAccessLog, shareFiles, shareLinks, shares, users, type Db } from "@harbor/db";
+import { documentFiles, documentText, documents, shareAccessLog, shareFiles, shareLinks, shares, users, type Db } from "@harbor/db";
 import {
   CreateShareInput,
   SINK_CAPABILITIES,
@@ -80,7 +80,7 @@ export class SharesService {
     }
 
     const files = await this.filesFor(input.documentIds);
-    const names = bundleFilenames(files.map((f) => ({ title: f.title, originalFilename: f.originalFilename })));
+    const names = bundleFilenames(files.map((f) => ({ title: f.title, originalFilename: f.filename })));
     const expiresAt = new Date(Date.now() + input.expiryHours * 3600_000);
 
     const shareKey = randomBytes(32);
@@ -102,7 +102,7 @@ export class SharesService {
         const zip = new StoredZipWriter(zipHandle, new Date());
         for (const [i, file] of files.entries()) {
           const dek = this.blobs.unwrapDek(file.dekWrapped, file.storageKey);
-          await zip.addFile(names[i], this.blobs.openStream(file.storageKey, dek, file.iv, file.authTag));
+          await zip.addFile(names[i], this.blobs.openStream(file.blob.key, dek, file.blob.iv, file.blob.tag));
         }
         plaintextBytes = await zip.finish();
       } finally {
@@ -404,12 +404,27 @@ export class SharesService {
         dekWrapped: documentFiles.dekWrapped,
         iv: documentFiles.iv,
         authTag: documentFiles.authTag,
-        byteSize: documentFiles.byteSize,
         originalFilename: documentFiles.originalFilename,
+        scanOutline: documentFiles.scanOutline,
+        preferOriginal: documentFiles.preferOriginal,
+        scanKey: documentText.searchablePdfKey,
+        scanIv: documentText.searchablePdfIv,
+        scanTag: documentText.searchablePdfTag,
       })
       .from(documents)
       .innerJoin(documentFiles, and(eq(documentFiles.documentId, documents.id), eq(documentFiles.isCurrent, true)))
-      .where(and(inArray(documents.id, documentIds), isNull(documents.deletedAt)));
+      .leftJoin(documentText, eq(documentText.documentFileId, documentFiles.id))
+      .where(and(inArray(documents.id, documentIds), isNull(documents.deletedAt)))
+      .then((r) =>
+        r.map(({ scanOutline, preferOriginal, scanKey, scanIv, scanTag, ...f }) =>
+          // A photo goes out as the scan the vault shows for it (spec §2 stage 1b), named after the
+          // document like any download of it: the photo's own name, IMG_4211.HEIC, says nothing.
+          // Unless someone chose the photo for this document, in which case that is what is sent.
+          scanOutline && !preferOriginal && scanKey && scanIv && scanTag
+            ? { ...f, blob: { key: scanKey, iv: scanIv, tag: scanTag }, filename: null }
+            : { ...f, blob: { key: f.storageKey, iv: f.iv, tag: f.authTag }, filename: f.originalFilename },
+        ),
+      );
 
     if (rows.length !== documentIds.length) {
       throw new BadRequestException("One of those documents is no longer in the vault. Refresh and try again.");

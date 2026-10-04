@@ -48,6 +48,14 @@ export const DocumentSummary = z.object({
     pageProgress: z.number().min(0).max(1).nullable(),
     /** True once a first-page preview exists at GET /documents/:id/thumbnail. */
     hasThumbnail: z.boolean(),
+    /**
+     * True when this file is a photo that was turned into a scan — the page found, flattened and
+     * whitened (spec §2 stage 1b). The scan is at GET /documents/:id/file?copy=scan and is what the
+     * app shows and downloads; the photo itself stays at /file.
+     */
+    hasScan: z.boolean(),
+    /** Someone chose the photo over the scan for this file: show, download and share the original. */
+    preferOriginal: z.boolean(),
   }),
 });
 export type DocumentSummary = z.infer<typeof DocumentSummary>;
@@ -70,6 +78,8 @@ export const UpdateDocument = z.object({
   expiresAt: z.string().date().nullable().optional(),
   notes: z.string().max(5000).nullable().optional(),
   tags: z.array(z.string().trim().min(1).max(40)).max(10).optional(),
+  /** For a photo that was turned into a scan: true shows the photo instead (spec §2 stage 1b). */
+  preferOriginal: z.boolean().optional(),
 });
 export type UpdateDocument = z.infer<typeof UpdateDocument>;
 

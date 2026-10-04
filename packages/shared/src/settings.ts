@@ -48,3 +48,16 @@ export const SuggestionTestResult = z.object({
   detail: z.string(),
 });
 export type SuggestionTestResult = z.infer<typeof SuggestionTestResult>;
+
+/**
+ * How documents are handled when they arrive (spec §2 stage 1b). On by default: a household that
+ * would rather keep exactly what it photographed turns it off, and photos are then OCR'd as taken.
+ * Scans already made are kept either way; a single document can still show its photo instead.
+ */
+export const DocumentSettings = z.object({
+  photosToScans: z.boolean(),
+});
+export type DocumentSettings = z.infer<typeof DocumentSettings>;
+
+export const UpdateDocumentSettings = DocumentSettings.partial();
+export type UpdateDocumentSettings = z.infer<typeof UpdateDocumentSettings>;

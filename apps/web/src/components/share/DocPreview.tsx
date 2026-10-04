@@ -49,8 +49,10 @@ export function DocPreview({ document: doc }: { document: BasketDocument | null 
     );
   }
 
-  const mime = summary?.file.mimeType ?? "";
-  const fileUrl = `/api/documents/${doc.id}/file`;
+  // A photo that was turned into a scan goes out as the scan, so that is what to look at.
+  const hasScan = (summary?.file.hasScan && !summary.file.preferOriginal) ?? false;
+  const mime = hasScan ? "application/pdf" : (summary?.file.mimeType ?? "");
+  const fileUrl = `/api/documents/${doc.id}/file${hasScan ? "?copy=scan" : ""}`;
 
   return (
     <div className="flex min-w-0 flex-1 flex-col">

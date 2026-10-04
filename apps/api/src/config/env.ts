@@ -42,6 +42,12 @@ export const Env = z.object({
   /** tesseract language packs installed in the worker image, "+"-joined. */
   OCR_LANGUAGES: z.string().regex(/^[a-z_]+(\+[a-z_]+)*$/).default("deu+eng"),
   /**
+   * The photo-to-scan step (spec §2 stage 1b), installed in the worker image. Elsewhere — `pnpm
+   * dev` without the venv — the step fails to start, and photos are OCR'd as they were taken.
+   */
+  SCAN_CLEANUP_PYTHON: z.string().min(1).default("/opt/scan/bin/python"),
+  SCAN_CLEANUP_SCRIPT: z.string().min(1).default("/opt/scan/scan_cleanup.py"),
+  /**
    * Spec §5. `none` = heuristics only, nothing leaves the box; `openai-compatible` pointed at
    * Ollama on the LAN is the other way to keep it that way.
    */

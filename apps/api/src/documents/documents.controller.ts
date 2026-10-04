@@ -192,19 +192,24 @@ export class DocumentsController {
     return this.documents.rejectSuggestion(id, user.id, req.ip ?? null);
   }
 
+  /** The file as uploaded, or with `copy=scan` the scan a photo was turned into (spec §2 stage 1b). */
   @Get(":id/file")
   async file(
     @Param("id", ParseUUIDPipe) id: string,
     @Query("version") version: string | undefined,
+    @Query("copy") copy: string | undefined,
     @CurrentUser() user: SessionUser,
     @Req() req: Request,
     @Res() res: Response,
   ): Promise<void> {
     const v = version ? Number.parseInt(version, 10) : undefined;
     if (version && (!Number.isInteger(v) || v! < 1)) throw new BadRequestException("version must be a positive integer");
-    const { stream, filename, mimeType, byteSize } = await this.documents.openOriginal(id, user.id, req.ip ?? null, v);
+    if (copy !== undefined && copy !== "scan") throw new BadRequestException('copy must be "scan" or absent');
+    const { stream, filename, mimeType, byteSize } =
+      copy === "scan" ? { ...(await this.documents.openScan(id, user.id, req.ip ?? null, v)), byteSize: null } : await this.documents.openOriginal(id, user.id, req.ip ?? null, v);
     res.setHeader("Content-Type", mimeType);
-    res.setHeader("Content-Length", String(byteSize));
+    // The scan's sealed size is not recorded, so it is sent without a length rather than a wrong one.
+    if (byteSize !== null) res.setHeader("Content-Length", String(byteSize));
     res.setHeader("Content-Disposition", `inline; filename*=UTF-8''${encodeURIComponent(filename)}`);
     res.setHeader("Cache-Control", "private, no-store");
     stream.on("error", () => {

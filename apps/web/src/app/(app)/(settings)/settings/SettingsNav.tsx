@@ -5,13 +5,15 @@ import { usePathname } from "next/navigation";
 import { useEffect, useRef } from "react";
 
 /**
- * The sections, in the order they are drawn: who you are (Account, Users, Devices), then what the
- * vault talks to (Email Ingest, Integrations, Sharing, Backup), then what it is (Version).
+ * The sections, in the order they are drawn: who you are (Account, Users, Devices), what the vault
+ * does with a document (Documents), then what it talks to (Email Ingest, Integrations, Sharing,
+ * Backup), then what it is (Version).
  */
 const SECTIONS = [
   { href: "/settings", label: "Account" },
   { href: "/settings/users", label: "Users" },
   { href: "/settings/devices", label: "Devices" },
+  { href: "/settings/documents", label: "Documents" },
   { href: "/settings/mail", label: "Email Ingest" },
   { href: "/settings/integrations", label: "Integrations" },
   { href: "/settings/sharing", label: "Sharing" },

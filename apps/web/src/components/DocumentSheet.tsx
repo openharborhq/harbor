@@ -51,7 +51,8 @@ export function DocumentSheet({ top, actions, children }: { top: ReactNode; acti
         {children}
       </div>
       {/* Further from the panel's own buttons when it is open, so the two rows do not read as one. */}
-      <div className={`flex gap-2.5 px-5 lg:hidden ${open ? "pt-6" : "pt-2.5"}`}>{actions}</div>
+      {/* Wraps so an action can take a row of its own with `basis-full`. */}
+      <div className={`flex flex-wrap gap-x-2.5 gap-y-1 px-5 lg:hidden ${open ? "pt-6" : "pt-2.5"}`}>{actions}</div>
     </div>
   );
 }

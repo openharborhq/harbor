@@ -76,6 +76,14 @@ export const documentFiles = pgTable(
     thumbnailKey: text("thumbnail_key"),
     thumbnailIv: bytea("thumbnail_iv"),
     thumbnailTag: bytea("thumbnail_tag"),
+    // Set when a photo was turned into a scan before OCR (spec §2 stage 1b): which outline it was
+    // cropped to — 'page', 'partial' or 'none' (cleaned without a crop). The scan is the
+    // searchable PDF in document_text; the original is never touched. Null for everything else,
+    // including photos uploaded before scans existed.
+    scanOutline: text("scan_outline", { enum: ["page", "partial", "none"] }),
+    // Someone looked at the scan and would rather have the photo: the app shows, downloads and
+    // shares the original for this file instead. The scan is kept, and stays what search reads.
+    preferOriginal: boolean("prefer_original").notNull().default(false),
     uploadedBy: uuid("uploaded_by").references(() => users.id),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
