@@ -17,6 +17,24 @@ migrations, on purpose, because a half-reversed schema is worse than a restore. 
 wrong, follow [`docs/restore.md`](docs/restore.md) with the backup `harbor upgrade` took
 immediately before it. That is why the upgrade refuses to run without one.
 
+## v0.8.2 — 2026-10-04
+
+- **New feature: Harbor fits a phone.** Every page now reflows below laptop width instead of
+  running off the side of the screen — at 390 px, 18 of 24 screens used to scroll sideways, and none
+  do now at 360, 390, 768, 1024 or 1440. Lists put a document's title over where it is filed, the
+  Library's filters fold into one Filters row above the list, and a document opens as a single
+  sheet with the page on top and its details underneath. Settings trades its sidebar for a row of
+  sections across the top. On a touchscreen, form fields are 16 px, so Safari on an iPhone no longer
+  zooms the page into every field it focuses, and the Add page offers to choose files or photos
+  rather than to drop folders. Laptop and desktop layouts are unchanged.
+
+- **Fixed: on an iPhone, the To do page and any document with a September date were rebuilt from
+  scratch on every load.** The server abbreviated the month as "Sept" and Safari as "Sep"; React
+  saw the two disagree and threw the server's page away. Dates are now spelled from one fixed table,
+  so every runtime agrees — and "Sept" reads "Sep" everywhere.
+
+- **Fixed: a long command in the release notes ran off the side of Settings → Version.**
+
 ## v0.8.1 — 2026-09-15
 
 - **Fixed: the share page a recipient opens was still on its own palette, with two colours too faint
