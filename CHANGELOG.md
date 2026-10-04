@@ -17,6 +17,28 @@ migrations, on purpose, because a half-reversed schema is worse than a restore. 
 wrong, follow [`docs/restore.md`](docs/restore.md) with the backup `harbor upgrade` took
 immediately before it. That is why the upgrade refuses to run without one.
 
+## v0.10.0 — 2026-10-04
+
+- **New feature: photos of documents become scans.** Before a photo is read, Harbor finds the page
+  in it, crops away the table, flattens the perspective to the paper's real proportions,
+  straightens a letter that was folded in three for its envelope, evens out shadows and removes
+  the back of the page showing through. A4 and US Letter pages come out at their real size, so a
+  reprint matches the original. The scan is what the document shows, downloads and shares; the
+  photo is kept unchanged.
+
+- **Added: a Scan | Photo switch on each document made from a photo.** Choosing Photo makes the
+  document show, download and share the photo as taken, for the occasional scan that comes out
+  wrong. Search keeps using the text read from the scan.
+
+- **Added: Settings → Documents → Turn photos into scans.** On by default. Turned off, new photos
+  are kept and read exactly as taken; scans already made stay.
+
+**Worth knowing:**
+- Photos already in the vault are not turned into scans. Only photos added after the upgrade are.
+- A share now sends a photo's scan, as a PDF named after the document, where it used to send the
+  photo itself.
+- The worker image is about 240 MB larger, so this upgrade downloads more than usual.
+
 ## v0.9.0 — 2026-10-04
 
 - **New feature: the screens used most are rebuilt for a phone.** v0.8.2 made every page fit a
