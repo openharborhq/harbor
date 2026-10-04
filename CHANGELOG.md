@@ -17,6 +17,26 @@ migrations, on purpose, because a half-reversed schema is worse than a restore. 
 wrong, follow [`docs/restore.md`](docs/restore.md) with the backup `harbor upgrade` took
 immediately before it. That is why the upgrade refuses to run without one.
 
+## v0.9.0 — 2026-10-04
+
+- **New feature: the screens used most are rebuilt for a phone.** v0.8.2 made every page fit a
+  phone; this release makes Home, the Inbox, a document, Library, To do and Add work on one. Home
+  opens with how many things need attention and lists them, most urgent first, with a search
+  field under the headline. A document is its page with a sheet over it: what it is, the amount
+  due or the dates that matter, its open to-dos, Download and Full size, and everything else under
+  All details. Library carries its own search field and filters results by category. To do leads
+  with the totals as figures. Add offers a photo, the photo library or files instead of a drop
+  zone. The menu has full-size rows, with the account, Settings and Sign out at its foot. Nothing
+  on a phone is set below 15 px. Laptop and desktop layouts are unchanged.
+
+- **New feature: the Inbox on a phone shows one document at a time.** The page on top, what it is,
+  where it is going as a row of chips, and Accept & file fixed at the bottom of the screen.
+  Swiping left moves to the next document and right to the one before; Change opens the category
+  and people pickers.
+
+**Worth knowing:** on a phone the Inbox is no longer a list. Several documents are filed one after
+another; Accept all suggestions sits under the card. A laptop or desktop still shows the list.
+
 ## v0.8.3 — 2026-10-04
 
 - **New feature: Harbor goes on a phone's home screen as an app.** Added from Safari's Share menu,
