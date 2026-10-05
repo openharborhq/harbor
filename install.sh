@@ -85,6 +85,7 @@ USE_HOST_TS="${USE_HOST_TS:-0}"
 if command -v tailscale >/dev/null 2>&1 && tailscale status >/dev/null 2>&1; then HOST_TAILSCALE=1; fi
 HARBOR_BIND="${HARBOR_BIND:-127.0.0.1}"
 HARBOR_WEB_PORT="${HARBOR_WEB_PORT:-3000}"
+HARBOR_SHARE_PORT="${HARBOR_SHARE_PORT:-4010}"
 # For a vault on the internet: `caddy` answers 80/443 itself with a Let's Encrypt certificate
 # (compose.caddy.yml); `own` sits behind a reverse proxy already on this machine, which forwards
 # to HARBOR_BIND:HARBOR_WEB_PORT.
@@ -282,6 +283,13 @@ if [ ! -f "$HARBOR_DATA_DIR/harbor.env" ]; then
       HARBOR_WEB_PORT=$(ask "Port for Harbor instead" "$_free")
     done
   fi
+  # The share doorman publishes a loopback port too, and a second Harbor on the machine — a trial
+  # beside a real one — already holds 4010: the install stopped at `up` with "port is already
+  # allocated", the failure the check above exists to prevent. Nobody types this port, so it
+  # moves to a free one without asking.
+  while port_taken "$HARBOR_SHARE_PORT" || [ "$HARBOR_SHARE_PORT" = "$HARBOR_WEB_PORT" ]; do
+    HARBOR_SHARE_PORT=$((HARBOR_SHARE_PORT + 1))
+  done
 fi
 
 # Whoever reaches /setup first becomes the owner. On the open internet that cannot be left to a
@@ -510,6 +518,12 @@ else
     echo "# Mounted into the backup container as /backup — used when RESTIC_REPOSITORY=/backup."
     echo "HARBOR_BACKUP_DIR=$HARBOR_BACKUP_DIR"
     echo
+    if [ "$HARBOR_SHARE_PORT" != 4010 ]; then
+      echo "# 4010 was taken on this machine; share links point at the doorman's port instead."
+      echo "HARBOR_SHARE_PORT=$HARBOR_SHARE_PORT"
+      echo "SHARE_ORIGIN=${SHARE_ORIGIN:-http://localhost:$HARBOR_SHARE_PORT}"
+      echo
+    fi
     if [ "$USE_HOST_TS" = 1 ]; then
       echo "HARBOR_BIND=127.0.0.1"
       echo "HARBOR_WEB_PORT=$HARBOR_WEB_PORT"
@@ -594,10 +608,29 @@ fi
 
 # Everything after the install used to be a three-flag compose line nobody wants to remember or
 # type twice. The wrapper holds the paths so the operator holds none of them.
+#
+# Where it goes: somewhere already on the PATH, so `harbor status` works as typed. /usr/local/bin
+# as root on Linux. On a Mac that directory usually does not exist, and the command used to end up
+# inside the install folder, where `harbor status` answered "command not found" (2026-10-05) — so
+# a user's own bin directory comes next, but only one the PATH already includes: putting it
+# somewhere the shell does not look would be the same failure with extra steps.
 # HARBOR_CLI_DIR for a trial install that must not replace the `harbor` a real one put on the PATH.
-CLI_DIR="${HARBOR_CLI_DIR:-/usr/local/bin}"
-mkdir -p "$CLI_DIR" 2>/dev/null || true
-[ -w "$CLI_DIR" ] 2>/dev/null || CLI_DIR="$HARBOR_DIR"
+on_path() { case ":$PATH:" in *":$1:"*) return 0 ;; esac; return 1; }
+pick_cli_dir() {
+  if [ -n "${HARBOR_CLI_DIR:-}" ]; then
+    mkdir -p "$HARBOR_CLI_DIR" 2>/dev/null || true
+    [ -w "$HARBOR_CLI_DIR" ] && { echo "$HARBOR_CLI_DIR"; return; }
+  else
+    [ -d /usr/local/bin ] && [ -w /usr/local/bin ] && { echo /usr/local/bin; return; }
+    for _d in "$HOME/.local/bin" "$HOME/bin"; do
+      on_path "$_d" || continue
+      mkdir -p "$_d" 2>/dev/null || continue
+      [ -w "$_d" ] && { echo "$_d"; return; }
+    done
+  fi
+  echo "$HARBOR_DIR"
+}
+CLI_DIR=$(pick_cli_dir)
 fetch harbor-cli.sh
 write_cli() {
   # One substitution pass over infra/harbor-cli.sh. The paths belong to this install; the script
@@ -613,12 +646,11 @@ write_cli() {
 write_cli "$CLI_DIR/harbor"
 chmod 755 "$CLI_DIR/harbor"
 say "Installed the 'harbor' command"
-if [ "$CLI_DIR" = /usr/local/bin ]; then
+if on_path "$CLI_DIR"; then
   info "harbor status · harbor logs · harbor upgrade · harbor break-glass"
-elif [ "$CLI_DIR" = "${HARBOR_CLI_DIR:-}" ]; then
-  info "$CLI_DIR/harbor (where HARBOR_CLI_DIR put it)"
+  [ "$CLI_DIR" = /usr/local/bin ] || info "(in $CLI_DIR)"
 else
-  info "$CLI_DIR/harbor (not on your PATH — ${HARBOR_CLI_DIR:-/usr/local/bin} was not writable)"
+  info "$CLI_DIR/harbor — not on your PATH, so type it in full: $CLI_DIR/harbor status"
 fi
 
 # ---- 7. what to do next -----------------------------------------------------------------------
