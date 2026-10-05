@@ -96,6 +96,7 @@ set installer [lindex $argv 6]
 set reach     [lindex $argv 7]
 set domain    [lindex $argv 8]
 set saw_taken 0
+set asked_again 0
 set timeout 1800
 spawn sh $installer
 expect {
@@ -109,7 +110,13 @@ expect {
   -ex {Address to publish on}                          { send "127.0.0.1\r"; exp_continue }
   -ex {Port [3000]}                                    { if {$busy} { send "\r" } else { send "$port\r" }; exp_continue }
   -ex {already listens on port}                        { set saw_taken 1; exp_continue }
-  -ex {Port for Harbor instead}                        { send "$port\r"; exp_continue }
+  -ex {Port for Harbor instead}                        {
+    # Asked twice means the port this test gave is taken as well; answering it again would loop
+    # until the timeout, half an hour later.
+    incr asked_again
+    if {$asked_again > 1} { puts "\nFAIL: port $port is taken on this machine too"; exit 4 }
+    send "$port\r"; exp_continue
+  }
   -ex {Backup repository}                              { send "$backup\r"; exp_continue }
   -ex {Set up an encrypted volume now?}                { send "$encrypt\r"; exp_continue }
   -ex {Which disk should become the encrypted volume?} { send "$disk\r"; exp_continue }
@@ -268,6 +275,8 @@ desktop_teardown() {
 desktop() {
   desktop_teardown
   [ "$(uname -s)" = Darwin ] || fail "desktop is the Docker Desktop on macOS path; this is $(uname -s)"
+  lsof -nP -iTCP:"$DESKTOP_PORT" -sTCP:LISTEN >/dev/null 2>&1 \
+    && fail "port $DESKTOP_PORT is already in use on this Mac. Pick another: INSTALL_TEST_DESKTOP_PORT=3006 $0 desktop"
   mkdir -p "$DESKTOP_DIR/harbor" "$DESKTOP_DIR/bin"
   cp -R infra/. "$DESKTOP_DIR/harbor/"
   local exp busy=0; exp=$(mktemp); drive_exp >"$exp"
