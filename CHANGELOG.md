@@ -17,6 +17,17 @@ migrations, on purpose, because a half-reversed schema is worse than a restore. 
 wrong, follow [`docs/restore.md`](docs/restore.md) with the backup `harbor upgrade` took
 immediately before it. That is why the upgrade refuses to run without one.
 
+## v0.11.1 — 2026-10-05
+
+- **Fixed: on a Mac, `harbor status` answered "command not found" after installing.** Where
+  `/usr/local/bin` cannot be written, the installer now puts the `harbor` command in a folder the
+  PATH already includes, `~/.local/bin` or `~/bin`, and says so when there is none and the
+  command has to be typed in full.
+
+- **Fixed: a second Harbor on the same machine stopped at the end of the install** with "port is
+  already allocated". The share service's local port, 4010, now moves to a free one, and share
+  links follow it.
+
 ## v0.11.0 — 2026-10-05
 
 - **New feature: the installer asks how the vault is reached, and Tailscale is one answer of three.**
