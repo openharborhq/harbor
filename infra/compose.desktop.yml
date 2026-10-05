@@ -1,0 +1,19 @@
+# Docker Desktop (macOS, Windows): a trial, not a deployment target. install.sh adds this overlay
+# on anything that is not Linux.
+#
+# Postgres refuses a data directory whose ownership it cannot trust, and Desktop's file sharing
+# only emulates Linux ownership: initdb failed intermittently with "data directory has wrong
+# ownership" and left a cluster with no harbor database, so every service crash-looped on
+# "database harbor does not exist" (found by scripts/install-test.sh desktop). In a named volume,
+# inside Docker's own VM, ownership is real. Documents and secrets stay in the data directory.
+name: harbor
+
+services:
+  postgres:
+    volumes: !override ["postgres:/var/lib/postgresql/data"]
+  redis:
+    volumes: !override ["redis:/data"]
+
+volumes:
+  postgres: {}
+  redis: {}

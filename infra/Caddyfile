@@ -1,0 +1,29 @@
+# Harbor on the open internet: HTTPS for HARBOR_DOMAIN and the first-run gate (compose.caddy.yml).
+{
+	{$HARBOR_CADDY_GLOBAL}
+}
+
+{$HARBOR_DOMAIN} {
+	encode zstd gzip
+
+	# Whoever creates the first account owns the vault, and on the internet that cannot be left to
+	# whoever finds the address first. The installer prints /setup?token=…; opening that link sets a
+	# cookie scoped to the one request that creates the owner, and that request is refused without
+	# it. Once an owner exists the API refuses setup anyway, so the gate costs nothing afterwards.
+	@setup_link {
+		path /setup
+		query token={$HARBOR_SETUP_TOKEN}
+	}
+	header @setup_link Set-Cookie "harbor_setup={$HARBOR_SETUP_TOKEN}; Path=/api/auth/setup; Secure; HttpOnly; SameSite=Strict; Max-Age=86400"
+
+	@setup_without_link {
+		method POST
+		path /api/auth/setup
+		not header_regexp Cookie (^|;\s*)harbor_setup={$HARBOR_SETUP_TOKEN}(;|$)
+	}
+	# JSON with a message, because that is what the setup form shows when a request fails.
+	header @setup_without_link Content-Type application/json
+	respond @setup_without_link `{"message":"Open the setup link the installer printed — this vault accepts its first owner only from it."}` 403
+
+	reverse_proxy web:3000
+}

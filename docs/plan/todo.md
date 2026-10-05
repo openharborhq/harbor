@@ -307,6 +307,33 @@ Convention: `[ ]` open, `[x]` done and left in place until its milestone doc abs
        - [ ] A page on a table the same white as the paper is often not found; the photo is then
              used as taken.
 
+13. [~] **One-step install, wherever it runs** (agreed 2026-10-05; spec
+       [§3.2](../spec/03-security-hosting.md)). Harbor installs in one step on hardware at home,
+       on a server that already runs Docker, and on a cloud server. v0.11.0 shipped the reach
+       question (Tailscale / a domain over HTTPS / own network), Caddy with the first-owner gate,
+       the port check, and `scripts/install-test.sh`, which installs end to end in a container
+       for each kind of machine (`--protectly`, `--vps`, `--home-server`, `--internet`,
+       `--tailscale`, `desktop`). The website's install docs became one guide per machine.
+
+       Still owed on it:
+       - [ ] **The first-owner gate in the API**, not only in Caddy: behind your own proxy or on
+             your own network, whoever opens the vault first still creates the owner.
+       - [ ] **`harbor lock` and `harbor unlock` refuse without an encrypted volume.** On an
+             install without one, `lock` stops the vault and write-protects `/data`, and
+             `unlock` then fails looking for a LUKS device that does not exist.
+       - [ ] **An upgrade test**: install v0.10.0 the way an existing box did, then
+             `harbor upgrade` to this checkout's images. Today the test covers fresh installs only.
+       - [ ] **A browser check at a non-loopback address** in the install test. Every check is
+             curl, or a browser at 127.0.0.1, which is how the CSP bug in v0.10.0 got through.
+       - [ ] **Encryption without a spare disk**: a LUKS file container on the existing disk, so
+             a one-disk VPS gets the same at-rest protection as hardware.
+       - [ ] **The rest of the terminal moves to the browser**: backups with a real test,
+             the break-glass sheet printed from the page, the language model.
+       - [ ] **Cloud one-click**: a cloud-init snippet and Deploy buttons on the website, then
+             DigitalOcean and Hetzner marketplace images.
+       - [ ] **Docker-only hosts**: a Portainer/Unraid template, and decide whether an
+             all-in-one image is worth its cost.
+
 ## Waiting on Kai
 
 - [ ] **Protectli deploy** — M1 step 11. Runbook at `docs/deploy.md`, never once executed.

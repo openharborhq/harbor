@@ -19,6 +19,7 @@
 #   HARBOR_WEB_PORT   without Tailscale, the port to publish on    (default 3000)
 #   HARBOR_IMAGE_TAG  which release to run                        (default the current one)
 #   HARBOR_PROJECT    the compose project name                     (default harbor)
+#   HARBOR_CLI_DIR    where the `harbor` command goes              (default /usr/local/bin)
 #
 # Read docs/deploy.md for the parts a script cannot do for you: the encrypted volume, the tailnet,
 # and the printed page that is the only way back from a dead disk.
@@ -30,6 +31,18 @@ warn() { printf '  \033[33m! %s\033[0m\n' "$1" >&2; }
 die() { printf '\n\033[31mstopped: %s\033[0m\n' "$1" >&2; exit 1; }
 
 RAW=https://raw.githubusercontent.com/openharborhq/harbor/main
+
+# Defined up here, not with the compose files: the encrypted-volume step needs it first, and a
+# shell function does not exist until the line that defines it has run. Defined lower down, saying
+# yes to "Set up an encrypted volume now?" stopped the install with "fetch: not found".
+fetch() {
+  if [ -f "$HARBOR_DIR/$1" ] && [ -n "${HARBOR_KEEP_LOCAL:-}" ]; then
+    info "$1 (keeping the local copy)"
+    return
+  fi
+  curl -fsSL "$RAW/infra/$1" -o "$HARBOR_DIR/$1" || die "could not download $1 from $RAW/infra/$1"
+  info "$1"
+}
 
 # ---- 1. what we are working with ------------------------------------------------------------
 
@@ -53,14 +66,42 @@ fi
 HARBOR_IMAGE_TAG="${HARBOR_IMAGE_TAG:-v0.10.0}"
 HARBOR_PROJECT="${HARBOR_PROJECT:-harbor}"
 TS_AUTHKEY="${TS_AUTHKEY:-}"
+HARBOR_DOMAIN="${HARBOR_DOMAIN:-}"
+HARBOR_REACH="${HARBOR_REACH:-}"
+# A re-run is also the upgrade, and has nobody to ask: how this vault is reached comes from the
+# configuration it already has. Without this, a re-run without TS_AUTHKEY in the environment
+# rewrote `harbor` with the tailnet overlay missing from its compose files.
+if [ -f "$HARBOR_DATA_DIR/harbor.env" ]; then
+  _env() { grep "^$1=" "$HARBOR_DATA_DIR/harbor.env" 2>/dev/null | cut -d= -f2- | head -1; }
+  TS_AUTHKEY="${TS_AUTHKEY:-$(_env TS_AUTHKEY)}"
+  HARBOR_DOMAIN="${HARBOR_DOMAIN:-$(_env HARBOR_DOMAIN)}"
+  HARBOR_PROXY="${HARBOR_PROXY:-$(_env HARBOR_PROXY)}"
+fi
 # Tailscale on the host beats Tailscale in the stack: SSH over the tailnet then survives a Harbor
-# that will not start, which is the moment you most need to reach the box. Detected, never installed
-# — putting a VPN client on someone machine is not an installer decision.
+# that will not start, which is the moment you most need to reach the box. Installed only when the
+# person says yes to it below — putting a VPN client on someone's machine is their decision.
 HOST_TAILSCALE=0
 USE_HOST_TS="${USE_HOST_TS:-0}"
 if command -v tailscale >/dev/null 2>&1 && tailscale status >/dev/null 2>&1; then HOST_TAILSCALE=1; fi
 HARBOR_BIND="${HARBOR_BIND:-127.0.0.1}"
 HARBOR_WEB_PORT="${HARBOR_WEB_PORT:-3000}"
+# For a vault on the internet: `caddy` answers 80/443 itself with a Let's Encrypt certificate
+# (compose.caddy.yml); `own` sits behind a reverse proxy already on this machine, which forwards
+# to HARBOR_BIND:HARBOR_WEB_PORT.
+HARBOR_PROXY="${HARBOR_PROXY:-caddy}"
+
+# How the vault is reached, and the one question everything else about the network follows from.
+#   tailnet   privately, on your Tailscale tailnet — optional, and only if you choose it
+#   internet  directly, at a domain you own, over HTTPS
+#   local     directly, on an address of this machine — your LAN, or a VPN you already run
+# Given in the environment (HARBOR_REACH, or implied by TS_AUTHKEY, USE_HOST_TS or HARBOR_DOMAIN),
+# it is not asked.
+REACH_GIVEN=1
+if [ -n "$HARBOR_REACH" ]; then :
+elif [ -n "$TS_AUTHKEY" ] || [ "$USE_HOST_TS" = 1 ]; then HARBOR_REACH=tailnet
+elif [ -n "$HARBOR_DOMAIN" ]; then HARBOR_REACH=internet
+else HARBOR_REACH=local; REACH_GIVEN=0
+fi
 
 # ---- 1b. ask, when there is somebody to ask -----------------------------------------------------
 
@@ -83,6 +124,65 @@ ask() { # ask <prompt> <default>; answer on stdout
   [ -n "$_a" ] && printf '%s' "$_a" || printf '%s' "$_d"
 }
 
+port_taken() { # port_taken <port>: something on this machine listens on it
+  if command -v ss >/dev/null 2>&1; then
+    ss -Hltn "sport = :$1" 2>/dev/null | grep -q .
+  elif command -v lsof >/dev/null 2>&1; then
+    lsof -nP -iTCP:"$1" -sTCP:LISTEN >/dev/null 2>&1
+  else
+    return 1
+  fi
+}
+
+# This machine's own address on its network: the source address of its default route, which is
+# the LAN address on a home box and the private address on most cloud servers. Not 0.0.0.0, which
+# would publish the vault on every network the machine is on, Docker's bridges included.
+lan_address() {
+  if command -v ip >/dev/null 2>&1; then
+    ip -4 route get 1.1.1.1 2>/dev/null | sed -n 's/.* src \([0-9.]*\).*/\1/p' | head -1
+  elif command -v route >/dev/null 2>&1 && command -v ipconfig >/dev/null 2>&1; then
+    ipconfig getifaddr "$(route -n get default 2>/dev/null | awk '/interface:/{print $2}')" 2>/dev/null
+  fi
+}
+
+# Installs and signs in the host's Tailscale, when asked to. Sets USE_HOST_TS=1 on success.
+tailscale_on_host() {
+  _ts_up=0
+  if command -v tailscale >/dev/null 2>&1; then
+    printf '\n  Tailscale is installed on this machine but not signed in.\n'
+    case "$(ask "Sign this machine in to Tailscale now? [y/n]" "y")" in
+      [yY]*) _ts_up=1 ;;
+    esac
+  else
+    printf '\n  Tailscale is not installed here. I can install it with the official script\n'
+    printf '  (tailscale.com/install.sh) and sign this machine in. You need a Tailscale account;\n'
+    printf '  you can create one when you sign in.\n'
+    case "$(ask "Install Tailscale on this machine? [y/n]" "y")" in
+      [yY]*)
+        say "Installing Tailscale"
+        if curl -fsSL https://tailscale.com/install.sh | sh; then
+          _ts_up=1
+        else
+          warn "The Tailscale install did not finish."
+        fi
+        ;;
+    esac
+  fi
+  if [ "$_ts_up" = 1 ]; then
+    say "Signing this machine in to Tailscale"
+    info "Open the link it prints, on any device, and sign in. This waits up to ten minutes."
+    if tailscale up --timeout=10m </dev/tty && tailscale status >/dev/null 2>&1; then
+      HOST_TAILSCALE=1; USE_HOST_TS=1
+      printf '\n  One more step in the Tailscale admin console, once per tailnet: DNS -> HTTPS\n'
+      printf '  Certificates -> Enable. Without it there is no certificate to serve the vault with.\n'
+      printf '  Press enter when that is done. ' >&2
+      read -r _ </dev/tty || true
+    else
+      warn "Tailscale is not signed in."
+    fi
+  fi
+}
+
 if [ "$INTERACTIVE" = 1 ]; then
   say "A few questions. Press enter to take the default."
 
@@ -92,38 +192,62 @@ if [ "$INTERACTIVE" = 1 ]; then
     HARBOR_DATA_DIR=$(ask "Where should that live?" "$HARBOR_DATA_DIR")
   fi
 
-  if [ -z "$TS_AUTHKEY" ] && [ "$HOST_TAILSCALE" = 1 ]; then
-    printf '\n  Tailscale is already running on this machine, which is the better place for it:\n'
-    printf '  if an upgrade ever breaks Harbor, your way in is still up. I can point it at the\n'
-    printf '  vault with `tailscale serve`, so it is reachable on your tailnet over HTTPS and\n'
-    printf '  nothing is published on this machine.\n'
-    case "$(ask "Use the tailscale already on this host? [y/n]" "y")" in
-      [yY]*) USE_HOST_TS=1; HARBOR_BIND=127.0.0.1 ;;
-      *) ;;
+  if [ "$REACH_GIVEN" = 0 ]; then
+    printf '\n  How should you reach Harbor?\n'
+    printf '    1) Privately, through Tailscale — only your own devices, over HTTPS, from anywhere.\n'
+    printf '       Nothing on this machine is open to the internet. Needs a Tailscale account.\n'
+    printf '    2) Directly, on the internet — at a domain you own, over HTTPS (Let'"'"'s Encrypt).\n'
+    printf '       For a cloud server: the domain must point here, and ports 80 and 443 be open.\n'
+    printf '    3) Directly, on your own network — http://<this machine>:<port>, no HTTPS.\n'
+    printf '       The simplest at home; every device on the network can reach the sign-in page.\n'
+    # Tailscale is the default only where it is already running: choosing it should never be what
+    # pressing enter does to someone who has not got an account.
+    _def=3; [ "$HOST_TAILSCALE" = 1 ] && _def=1
+    case "$(ask "Which?" "$_def")" in
+      1*) HARBOR_REACH=tailnet ;;
+      2*) HARBOR_REACH=internet ;;
+      *)  HARBOR_REACH=local ;;
     esac
   fi
 
-  if [ -z "$TS_AUTHKEY" ] && [ "$USE_HOST_TS" = 0 ]; then
-    printf '\n  How will you reach it?\n'
-    printf '    1) Over my tailnet, with HTTPS — nothing listens on this machine\n'
-    printf '    2) A port on this machine\n'
-    printf '\n  Note: option 1 runs Tailscale as one of the containers. It works, but if an\n'
-    printf '  upgrade breaks the stack you lose your way in with it. Installing Tailscale on the\n'
-    printf '  host instead (apt install tailscale) and re-running this is the sturdier answer.\n'
-    case "$(ask "Which?" "1")" in
-      1*)
-        printf '\n  Paste a Tailscale auth key (admin console -> Settings -> Keys). Enable HTTPS\n'
-        printf '  Certificates under DNS there first, or it has no certificate to serve.\n'
-        TS_AUTHKEY=$(ask "Auth key" "")
-        [ -n "$TS_AUTHKEY" ] && TAILSCALE_HOSTNAME=$(ask "Name it should take on your tailnet" "${TAILSCALE_HOSTNAME:-harbor}")
-        [ -z "$TS_AUTHKEY" ] && warn "No key given — falling back to a local port."
-        ;;
-      *) ;;
-    esac
-    if [ -z "$TS_AUTHKEY" ]; then
-      HARBOR_BIND=$(ask "Address to publish on (0.0.0.0 for the whole LAN)" "$HARBOR_BIND")
-      HARBOR_WEB_PORT=$(ask "Port" "$HARBOR_WEB_PORT")
+  if [ "$HARBOR_REACH" = tailnet ] && [ -z "$TS_AUTHKEY" ] && [ "$USE_HOST_TS" = 0 ]; then
+    if [ "$HOST_TAILSCALE" = 1 ]; then
+      info "Tailscale is already running here: I will point it at the vault with 'tailscale serve'."
+      USE_HOST_TS=1
+    elif [ "$OS" = Linux ] && [ "$(id -u)" = 0 ]; then
+      tailscale_on_host
     fi
+    if [ "$USE_HOST_TS" = 0 ]; then
+      printf '\n  Tailscale can also run as one of Harbor'"'"'s containers, with an auth key (admin\n'
+      printf '  console -> Settings -> Keys; enable HTTPS Certificates under DNS first). It works,\n'
+      printf '  but if an upgrade breaks the stack your way in goes with it.\n'
+      TS_AUTHKEY=$(ask "Auth key (empty to reach it on your own network instead)" "")
+      if [ -n "$TS_AUTHKEY" ]; then
+        TAILSCALE_HOSTNAME=$(ask "Name it should take on your tailnet" "${TAILSCALE_HOSTNAME:-harbor}")
+      else
+        warn "No Tailscale — reaching it on your own network instead."
+        HARBOR_REACH=local
+      fi
+    fi
+  fi
+
+  if [ "$HARBOR_REACH" = internet ]; then
+    printf '\n  The domain needs a DNS record (A, or AAAA) pointing at this machine'"'"'s public address.\n'
+    while [ -z "$HARBOR_DOMAIN" ]; do HARBOR_DOMAIN=$(ask "Domain for Harbor, e.g. harbor.example.com" ""); done
+    if port_taken 80 || port_taken 443; then
+      printf '\n  Something here already answers on port 80 or 443 — usually a reverse proxy (Nginx\n'
+      printf '  Proxy Manager, Traefik, Caddy). Harbor will sit behind it instead of beside it.\n'
+      HARBOR_PROXY=own
+      HARBOR_WEB_PORT=$(ask "Port your proxy should forward to" "$HARBOR_WEB_PORT")
+    fi
+  fi
+
+  if [ "$HARBOR_REACH" = local ]; then
+    _lan=$(lan_address)
+    printf '\n  This machine'"'"'s address on its network looks like %s. A VPN address works too.\n' "${_lan:-(not found)}"
+    printf '  127.0.0.1 keeps it to this machine alone — reach it through an SSH tunnel.\n'
+    HARBOR_BIND=$(ask "Address to publish on" "${_lan:-$HARBOR_BIND}")
+    HARBOR_WEB_PORT=$(ask "Port" "$HARBOR_WEB_PORT")
   fi
 
   if [ -z "${RESTIC_REPOSITORY:-}" ]; then
@@ -133,14 +257,74 @@ if [ "$INTERACTIVE" = 1 ]; then
     RESTIC_REPOSITORY=$(ask "Backup repository" "")
   fi
 fi
+[ "$USE_HOST_TS" = 1 ] && HARBOR_BIND=127.0.0.1
+[ "$HARBOR_REACH" = internet ] && HARBOR_BIND=127.0.0.1
+[ "$HARBOR_REACH" = internet ] && [ -z "$HARBOR_DOMAIN" ] && die "HARBOR_REACH=internet needs HARBOR_DOMAIN, the domain to serve the vault at."
+CADDY=0; [ "$HARBOR_REACH" = internet ] && [ "$HARBOR_PROXY" = caddy ] && CADDY=1
+
+# ---- 1c. ports nobody else is using -----------------------------------------------------------------
+
+# A box that already runs other things — a home server, a VPS with a dashboard on it — often has
+# something on 3000 already. Compose only found out at `up`, and the install stopped with "port is
+# already allocated" after the images were pulled. Asked again here instead, or refused up front
+# when there is nobody to ask. Only on a fresh install: on a re-run the ports are Harbor's own.
+if [ ! -f "$HARBOR_DATA_DIR/harbor.env" ]; then
+  if [ "$CADDY" = 1 ]; then
+    for _p in 80 443; do
+      port_taken "$_p" && die "Port $_p is taken — by a reverse proxy, most likely. Run again with HARBOR_PROXY=own to sit behind it."
+    done
+  elif [ -z "$TS_AUTHKEY" ]; then
+    while port_taken "$HARBOR_WEB_PORT"; do
+      _free=$((HARBOR_WEB_PORT + 1))
+      while port_taken "$_free"; do _free=$((_free + 1)); done
+      warn "Something on this machine already listens on port $HARBOR_WEB_PORT."
+      [ "$INTERACTIVE" = 1 ] || die "Set HARBOR_WEB_PORT to a free port ($_free is) and run this again."
+      HARBOR_WEB_PORT=$(ask "Port for Harbor instead" "$_free")
+    done
+  fi
+fi
+
+# Whoever reaches /setup first becomes the owner. On the open internet that cannot be left to a
+# race, so the vault accepts its first owner only from a browser that came through a link with
+# this token in it — enforced by Caddy (Caddyfile), in front of everything, before an account
+# exists. Printed once at the end, kept in harbor.env.
+HARBOR_SETUP_TOKEN="${HARBOR_SETUP_TOKEN:-}"
+if [ "$CADDY" = 1 ] && [ -z "$HARBOR_SETUP_TOKEN" ]; then
+  HARBOR_SETUP_TOKEN=$(head -c 48 /dev/urandom | base64 | tr -dc 'A-Za-z0-9' | head -c 32)
+fi
+if [ "$HARBOR_REACH" = internet ] && command -v getent >/dev/null 2>&1 && ! getent hosts "$HARBOR_DOMAIN" >/dev/null 2>&1; then
+  warn "$HARBOR_DOMAIN does not resolve yet. Point its DNS record at this machine; the certificate is issued once it does."
+fi
 
 say "Harbor will be installed with:"
 info "compose files   $HARBOR_DIR"
 info "data + secrets  $HARBOR_DATA_DIR"
 info "images          ghcr.io/openharborhq/harbor-*:$HARBOR_IMAGE_TAG"
-[ -n "${RESTIC_REPOSITORY:-}" ] && info "backups to      $RESTIC_REPOSITORY" || info "backups         not configured yet"
+# A repository on this machine is a path here, but the backup container only ever sees it as
+# /backup: compose mounts HARBOR_BACKUP_DIR there (docs/deploy.md, step 5). Nothing used to make
+# that translation, so a path answer reached restic as a directory that did not exist inside the
+# container, and HARBOR_BACKUP_DIR fell back to compose's dev default — ../data/backup from
+# /opt/harbor, which Docker created as root on the system disk. The first backup failed with
+# "permission denied". Found by scripts/install-test.sh. Given explicitly, both are taken as they are.
+if [ -z "${HARBOR_BACKUP_DIR:-}" ]; then
+  case "${RESTIC_REPOSITORY:-}" in
+    /*) HARBOR_BACKUP_DIR=$RESTIC_REPOSITORY; RESTIC_REPOSITORY=/backup ;;
+    *)  HARBOR_BACKUP_DIR=$HARBOR_DATA_DIR/backup ;;
+  esac
+fi
+if [ "${RESTIC_REPOSITORY:-}" = /backup ]; then
+  info "backups to      $HARBOR_BACKUP_DIR, on this machine"
+elif [ -n "${RESTIC_REPOSITORY:-}" ]; then
+  info "backups to      $RESTIC_REPOSITORY"
+else
+  info "backups         not configured yet"
+fi
 if [ "$USE_HOST_TS" = 1 ]; then
   info "reachable on    your tailnet, served by the Tailscale already on this host"
+elif [ "$CADDY" = 1 ]; then
+  info "reachable on    https://$HARBOR_DOMAIN — on the internet, certificate from Let's Encrypt"
+elif [ "$HARBOR_REACH" = internet ]; then
+  info "reachable on    https://$HARBOR_DOMAIN, through your reverse proxy → http://127.0.0.1:$HARBOR_WEB_PORT"
 elif [ -n "$TS_AUTHKEY" ]; then
   info "reachable on    your tailnet, over HTTPS — nothing listens on this machine's interfaces"
 else
@@ -149,19 +333,6 @@ else
 fi
 
 mkdir -p "$HARBOR_DIR" "$HARBOR_DATA_DIR"
-
-# Create every bind-mount source before compose does. A path that does not exist when a container
-# starts is created by Docker inside the VM, owned by root — and the app runs as uid 1000, so the
-# first upload fails with EACCES and the vault looks broken for no visible reason. Found by
-# installing from scratch and watching the seed fail to write its first file.
-for sub in blobs tmp dumps backup postgres redis secrets tailscale; do
-  mkdir -p "$HARBOR_DATA_DIR/$sub"
-done
-chmod 700 "$HARBOR_DATA_DIR/blobs" "$HARBOR_DATA_DIR/tmp" "$HARBOR_DATA_DIR/dumps" "$HARBOR_DATA_DIR/secrets"
-# Postgres and Redis manage their own directories; the rest must belong to the app's user.
-if [ "$(id -u)" = 0 ]; then
-  chown 1000:1000 "$HARBOR_DATA_DIR/blobs" "$HARBOR_DATA_DIR/tmp" "$HARBOR_DATA_DIR/dumps" "$HARBOR_DATA_DIR/backup"
-fi
 
 # A compose project is identified by name alone. Running this a second time with a different data
 # directory would quietly repoint the existing containers at it — the old vault's Postgres stops,
@@ -191,6 +362,15 @@ if [ "$OS" = "Linux" ]; then
         printf '  It erases that disk, asks which one, and asks how it should unlock afterwards.\n'
         case "$(ask "Set up an encrypted volume now?" "y")" in
           [yY]*)
+            # A minimal Debian has neither; encrypt-disk.sh would stop and name them. They were
+            # asked for just now, so install them rather than send the person off to do it.
+            if ! command -v cryptsetup >/dev/null 2>&1 || ! command -v sgdisk >/dev/null 2>&1; then
+              if command -v apt-get >/dev/null 2>&1; then
+                info "installing cryptsetup and gdisk"
+                { apt-get update -qq && apt-get install -y -qq cryptsetup gdisk; } >/dev/null \
+                  || die "could not install cryptsetup and gdisk."
+              fi
+            fi
             fetch encrypt-disk.sh
             HARBOR_DATA_DIR="$HARBOR_DATA_DIR" sh "$HARBOR_DIR/encrypt-disk.sh" || die "the encrypted volume was not created."
             # It is mounted now; the check below should pass on the second look.
@@ -222,17 +402,33 @@ if [ "$OS" = "Linux" ]; then
   fi
 fi
 
+# Create every bind-mount source before compose does. A path that does not exist when a container
+# starts is created by Docker inside the VM, owned by root — and the app runs as uid 1000, so the
+# first upload fails with EACCES and the vault looks broken for no visible reason. Found by
+# installing from scratch and watching the seed fail to write its first file.
+#
+# After the encrypted volume, never before it. Made first, these landed on the system disk and the
+# new volume was mounted over them: secrets/ vanished from under the next step, and a stale
+# postgres/ was left beneath the mountpoint for a locked-volume boot to initialise into.
+for sub in blobs tmp dumps backup postgres redis secrets tailscale caddy; do
+  mkdir -p "$HARBOR_DATA_DIR/$sub"
+done
+chmod 700 "$HARBOR_DATA_DIR/blobs" "$HARBOR_DATA_DIR/tmp" "$HARBOR_DATA_DIR/dumps" "$HARBOR_DATA_DIR/secrets"
+# Postgres and Redis manage their own directories; the rest must belong to the app's user.
+mkdir -p "$HARBOR_BACKUP_DIR"
+if [ "$(id -u)" = 0 ]; then
+  chown 1000:1000 "$HARBOR_DATA_DIR/blobs" "$HARBOR_DATA_DIR/tmp" "$HARBOR_DATA_DIR/dumps" "$HARBOR_DATA_DIR/backup" "$HARBOR_BACKUP_DIR"
+fi
+# Allowed, because it still catches a deleted folder or a bad upgrade — but it is not what the
+# question was asking for, and a dead disk takes the vault and its backups together.
+if [ "${RESTIC_REPOSITORY:-}" = /backup ] && command -v findmnt >/dev/null 2>&1 \
+  && [ "$(findmnt -n -o SOURCE --target "$HARBOR_BACKUP_DIR")" = "$(findmnt -n -o SOURCE --target "$HARBOR_DATA_DIR")" ]; then
+  warn "Backups to $HARBOR_BACKUP_DIR are on the same disk as the vault: they will not survive that disk failing."
+fi
+
 # ---- 3. compose files -------------------------------------------------------------------------
 
 say "Fetching compose files"
-fetch() {
-  if [ -f "$HARBOR_DIR/$1" ] && [ -n "${HARBOR_KEEP_LOCAL:-}" ]; then
-    info "$1 (keeping the local copy)"
-    return
-  fi
-  curl -fsSL "$RAW/infra/$1" -o "$HARBOR_DIR/$1" || die "could not download $1 from $RAW/infra/$1"
-  info "$1"
-}
 fetch compose.yml
 fetch compose.prod.yml
 fetch check-data-volume.sh
@@ -249,6 +445,15 @@ if [ -n "$TS_AUTHKEY" ]; then
   fetch compose.tailscale.yml
   fetch tailscale-serve.json
   FILES="$FILES -f compose.tailscale.yml"
+fi
+if [ "$OS" != Linux ]; then
+  fetch compose.desktop.yml
+  FILES="$FILES -f compose.desktop.yml"
+fi
+if [ "$CADDY" = 1 ]; then
+  fetch compose.caddy.yml
+  fetch Caddyfile
+  FILES="$FILES -f compose.caddy.yml"
 fi
 
 # ---- 4. secrets -------------------------------------------------------------------------------
@@ -281,6 +486,13 @@ ENV_FILE="$HARBOR_DATA_DIR/harbor.env"
 if [ -f "$ENV_FILE" ]; then
   say "Configuration"
   info "$ENV_FILE already exists — left alone"
+  # Switching to the internet later is `harbor config` (HARBOR_DOMAIN) and a re-run of this. The
+  # file is otherwise never touched, but Caddy will not start without a setup token, so that one
+  # line is added when it is missing.
+  if [ "$CADDY" = 1 ] && ! grep -q '^HARBOR_SETUP_TOKEN=.' "$ENV_FILE"; then
+    printf '\n# Only a browser that came through the setup link may create the first owner (Caddyfile).\nHARBOR_SETUP_TOKEN=%s\n' "$HARBOR_SETUP_TOKEN" >> "$ENV_FILE"
+    info "added a setup token for the first owner"
+  fi
 else
   say "Writing $ENV_FILE"
   {
@@ -295,6 +507,8 @@ else
     echo
     echo "# Backups (spec §3.4). Unset means no backups, and Settings will say so."
     echo "RESTIC_REPOSITORY=${RESTIC_REPOSITORY:-}"
+    echo "# Mounted into the backup container as /backup — used when RESTIC_REPOSITORY=/backup."
+    echo "HARBOR_BACKUP_DIR=$HARBOR_BACKUP_DIR"
     echo
     if [ "$USE_HOST_TS" = 1 ]; then
       echo "HARBOR_BIND=127.0.0.1"
@@ -306,6 +520,19 @@ else
       echo "TAILSCALE_HOSTNAME=${TAILSCALE_HOSTNAME:-harbor}"
       echo "WEB_ORIGIN=${WEB_ORIGIN:-https://${TAILSCALE_HOSTNAME:-harbor}.your-tailnet.ts.net}"
       echo "SESSION_COOKIE_SECURE=true"
+    elif [ "$HARBOR_REACH" = internet ]; then
+      echo "HARBOR_DOMAIN=$HARBOR_DOMAIN"
+      echo "# caddy: Harbor answers 80/443 itself. own: your reverse proxy forwards to the port below."
+      echo "HARBOR_PROXY=$HARBOR_PROXY"
+      echo "HARBOR_BIND=127.0.0.1"
+      echo "HARBOR_WEB_PORT=$HARBOR_WEB_PORT"
+      echo "WEB_ORIGIN=${WEB_ORIGIN:-https://$HARBOR_DOMAIN}"
+      echo "SESSION_COOKIE_SECURE=true"
+      if [ "$CADDY" = 1 ]; then
+        echo "# Only a browser that came through the setup link may create the first owner (Caddyfile)."
+        echo "HARBOR_SETUP_TOKEN=$HARBOR_SETUP_TOKEN"
+        [ -n "${HARBOR_CADDY_GLOBAL:-}" ] && echo "HARBOR_CADDY_GLOBAL=$HARBOR_CADDY_GLOBAL"
+      fi
     else
       echo "HARBOR_BIND=$HARBOR_BIND"
       echo "HARBOR_WEB_PORT=$HARBOR_WEB_PORT"
@@ -367,7 +594,9 @@ fi
 
 # Everything after the install used to be a three-flag compose line nobody wants to remember or
 # type twice. The wrapper holds the paths so the operator holds none of them.
-CLI_DIR=/usr/local/bin
+# HARBOR_CLI_DIR for a trial install that must not replace the `harbor` a real one put on the PATH.
+CLI_DIR="${HARBOR_CLI_DIR:-/usr/local/bin}"
+mkdir -p "$CLI_DIR" 2>/dev/null || true
 [ -w "$CLI_DIR" ] 2>/dev/null || CLI_DIR="$HARBOR_DIR"
 fetch harbor-cli.sh
 write_cli() {
@@ -386,8 +615,10 @@ chmod 755 "$CLI_DIR/harbor"
 say "Installed the 'harbor' command"
 if [ "$CLI_DIR" = /usr/local/bin ]; then
   info "harbor status · harbor logs · harbor upgrade · harbor break-glass"
+elif [ "$CLI_DIR" = "${HARBOR_CLI_DIR:-}" ]; then
+  info "$CLI_DIR/harbor (where HARBOR_CLI_DIR put it)"
 else
-  info "$CLI_DIR/harbor (not on your PATH — /usr/local/bin was not writable)"
+  info "$CLI_DIR/harbor (not on your PATH — ${HARBOR_CLI_DIR:-/usr/local/bin} was not writable)"
 fi
 
 # ---- 7. what to do next -----------------------------------------------------------------------
@@ -399,6 +630,20 @@ if [ -n "$TS_AUTHKEY" ]; then
   info "will tell you the real one — then fix WEB_ORIGIN in $ENV_FILE and run this again."
 else
   say "Harbor is running at $(grep '^WEB_ORIGIN=' "$ENV_FILE" | cut -d= -f2-)"
+fi
+if [ "$CADDY" = 1 ]; then
+  _token=$(grep '^HARBOR_SETUP_TOKEN=' "$ENV_FILE" | cut -d= -f2-)
+  info "Create your account through this link — the vault takes its first owner from nowhere else:"
+  info ""
+  info "  https://$HARBOR_DOMAIN/setup?token=$_token"
+  info ""
+  info "The certificate is issued on the first visit, once $HARBOR_DOMAIN points here and ports 80"
+  info "and 443 are open. 'harbor logs caddy' says why, if it is not."
+elif [ "$HARBOR_REACH" = internet ]; then
+  info "Point your reverse proxy at http://127.0.0.1:$HARBOR_WEB_PORT for https://$HARBOR_DOMAIN."
+  warn "Until your account exists, whoever opens https://$HARBOR_DOMAIN first can create it. Do it now."
+elif [ "$HARBOR_BIND" != 127.0.0.1 ] && [ -z "$TS_AUTHKEY" ] && [ "$USE_HOST_TS" = 0 ]; then
+  info "Create your account now: until it exists, whoever on this network opens it first can."
 fi
 
 cat <<NEXT
