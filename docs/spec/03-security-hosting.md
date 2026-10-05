@@ -29,7 +29,27 @@ mailbox the vault holds no credential to.
 
 ## 3.2 Network
 
-**Tailscale-only.** Built as `infra/compose.tailscale.yml`: Tailscale is a container in the
+**Decided 2026-10-05: the installer asks how the vault is reached, and Tailscale is one of three
+answers.** Harbor has to install in one step on hardware at home, on a server that already runs
+Docker, and on a cloud server, and a Tailscale account in front of every one of those is not one
+step. The three:
+
+- **Privately, through Tailscale** — everything below this list, unchanged. Recommended, and the
+  default where Tailscale is already running; never the default where it is not.
+- **Directly on the internet, at a domain** — `infra/compose.caddy.yml`: Caddy answers 80/443 with
+  a Let's Encrypt certificate and is the only container publishing a port. Because whoever
+  creates the first account owns the vault, Caddy refuses `POST /api/auth/setup` unless the
+  browser arrived through `/setup?token=…`, the link the installer prints (`HARBOR_SETUP_TOKEN`).
+  Behind a reverse proxy already on the machine (`HARBOR_PROXY=own`) there is no such gate yet.
+- **Directly on your own network** — the port on `HARBOR_BIND`, as before, with the installer now
+  suggesting the machine's network address. Plain HTTP; the app's CSP no longer carries
+  `upgrade-insecure-requests`, which made it unusable at any non-loopback HTTP address.
+
+This reverses the earlier rule below that public exposure is a documented alternative marked
+*not recommended*; it is now supported, with the gate above, and the guides say what it costs.
+Still owed: the first-owner gate in the API itself, so every path has it (todo).
+
+**Tailscale-only (until 2026-10-05).** Built as `infra/compose.tailscale.yml`: Tailscale is a container in the
 stack, and with that overlay **no service publishes a host port at all** — the app is reached
 only through `tailscale serve`, over HTTPS with a Tailscale-issued certificate. There is no bind
 address to misconfigure. No public DNS, no certificate-transparency footprint. All internet

@@ -18,6 +18,19 @@ set -eu
 cd "@HARBOR_DIR@"
 dc() { docker compose -p "@HARBOR_PROJECT@" --env-file "@ENV_FILE@" @FILES@ "$@"; }
 
+# Replace KEY's line in the env file. `sed -i` with no suffix is GNU only: on a Mac, BSD sed took
+# the expression for a backup suffix and the file name for the script, and `harbor upgrade` stopped
+# after pulling the new images, before it had moved to them. A suffix, then removing the copy,
+# reads the same to both. No sudo where the file is ours, so a trial on a Mac asks for no password.
+set_env() { # set_env KEY VALUE
+  _s="s|^$1=.*|$1=$2|"
+  if [ -w "@ENV_FILE@" ]; then
+    sed -i.harbor-bak "$_s" "@ENV_FILE@" && rm -f "@ENV_FILE@.harbor-bak"
+  else
+    sudo sed -i.harbor-bak "$_s" "@ENV_FILE@" && sudo rm -f "@ENV_FILE@.harbor-bak"
+  fi
+}
+
 # Harbor images for every tag but the ones named, removed.
 #
 # An appliance is not a workstation: this box has a 29 GB eMMC and gains most of a gigabyte per
@@ -106,7 +119,7 @@ case "${1:-help}" in
     _raw="@RAW@"
     case "$_want" in v*) _raw=$(echo "@RAW@" | sed "s|/main$|/$_want|") ;; esac
     _kept=""
-    for _f in compose.yml compose.prod.yml compose.tailscale.yml compose.share-funnel.yml tailscale-serve.json tailscale-share-serve.json harbor-cli.sh check-data-volume.sh; do
+    for _f in compose.yml compose.prod.yml compose.tailscale.yml compose.caddy.yml Caddyfile compose.desktop.yml compose.share-funnel.yml tailscale-serve.json tailscale-share-serve.json harbor-cli.sh check-data-volume.sh; do
       if [ -f "@HARBOR_DIR@/$_f" ] && [ -n "${HARBOR_KEEP_LOCAL:-}" ]; then _kept="$_kept $_f"; continue; fi
       # A file this install never had is not an error: overlays depend on how it was set up.
       curl -fsSL "$_raw/infra/$_f" -o "@HARBOR_DIR@/$_f.new" 2>/dev/null || continue
@@ -129,7 +142,7 @@ case "${1:-help}" in
       chmod 755 "@HARBOR_DIR@/.harbor.new"
       sudo mv "@HARBOR_DIR@/.harbor.new" "$_self" 2>/dev/null || mv "@HARBOR_DIR@/.harbor.new" "$_self"
     fi
-    sudo sed -i "s|^HARBOR_IMAGE_TAG=.*|HARBOR_IMAGE_TAG=$_want|" "@ENV_FILE@"
+    set_env HARBOR_IMAGE_TAG "$_want"
     dc up -d
     sleep 3
     _after=$(dc exec -T api sh -c 'echo $HARBOR_VERSION' 2>/dev/null || echo unknown)
@@ -296,7 +309,7 @@ case "${1:-help}" in
           # the first `harbor public enable` on a box left SHARE_ORIGIN unset — links minted
           # against an origin the doorman does not answer on (2026-09-15).
           if grep -q '^SHARE_ORIGIN=' "@ENV_FILE@"; then
-            sudo sed -i "s|^SHARE_ORIGIN=.*|SHARE_ORIGIN=https://$_domain|" "@ENV_FILE@"
+            set_env SHARE_ORIGIN "https://$_domain"
           else
             printf 'SHARE_ORIGIN=https://%s\n' "$_domain" | sudo tee -a "@ENV_FILE@" >/dev/null
           fi
@@ -369,6 +382,8 @@ case "${1:-help}" in
     echo "  master key       $(cat @HARBOR_DATA_DIR@/secrets/kek)"
     echo "  backup password  $(cat @HARBOR_DATA_DIR@/secrets/restic-password)"
     _repo=$(grep '^RESTIC_REPOSITORY=' "@ENV_FILE@" | cut -d= -f2-)
+    # /backup is the container's name for it; the page has to say where it is on this machine.
+    [ "$_repo" = /backup ] && _repo="$(grep '^HARBOR_BACKUP_DIR=' "@ENV_FILE@" | cut -d= -f2-) (on this machine)"
     echo "  backups at       ${_repo:-NOT CONFIGURED — nothing is being backed up}"
     echo "  vault at         $(grep '^WEB_ORIGIN=' "@ENV_FILE@" | cut -d= -f2-)"
     echo "  restore guide    https://github.com/openharborhq/harbor/blob/main/docs/restore.md"

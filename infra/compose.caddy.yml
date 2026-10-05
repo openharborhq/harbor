@@ -1,0 +1,40 @@
+# Directly on the internet, at a domain you own — install.sh's "How should you reach Harbor?" → 2.
+#
+#   docker compose --env-file /data/harbor.env \
+#     -f compose.yml -f compose.prod.yml -f compose.caddy.yml up -d
+#
+# What changes: web stops publishing a host port, and Caddy answers on 80 and 443 instead, with a
+# certificate from Let's Encrypt for HARBOR_DOMAIN. It is the only container listening on the
+# machine's interfaces, and it reaches nothing but web. The other way in — Tailscale — is
+# compose.tailscale.yml; the two are alternatives, never both.
+#
+# The certificates live in $HARBOR_DATA_DIR/caddy, on the encrypted volume with everything else.
+#
+# Set in /data/harbor.env:
+#   HARBOR_DOMAIN=harbor.example.com   its DNS record points at this machine
+#   HARBOR_SETUP_TOKEN=…               the first owner is created only through /setup?token=… (Caddyfile)
+#   WEB_ORIGIN=https://harbor.example.com
+#   SESSION_COOKIE_SECURE=true
+#   HARBOR_CADDY_GLOBAL=               Caddy global options; scripts/install-test.sh sets local_certs
+name: harbor
+
+services:
+  caddy:
+    image: caddy:2.11-alpine
+    environment:
+      HARBOR_DOMAIN: ${HARBOR_DOMAIN:?set HARBOR_DOMAIN to the domain the vault is served at}
+      HARBOR_SETUP_TOKEN: ${HARBOR_SETUP_TOKEN:?set HARBOR_SETUP_TOKEN — install.sh generates one}
+      HARBOR_CADDY_GLOBAL: ${HARBOR_CADDY_GLOBAL:-}
+    ports: ["80:80", "443:443", "443:443/udp"]
+    volumes:
+      - "./Caddyfile:/etc/caddy/Caddyfile:ro"
+      - "${HARBOR_DATA_DIR:-../data}/caddy:/data"
+    # edge, so `web:3000` resolves. It reaches nothing else in the stack.
+    networks: [edge]
+    restart: unless-stopped
+    security_opt: ["no-new-privileges:true"]
+    depends_on: [web]
+
+  web:
+    # Reachable only through Caddy above.
+    ports: !reset []

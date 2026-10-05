@@ -17,6 +17,63 @@ migrations, on purpose, because a half-reversed schema is worse than a restore. 
 wrong, follow [`docs/restore.md`](docs/restore.md) with the backup `harbor upgrade` took
 immediately before it. That is why the upgrade refuses to run without one.
 
+## v0.11.0 — 2026-10-05
+
+- **New feature: the installer asks how the vault is reached, and Tailscale is one answer of three.**
+  Privately through Tailscale; directly on the internet, at a domain, over HTTPS; or directly on
+  the machine's own network. Nothing about Tailscale is asked unless it is chosen. When it is, the
+  installer offers to install it on the host and sign the machine in, falls back to Tailscale in a
+  container with an auth key, and gives up on a sign-in after ten minutes instead of waiting
+  forever. `HARBOR_REACH`, `HARBOR_DOMAIN` and `HARBOR_PROXY` answer it for an unattended install.
+
+- **New feature: a vault on the internet, at its own domain.** Caddy answers on ports 80 and 443
+  with a certificate from Let's Encrypt and is the only container listening (`compose.caddy.yml`).
+  Where a reverse proxy already holds those ports, the installer puts Harbor behind it instead and
+  names the port to forward to.
+
+- **Added: on the internet, the first owner can only be created through a setup link.** The
+  installer prints `https://<domain>/setup?token=…`; any other attempt to create the first account
+  is refused with a message saying which link to open.
+
+- **Added: the installer notices a port already in use** and suggests the next free one, where it
+  used to fail at the very end with "port is already allocated".
+
+- **Changed: the address the installer suggests for your own network is the machine's network
+  address,** not `127.0.0.1`, which only the machine itself could reach.
+
+- **Fixed: on a plain-HTTP network address, the app arrived without styles and did nothing.** The
+  security headers told browsers to fetch every script and stylesheet over HTTPS, from a port with
+  no HTTPS. Browsers exempt `localhost`, which is why it went unseen.
+
+- **Fixed: answering yes to "Set up an encrypted volume now?" stopped the install** with
+  "fetch: not found". The data directories are now made after the volume is mounted, not on the
+  system disk underneath it, and `cryptsetup` and `gdisk` are installed when missing.
+
+- **Fixed: backups to a folder on the machine failed with "permission denied".** A path given as
+  the backup repository is now mounted into the backup container, and `harbor break-glass` names
+  that folder rather than `/backup`.
+
+- **Fixed: `harbor upgrade` on a Mac stopped after downloading the new images,** before moving to
+  them. macOS's `sed` rejected the way the version line was rewritten.
+
+- **Fixed: on Docker Desktop, the database sometimes failed to initialise** and every service
+  restarted in a loop on "database harbor does not exist". Postgres and Redis now keep their data
+  in Docker volumes on anything that is not Linux (`compose.desktop.yml`).
+
+- **Fixed: running the installer again dropped the Tailscale container** from the `harbor`
+  command. A re-run now takes how the vault is reached from its configuration.
+
+- **Added: `HARBOR_CLI_DIR`**, for a trial install that must not replace a `harbor` command
+  already on the PATH.
+
+**Worth knowing:**
+- An install whose backup repository is a path on the machine has been failing every backup.
+  `harbor upgrade` takes a backup first and stops if it fails, so fix this before upgrading: with
+  `harbor config`, set `HARBOR_BACKUP_DIR` to that path and `RESTIC_REPOSITORY` to `/backup`, then
+  run `harbor start` and `harbor backup`.
+- Pressing enter at "How should you reach Harbor?" now chooses your own network, unless Tailscale
+  is already running on the machine.
+
 ## v0.10.0 — 2026-10-04
 
 - **New feature: photos of documents become scans.** Before a photo is read, Harbor finds the page
