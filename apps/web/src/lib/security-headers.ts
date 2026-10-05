@@ -52,7 +52,11 @@ function csp(dev: boolean): string {
     "base-uri 'none'",
     "form-action 'self'",
     "frame-ancestors 'none'",
-    "upgrade-insecure-requests",
+    // Not `upgrade-insecure-requests`. Every request the app makes is same-origin, so on HTTPS it
+    // changes nothing; on a vault reached over plain HTTP at a LAN address — install.sh's "on your
+    // own network" — it told the browser to fetch every script and stylesheet over HTTPS from a
+    // port that has none, and the app arrived unstyled and dead. Browsers exempt localhost, which
+    // is why it went unseen until the first install on a real network address.
   ].join("; ");
 }
 
@@ -67,9 +71,10 @@ export const securityHeaders = (dev = false) => [
   { key: "Referrer-Policy", value: "no-referrer" },
   { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=(), payment=(), usb=(), interest-cohort=()" },
   /**
-   * Two years, subdomains included. Harbor is served over HTTPS by `tailscale serve` with a real
-   * certificate, so there is no plaintext mode to preserve — and the tailnet name is a subdomain
-   * of a shared `ts.net`, which is exactly where an accidental http:// would leak a cookie.
+   * Two years, subdomains included, for the HTTPS paths: `tailscale serve`, or Caddy at your own
+   * domain. The tailnet name is a subdomain of a shared `ts.net`, which is exactly where an
+   * accidental http:// would leak a cookie. Over plain HTTP on your own network, browsers ignore
+   * this header entirely, so it costs that path nothing.
    *
    * Not `preload`: that is a public list with a slow exit, and a vault's hostname has no business
    * on one.
